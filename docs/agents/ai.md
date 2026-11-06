@@ -28,7 +28,7 @@ agent-bus call '#ai@node.example' 'decide {"model":"typesafe/jev-1.14","state":"
 
 - **What:** `embed` sends texts to the provider's `/embeddings` and answers `{"model":...,"vectors":[[...],...]}`, one vector per text, in order.
 - **Model:** set `embed_model` in Configuration, or put `"model"` in a JSON request.
-- **Size:** one answer holds at most 1 MiB, so a large batch is refused as `N items × D dims > max M`. Split it and send again.
+- **Size:** one answer, with its reply envelope, holds at most 1 MiB, so a large batch is refused as `N items × D dims > max M`. Split it and send again.
 - **Cost:** the agent learns a model's vector size from its first answer. So the first over-limit request to a new model costs one provider call; later ones are refused before any call.
 
 ```sh
@@ -156,7 +156,8 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 - `models` reads `GET /models`, `model <id>` reads `GET /models/<id>/endpoints`, `balance` reads `GET /credits`, `key` reads `GET /key`, and `embed` posts to `/embeddings`, each under the configured `base_url`.
 - `model <id>` lists every endpoint with its own context length and prices; they are never merged.
 - `key` answers only the limit fields; the provider's key label is dropped, since it repeats part of the key.
-- `embed` allows at most floor((1048576 − O) / (25·D + 2)) texts for a D-dimension model. O is the empty answer's size, and each number takes at most 24 characters plus a comma. Known vector sizes are kept in the agent's work directory.
+- `embed` allows at most floor((1048576 − O) / (25·D + 2)) texts for a D-dimension model. 1048576 bytes is the most the daemon reads of the answer envelope the runner sends back. O is that envelope around an empty answer: the reply route, its topic and tag, and the body's escaping. Each number takes at most 24 characters plus a comma. A batch over the cap gets only the refusal, never a cut answer. Known vector sizes are kept in the agent's work directory, at most 256 models.
+- `model <id>` takes `author/slug` or `author/slug:variant`; an empty, `.` or `..` part is refused before any call.
 
 </details>
 

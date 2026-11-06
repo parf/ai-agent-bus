@@ -82,9 +82,9 @@ class Proxy(unittest.TestCase):
         self.addCleanup(self.server.shutdown)
         self.config = {'model': 'fixture/default', 'base_url': self.server.url}
 
-    def call(self, body, deadline=None, roles=(), work=None):
+    def call(self, body, deadline=None, roles=(), work=None, **route):
         log = io.StringIO()
-        envelope = {'from': '#fixture@h', 'body': body}
+        envelope = {'from': '#fixture@h', 'body': body, **route}
         if deadline:
             envelope['deadline'] = deadline
         with contextlib.redirect_stderr(log):
@@ -367,9 +367,11 @@ class Proxy(unittest.TestCase):
     def test_roles_come_from_the_delivered_environment_only(self):
         self.route('/credits', self.CREDITS)
         cases = [({'AB_ROLE_MAINTAINER': '1'}, True), ({'AB_ROLE_OWNER': '1'}, True), ({'AB_ROLE_OWNER': '0'}, False),
-                 ({'AB_ROLE_ADMIN': '1'}, False), ({}, False)]
+                 ({'AB_ROLE_ADMIN': '1'}, False), ({'AB_ROLE_Owner': '1', 'AB_ROLE_maintainer': '1'}, False), ({}, False)]
+        # Roles a sender writes into the message are never read: only the delivered environment counts.
+        forged = {'body': 'balance', 'roles': ['owner', 'maintainer'], 'from': 'owner@h'}
         for roles, served in cases:
-            result = subprocess.run([str(HERE / 'ai.py')], input=json.dumps({'body': 'balance'}), text=True, capture_output=True, timeout=5,
+            result = subprocess.run([str(HERE / 'ai.py')], input=json.dumps(forged), text=True, capture_output=True, timeout=5,
                                     env={'PATH': os.environ['PATH'], 'OPENROUTER_API_KEY': KEY, 'AGENT_BUS_CONFIG': json.dumps(self.config), **roles})
             self.assertEqual(result.stdout.strip(), '12.3456 USD left (20 USD bought, 7.6544 USD used)' if served
                              else 'error: balance needs the owner or maintainer role', roles)
@@ -414,20 +416,46 @@ class Proxy(unittest.TestCase):
             self.assertTrue(self.call(body)[0].startswith('error:'), body)
         self.assertEqual(len(self.server.requests), before)
 
-    def test_embed_cap_is_exact_at_the_widest_float_and_remembers_dims(self):
+    def send_request(self, envelope, body):
+        # What answerAs posts to /send, spelled as Go's encoding/json writes protocol.Envelope (checked against
+        # json.Marshal on 2026-11-05: 273 bytes for the probe below), independent of ai.py's own size helper.
+        back = envelope.get('reply_to') or {'name': envelope['from'], 'topic': envelope.get('topic'), 'tag': envelope.get('tag')}
+        fields = [('message_id', ''), ('from', ''), ('to', back['name'])] + [(k, back[k]) for k in ('topic', 'tag') if back.get(k)]
+        fields += [('body', body), ('at', '0001-01-01T00:00:00Z'), ('expires', '0001-01-01T00:00:00Z'), ('deadline', '0001-01-01T00:00:00Z')]
+        text = json.dumps(dict(fields), separators=(',', ':'), ensure_ascii=False)
+        for raw, go in (('<', '\\u003c'), ('>', '\\u003e'), ('&', '\\u0026'), ('\u2028', '\\u2028'), ('\u2029', '\\u2029')):
+            text = text.replace(raw, go)
+        return len(text.encode())
+
+    def test_reply_size_matches_the_go_envelope_probe(self):
+        envelope = {'from': '#caller@h', 'topic': 't<o>&p\u2028\u00e9', 'tag': 'tag'}
+        body = '{"model":"fixture/embed","vectors":[[-1.7976931348623157e+308,1]]}'
+        self.assertEqual(proxy.reply_size(envelope, body), 273)
+        self.assertEqual(self.send_request(envelope, body), 273)
+
+    def test_embed_cap_is_exact_in_the_reply_envelope_and_remembers_dims(self):
         self.config['embed_model'] = 'fixture/embed'
         dims, work = 3, self.work()
-        cap = proxy.max_items('fixture/embed', dims)
-        self.assertEqual(cap, (proxy.ANSWER_LIMIT - len(b'{"model":"fixture/embed","vectors":[]}') - 1) // (dims * 25 + 2))
         texts = lambda n: 'embed ' + json.dumps(['t'] * n)
-        self.route('/embeddings', self.embeddings(cap, dims))
-        answer, code, _ = self.call(texts(cap), work=work)
-        self.assertEqual(code, 0)
-        self.assertEqual(len(json.loads(answer)['vectors']), cap)
-        self.assertLessEqual(len(answer.encode()) + 1, proxy.ANSWER_LIMIT, 'the answer and its newline fit the runner bound')
-        self.assertIn('-1.7976931348623157e+308', answer)
+        # Long, escaping route fields cost envelope bytes; reply_to replaces the sender's own route.
+        for route in [{}, {'topic': '<&>' * 200 + '\u2028\u00e9' * 50, 'tag': '"q"' * 100},
+                      {'reply_to': {'name': '#elsewhere@h', 'topic': 'x' * 900, 'tag': '&' * 300}}]:
+            envelope = {'from': '#fixture@h', **route}
+            cap = proxy.max_items('fixture/embed', dims, envelope)
+            self.route('/embeddings', self.embeddings(cap, dims))
+            answer, code, _ = self.call(texts(cap), work=work, **route)
+            self.assertEqual(code, 0, answer[:200])
+            self.assertEqual(len(json.loads(answer)['vectors']), cap)
+            self.assertIn('-1.7976931348623157e+308', answer)
+            size = self.send_request(envelope, answer)
+            self.assertLessEqual(size, proxy.ANSWER_LIMIT, 'M items fit the reply the runner posts')
+            self.assertGreater(size + dims * 25 + 2, proxy.ANSWER_LIMIT, 'the cap is tight: one more widest item would not fit')
+            self.assertLessEqual(len(answer.encode()) + 1, proxy.ANSWER_LIMIT, 'and the stdout bound')
+            self.route('/embeddings', self.embeddings(cap + 1, dims))
+            self.assertEqual(self.call(texts(cap + 1), work=work, **route)[0], f'error: {cap + 1} items × {dims} dims > max {cap}')
         # A model whose size is not yet known costs one provider call; then its size is kept.
-        other = proxy.max_items('fixture/new', dims)
+        envelope = {'from': '#fixture@h'}
+        other = proxy.max_items('fixture/new', dims, envelope)
         self.config['embed_model'] = 'fixture/new'
         self.route('/embeddings', self.embeddings(other + 1, dims))
         before = len(self.server.requests)
@@ -436,6 +464,37 @@ class Proxy(unittest.TestCase):
         self.assertEqual(self.call(texts(other + 1), work=work)[0], f'error: {other + 1} items × {dims} dims > max {other}')
         self.assertEqual(len(self.server.requests), before + 1, 'a known size is refused before any provider call')
         self.assertEqual(json.loads((Path(work) / proxy.DIMS_FILE).read_text()), {'fixture/embed': dims, 'fixture/new': dims})
+
+    def test_kept_dims_are_bounded_and_written_whole(self):
+        work = self.work()
+        for i in range(proxy.DIMS_KEPT + 5):
+            proxy.remember_dims(work, f'fixture/m{i}', 3)
+        kept = json.loads((Path(work) / proxy.DIMS_FILE).read_text())
+        self.assertEqual(len(kept), proxy.DIMS_KEPT)
+        self.assertNotIn('fixture/m0', kept)
+        self.assertIn(f'fixture/m{proxy.DIMS_KEPT + 4}', kept)
+        self.assertEqual(sorted(p.name for p in Path(work).iterdir()), [proxy.DIMS_FILE])
+
+    def test_model_ids_cannot_steer_the_provider_path(self):
+        for bad in ['../../x', 'a//b', '/a/b', 'a/..', './b', 'a/b/c', 'openai/gpt-4:../x', 'a/b?x', 'a/b#x', 'a/%2e%2e']:
+            for body in ['model ' + bad, json.dumps({'method': 'model', 'id': bad})]:
+                self.assertTrue(self.call(body)[0].startswith('error:'), body)
+        self.assertEqual(self.server.requests, [])
+        self.route('/models/openai/gpt-4:free/endpoints', self.ENDPOINTS)
+        self.assertEqual(json.loads(self.call('model openai/gpt-4:free')[0])['id'], 'openai/gpt-4')
+        self.assertEqual(self.call('model railways')[0], 'Hello from the model')
+
+    def test_deeply_nested_json_is_the_generic_error(self):
+        deep = '{"method":"embed","input":' + '[' * 100000 + ']' * 100000 + '}'
+        try:
+            answer = self.call(deep)[0]
+        except RecursionError:
+            answer = 'RecursionError escaped answer()'
+        self.assertEqual(answer, 'error: invalid request, Configuration or provider response')
+        result = subprocess.run([str(HERE / 'ai.py')], input=json.dumps({'body': 'x'})[:-1] + ',"n":' + '[' * 100000 + ']' * 100000 + '}',
+                                text=True, capture_output=True, timeout=5, env={'PATH': os.environ['PATH'], 'OPENROUTER_API_KEY': KEY})
+        self.assertEqual((result.returncode, result.stdout.strip()), (0, 'error: invalid message or Configuration'), result.stderr[-300:])
+        self.assertEqual(self.server.requests, [])
 
     def test_key_never_appears_in_any_new_method_answer_or_error(self):
         self.config['embed_model'] = 'fixture/embed'

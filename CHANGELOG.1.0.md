@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.2 — 2026-11-05
+
+#ai adds models, model, balance and key (Owner/Maintainers), embed with a derived batch cap, and per-call tokens and cost on ask
+
 ## 1.0.1 — 2026-11-05
 
 Clarify whole-route overrides for all sidecar pushes

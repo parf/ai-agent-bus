@@ -17,8 +17,9 @@ HTTP(S) uses the configured root plus `/chat/completions`, `/models`,
 `/models/<id>/endpoints`, `/credits`, `/key` or `/embeddings`, no redirects and
 no automatic retries. A 404 answers `provider has no <method>`. `balance` and
 `key` need `AB_ROLE_OWNER` or `AB_ROLE_MAINTAINER` before any call; `key`
-answers only its limit fields. `embed` keeps each model's vector size in
-`$AGENT_BUS_WORK/embed-dims.json`. Request and response bodies are bounded at 1 MiB.
+answers only its limit fields. `embed` keeps each model's vector size, at most 256 models, in
+`$AGENT_BUS_WORK/embed-dims.json`, and sizes its cap from the `/send` envelope
+the runner posts (`answerAs`), which the daemon reads up to 1 MiB. Request and response bodies are bounded at 1 MiB.
 A whole-request alarm expires 100 ms before the delivered deadline, capped
 at 60 seconds when the caller supplies no longer deadline; the runner also
 enforces its process deadline. Provider and validation failures are normal `error:` answers.

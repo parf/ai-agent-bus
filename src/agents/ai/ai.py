@@ -6,6 +6,7 @@ import os
 import re
 import signal
 import sys
+import tempfile
 import urllib.parse
 
 from pathlib import Path
@@ -16,7 +17,8 @@ from metadata import dispatch
 from provider_http import MAX_BYTES, ProxyError, redact, scrub, provider_error, arm_deadline, connect, post
 
 MODEL_ID = r"[A-Za-z0-9._/~:@+-]{1,128}"
-# The runner cuts one answer at maxOutput (src/cmd/agent-bus-runner/serve.go): 1 MiB, stdout's newline included.
+# The runner posts each answer to /send as a JSON envelope (answerAs, src/cmd/agent-bus-runner/serve.go), and the
+# daemon reads at most 1 MiB of it (Server.read, src/internal/api/server.go): the envelope, not the body, is bounded.
 ANSWER_LIMIT = MAX_BYTES
 # Python's widest float spelling, -1.7976931348623157e+308, is 24 characters; a comma follows each.
 FLOAT_WIDTH = 24
@@ -25,6 +27,7 @@ MANAGERS = {"owner", "maintainer"}
 KEY_FIELDS = ("limit", "limit_remaining", "limit_reset", "usage", "is_free_tier", "rate_limit", "free_model_daily_requests")
 DIMS_FILE = "embed-dims.json"
 EMBED_READ = 8 * MAX_BYTES
+DIMS_KEPT = 256
 
 
 def reject_constant(_value):
@@ -32,7 +35,16 @@ def reject_constant(_value):
 
 
 def delivered_roles(environ):
-    return {key[8:].lower() for key, value in environ.items() if key.startswith('AB_ROLE_') and value == '1'}
+    # Only the two exact names the runner sets matter here; any other spelling is no role.
+    return {role for role in MANAGERS if environ.get("AB_ROLE_" + role.upper()) == "1"}
+
+
+def model_path(value):
+    """author/slug[:variant] with no empty, . or .. segment: the only shape that becomes a provider URL path."""
+    name, _, variant = value.partition(":")
+    parts = name.split("/")
+    return (len(parts) == 2 and all(re.fullmatch(r"[A-Za-z0-9._~+@-]+", p) and p not in (".", "..") for p in parts)
+            and (not variant and ":" not in value or re.fullmatch(r"[A-Za-z0-9._-]+", variant) is not None))
 
 
 def method_call(body):
@@ -40,7 +52,10 @@ def method_call(body):
     word = body.strip()
     if word in ("models", "balance", "key"):
         return word, None
-    if body.startswith("model ") and re.fullmatch(MODEL_ID, body[6:].strip()):
+    # One word with a slash is a model lookup; "model railways" stays a prompt.
+    if body.startswith("model ") and re.fullmatch(r"\S*/\S*", body[6:].strip()):
+        if not model_path(body[6:].strip()):
+            raise ProxyError("model takes an author/slug model id")
         return "model", body[6:].strip()
     if body.startswith("embed "):
         text = body[6:]
@@ -57,8 +72,8 @@ def method_call(body):
             raise ProxyError(name + " takes no arguments")
         return name, None
     if name == "model":
-        if set(request) != {"method", "id"} or not isinstance(request["id"], str) or not re.fullmatch(MODEL_ID, request["id"]):
-            raise ProxyError("model takes exactly a model id")
+        if set(request) != {"method", "id"} or not isinstance(request["id"], str) or not model_path(request["id"]):
+            raise ProxyError("model takes exactly an author/slug model id")
         return name, request["id"]
     if name == "embed":
         if not set(request) <= {"method", "input", "model"} or "input" not in request:
@@ -67,9 +82,29 @@ def method_call(body):
     return None
 
 
-def max_items(model, dims):
-    """How many vectors of dims numbers fit in one answer, each number at its widest spelling."""
-    empty = len(json.dumps({"model": model, "vectors": []}, ensure_ascii=False, separators=(",", ":")).encode()) + 1
+def go_json_size(value):
+    """Bytes of value as Go's encoding/json writes it: UTF-8 kept, <, > and & as \\u00XX, U+2028/9 escaped."""
+    text = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    return len(text.encode()) + 5 * sum(text.count(c) for c in "<>&") + 3 * (text.count("\u2028") + text.count("\u2029"))
+
+
+def reply_size(envelope, body):
+    """The runner's /send request carrying body back along the message's route."""
+    back = envelope.get("reply_to") if isinstance(envelope.get("reply_to"), dict) else None
+    to, topic, tag = (back.get("name"), back.get("topic"), back.get("tag")) if back else (envelope.get("from"), envelope.get("topic"), envelope.get("tag"))
+    # protocol.Envelope always writes these five plus its zero times, which omitempty does not drop.
+    zero = "0001-01-01T00:00:00Z"
+    shell = {"message_id": "", "from": "", "to": to or "", "body": body, "at": zero, "expires": zero, "deadline": zero}
+    shell.update({k: v for k, v in (("topic", topic), ("tag", tag)) if v})
+    return go_json_size(shell)
+
+
+def max_items(model, dims, envelope):
+    """How many vectors of dims numbers fit in one answer envelope, each number at its widest spelling.
+
+    O is the envelope around the empty answer, its escaping included; the numbers, commas and brackets
+    a vector adds need no escaping."""
+    empty = reply_size(envelope, json.dumps({"model": model, "vectors": []}, ensure_ascii=False, separators=(",", ":")))
     return (ANSWER_LIMIT - empty) // (dims * (FLOAT_WIDTH + 1) + 2)
 
 
@@ -87,11 +122,13 @@ def remember_dims(work, model, dims):
     value = known_dims(work)
     if value.get(model) == dims:
         return
-    value[model] = dims
-    path = Path(work) / DIMS_FILE
+    value.pop(model, None)
+    # Newest last; the oldest go first once the file holds DIMS_KEPT models.
+    value = dict(list(value.items())[-(DIMS_KEPT - 1):] + [(model, dims)])
     try:
-        path.with_suffix(".tmp").write_text(json.dumps(value))
-        path.with_suffix(".tmp").replace(path)
+        with tempfile.NamedTemporaryFile("w", dir=work, prefix="." + DIMS_FILE + ".", delete=False) as temporary:
+            temporary.write(json.dumps(value))
+        os.replace(temporary.name, Path(work) / DIMS_FILE)
     except OSError:
         pass
 
@@ -168,8 +205,8 @@ def provider_method(name, argument, envelope, config, key, roles, work, base):
         if not isinstance(items, list) or not items or not all(isinstance(t, str) and t for t in items):
             raise ProxyError("embed takes a text or a list of texts")
         dims = known_dims(work).get(model)
-        if isinstance(dims, int) and dims > 0 and len(items) > max_items(model, dims):
-            return f"error: {len(items)} items × {dims} dims > max {max_items(model, dims)}", "refused"
+        if isinstance(dims, int) and dims > 0 and len(items) > max_items(model, dims, envelope):
+            return f"error: {len(items)} items × {dims} dims > max {max_items(model, dims, envelope)}", "refused"
         payload = json.dumps({"model": model, "input": texts}, ensure_ascii=False).encode()
         if len(payload) > MAX_BYTES:
             raise ProxyError("request exceeds 1048576 bytes")
@@ -183,8 +220,8 @@ def provider_method(name, argument, envelope, config, key, roles, work, base):
             raise ProxyError("provider answer has no vectors")
         dims = len(vectors[0])
         remember_dims(work, model, dims)
-        if len(items) > max_items(model, dims):
-            return f"error: {len(items)} items × {dims} dims > max {max_items(model, dims)}", status
+        if len(items) > max_items(model, dims, envelope):
+            return f"error: {len(items)} items × {dims} dims > max {max_items(model, dims, envelope)}", status
         return json.dumps({"model": model, "vectors": vectors}, ensure_ascii=False, separators=(",", ":")), status
     path = {"models": "/models", "balance": "/credits", "key": "/key"}.get(name)
     if name == "model":
@@ -314,7 +351,7 @@ def answer(envelope, config, key, roles=frozenset(), work=None):
         return "error: provider request timed out", 0
     except ProxyError as error:
         return "error: " + redact(str(error), key), 0
-    except (ValueError, TypeError, KeyError, AttributeError):
+    except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
         # Only our own validation messages are emitted; decoder/URL exceptions
         # can contain input. Keep those classes generic.
         return "error: invalid request, Configuration or provider response", 0
@@ -350,7 +387,7 @@ def main():
         envelope = json.loads(raw)
         config = json.loads(os.environ.get("AGENT_BUS_CONFIG", "{}"))
         output, code = answer(envelope, config, key, delivered_roles(os.environ), os.environ.get("AGENT_BUS_WORK"))
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, RecursionError):
         output, code = "error: invalid message or Configuration", 0
     print(output)
     return code
