@@ -192,8 +192,8 @@ Owner, 2026-11-01; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [file
   - Mutants (each must compile and fail on an assertion): send deletes while the guard is held; skip the `dir` symlink and root refusals; write the state in place instead of rename; mark tracked before the reply; drop the cookie pairing; ignore the overflow; drop the lock; ignore `state_max`
 
 
-- ☐ FS.2 FileScan follow-ups not built in FS.1: the single `renamed` change from kernel cookie pairing (today a rename is a delete plus a create); the bigfile opt-in for a file over the inline limit
-  - State: ✅ the RAG form sends the file path as `source`, which RAG 0.3 requires (`d54821d5`), and confirms an upsert only by the stored record that echoes it (`0f5340c3`), both 1.0.48; the bigfile opt-in is built (`sub add … bigfile`, the file's SHA-256 as the bigfile name, `bigfile_ttl`); renames remain
+- ✅ FS.2 FileScan follow-ups not built in FS.1: the single `renamed` change from kernel cookie pairing, the bigfile opt-in for a file over the inline limit, and the RAG form sending the file path as `source`
+  - State: ✅ the RAG form sends the file path as `source`, which RAG 0.3 requires (`d54821d5`), and confirms an upsert only by the stored record that echoes it (`0f5340c3`), both 1.0.48; the bigfile opt-in is built (`sub add … bigfile`, the file's SHA-256 as the bigfile name, `bigfile_ttl`); the single `renamed` change is built (kernel cookie pairing in the watch; a poll-only rename stays a delete plus a create, and `as rag` keeps delete then upsert, Q305)
 
 ## DBSync
 
