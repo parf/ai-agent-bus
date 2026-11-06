@@ -202,7 +202,8 @@ export class Bus {
   }
   private async work(server:Serving,message:Message): Promise<void> {
     try {
-      if (server.options.onReply && (message.re || await server.options.matchesReply?.(message))) {
+      // A late answer to this Bus's own call carries its private prefix: it is never an answer for onReply.
+      if (server.options.onReply && !message.tag?.startsWith(this.prefix) && (message.re || await server.options.matchesReply?.(message))) {
         // Already an answer: no automatic ack or reply.
         await server.options.onReply(message);
       } else if (!message.re && !message.tag?.startsWith(this.prefix)) {

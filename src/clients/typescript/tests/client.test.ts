@@ -245,6 +245,17 @@ test('opt-in onReply receives a real reply without invoking or answering a reque
  expect(requests).toBe(0);expect(await caller.consume({wait:50})).toBeNull();
 });
 
+test('onReply never receives a late answer to this Bus\'s own call',async()=>{
+ const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');const late:string[]=[];let handled=0;const reached=barrier();
+ const servingCaller=await serve(caller,msg=>{if(msg.body==='ordering-barrier')reached.resolve();else handled++;return null;},{onReply:m=>{late.push(m.body);}});
+ const call=caller.call('#worker@fixture','x',{timeout:2000});const msg=await worker.consume({wait:1000});expect(msg).not.toBeNull();if(!msg)throw new Error('call request missing');
+ await worker.reply(msg,'real answer');const result=await call;expect(result.kind).toBe('answer');
+ await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,body:'late',re:msg.message_id});
+ const sent=await caller.send('#worker@fixture','question',{topic:'long',tag:'q1'});const question=(await worker.consume({wait:1000}))!;expect(question.message_id).toBe(sent);await worker.reply(question,'deferred');
+ await worker.send('#caller@fixture','ordering-barrier');await bounded(reached.promise,'inbox ordering barrier');await sleep(50);caller.stop();await servingCaller.promise;
+ expect(late).toEqual(['deferred']);expect(handled).toBe(0);
+});
+
 test('opt-in matchesReply selects a non-re correlation and leaves ordinary requests unchanged',async()=>{
  const worker=bus('#worker@fixture'),caller=bus('#caller@fixture');
  const received=barrier(),handled=barrier();let replies=0,requests=0;
