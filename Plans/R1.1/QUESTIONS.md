@@ -258,3 +258,10 @@ The recommendations below are retained parked proposals.
   - ( ) The owner creates new keys with a spend limit
   - ( ) Leave them; the feature is not in use
   > 💡👾 Reuse …5f45 now (no new spend), add limits later. This is the realty repository, so #ab-ceo only proposes; the owner or the realty team edits it.
+
+- ❓ Q359 Turn on rerank in #rag
+  - Context: RAG 0.4.0 (R.7, deployed 2026-11-06 02:40) can reorder a search's hits best first, but only when `rerank_model` is set and the caller asks `"rerank":true`. Each reranked search is one paid Voyage call (up to 64 candidate excerpts plus the query), on top of the query embedding semantic and hybrid already make. It is off today
+  - ( ) Leave it off until mdhouse is wired and asks for it 🌟
+  - ( ) Set `rerank_model` to `rerank-2.5` (Voyage's main rerank model)
+  - ( ) Set `rerank_model` to `rerank-2.5-lite` (cheaper, faster)
+  > 💡👾 Off for now: nobody searches yet, and callers must opt in per search anyway; turn it on when mdhouse's #rag instance (Q353) exists.
