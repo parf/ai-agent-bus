@@ -210,6 +210,22 @@ class PollTests(Base):
         self.assertEqual(sorted(self.keys(),key=int),['1','1','2','2','3','3'])
 
 
+    def test_a_subscriber_that_asks_for_later_changes_only_starts_at_the_newest_row(self):
+        for k in range(1,4):self.db.put(k,f'2026-11-05 10:00:0{k}')
+        reply=json.loads(self.agent.handle(msg(f'sub add {QUEUE} replay:false')))
+        self.assertEqual(self.agent.status()['subscribers'][0]['position'],['2026-11-05 10:00:03','3'],reply)
+        self.agent.poll()
+        self.assertEqual(self.bus.sent,[])
+        self.db.put(4,'2026-11-05 10:00:04');self.db.put(2,'2026-11-05 10:00:05','x');self.agent.poll()
+        self.assertEqual(sorted(self.keys(),key=int),['2','4'])
+
+    def test_later_changes_only_on_an_empty_table_sends_every_row_that_comes(self):
+        self.agent.handle(msg(json.dumps({'method':'sub.add','target':QUEUE,'replay':False})))
+        self.db.put(1,'2026-11-05 10:00:01');self.agent.poll()
+        self.assertEqual(self.keys(),['1'])
+        reply=json.loads(self.agent.handle(msg(json.dumps({'method':'sub.add','target':QUEUE,'replay':'no'}))))
+        self.assertEqual(reply.get('error',{}).get('code'),'invalid_request',reply)
+
 
 class SoftDeleteTests(Base):
     config=dict(Base.config,deleted='note',deleted_value='del')

@@ -76,8 +76,9 @@ def parse(body):
         except (ValueError,RecursionError):raise ValueError('invalid_request') from None
         if not isinstance(call,dict) or not isinstance(call.get('method'),str):raise ValueError('invalid_request')
         method=call.pop('method')
-        allowed={'help':set(),'status':set(),'poll':set(),'reset':{'confirm'},'sub.add':{'target'},'sub.list':set(),'sub.delete':{'id'}}
+        allowed={'help':set(),'status':set(),'poll':set(),'reset':{'confirm'},'sub.add':{'target','replay'},'sub.list':set(),'sub.delete':{'id'}}
         if method not in allowed or set(call)-allowed[method]:raise ValueError('invalid_request')
+        if 'replay' in call and type(call['replay']) is not bool:raise ValueError('invalid_request')
         return method,call
     words=text.split()
     if not words:raise ValueError('invalid_request')
@@ -88,6 +89,7 @@ def parse(body):
         if words[1:]==['list']:return 'sub.list',{}
         if words[1]=='delete' and len(words)==3:return 'sub.delete',{'id':words[2]}
         if words[1]=='add' and len(words)==3:return 'sub.add',{'target':words[2]}
+        if words[1]=='add' and len(words)==4 and words[3]=='replay:false':return 'sub.add',{'target':words[2],'replay':False}
     raise ValueError('invalid_request')
 
 
@@ -417,6 +419,22 @@ class DBSync:
         except Exception:
             self.warning('internal_error');return error('internal_error')
 
+    def _add_from_newest(self,message,target):
+        """A subscriber that wants only later changes starts at the newest row, with no poll in between to replay to it."""
+        if not self.polling.acquire(timeout=POLL_MAX+DB_WAIT):raise SubscriptionError('busy')
+        try:
+            rows=self.query(self.sql.newest())['rows']
+            pair=None
+            if rows:
+                key,u=statements.text_of(rows[0][0]),statements.text_of(rows[0][1])
+                statements.literal(self.sql.kinds['key'],key);statements.literal(self.sql.kinds['updated'],u);pair=[u,key]
+            row=self.subs.add(message,target,{},replay=False)
+            with self.state.hold(core.HOLD_WAIT):
+                data=self.state.load()
+                if row['id'] in data['subs']:data['meta'].setdefault('pos',{})[row['id']]=pair;self.state.save(data)
+            return row
+        finally:self.polling.release()
+
     def _handle(self,message):
         envelope=message.envelope;roles={r for r in envelope.get('roles',()) if isinstance(r,str)}
         original=envelope.get('original_to')
@@ -439,7 +457,8 @@ class DBSync:
             code=base.checked_admission(self.bus,who,self.settings['db'],{})
             if code:raise SubscriptionError(code)
             self.check_types()
-            return dumps(self.subs.add(message,args.get('target'),{}))
+            if args.get('replay',True):return dumps(self.subs.add(message,args.get('target'),{}))
+            return dumps(self._add_from_newest(message,args.get('target')))
         if method=='sub.list':return dumps({'subscriptions':self.subs.list(message)})
         if method=='sub.delete':return dumps({'deleted':self.subs.delete(message,args.get('id'))})
         raise ValueError('invalid_request')

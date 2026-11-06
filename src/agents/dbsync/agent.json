@@ -61,17 +61,23 @@
       "returns": "{reset}"
     },
     "sub.add": {
-      "help": "Send each new or changed row to a queue or an agent's inbox, and send it again until the target confirms it. Every row is sent first. You must be able to call the DB agent yourself.",
+      "help": "Send each new or changed row to a queue or an agent's inbox, and send it again until the target confirms it. Every row is sent first unless replay:false, which starts at the newest row. You must be able to call the DB agent yourself.",
       "role": [
         "read",
         "write"
       ],
-      "text": "sub add <target>",
+      "text": "sub add <target> [replay:false]",
       "args": [
         {
           "name": "target",
           "type": "string",
           "help": "Destination queue or agent; the creator's grants on it and on the DB agent are checked at add and before every send"
+        },
+        {
+          "name": "replay",
+          "type": "bool",
+          "help": "false: send only rows changed after the newest one now",
+          "optional": true
         }
       ],
       "returns": "{id,target,selector,created_by,created_at,sent,confirmed,dropped}"

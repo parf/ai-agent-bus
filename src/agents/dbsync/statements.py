@@ -1,4 +1,4 @@
-"""The only SQL DBSync sends: three SELECT shapes built from checked names and checked cursor values.
+"""The only SQL DBSync sends: four SELECT shapes built from checked names and checked cursor values.
 
 There are no bind parameters in a `#db` call, so nothing reaches the text unless it is a plain identifier (quoted
 for its dialect) or a cursor value that is a number or a timestamp in a strict form. A value is never escaped to
@@ -102,6 +102,11 @@ class Builder:
             where+=f' AND ({u} > {au} OR ({u} = {au} AND {k} > {ak}))'
         cols=', '.join(self._q(c) for c in self.selected())
         return f'SELECT {cols} FROM {self._from()} WHERE {where} ORDER BY {u}, {k} LIMIT {limit}'
+
+    def newest(self):
+        """The highest (updated, key) pair, where a subscriber that wants only later changes starts."""
+        u,k=self._q(self.updated),self._q(self.key)
+        return f'SELECT {k}, {u} FROM {self._from()} WHERE {u} IS NOT NULL ORDER BY {u} DESC, {k} DESC LIMIT 1'
 
     def row(self,key):
         """The one row with this key, for a body that is no longer in memory."""
