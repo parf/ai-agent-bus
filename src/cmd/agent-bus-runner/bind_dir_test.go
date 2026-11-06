@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/parf/ai-agent-bus/internal/protocol"
 	"net"
 	"os"
 	"path/filepath"
@@ -360,5 +361,60 @@ func TestACheckedPathSwappedForALinkIsRefusedAtTheNextLaunch(t *testing.T) {
 	}
 	if _, reads, why := r.bindDir(dirAgent(), []string{root}, env); why == "" || reads != nil || !strings.Contains(why, "outside this node's watch roots") {
 		t.Fatalf("after the swap: %v %q", reads, why)
+	}
+}
+
+func TestAPerMessageLaunchBindsTheCheckedDirAndRefusesAChangedOne(t *testing.T) {
+	r, b, _ := configurationFixture(t, "", `printf '%s' "${AGENT_BUS_DIR-unset}"`)
+	s := r.served["#fixture@h"]
+	vault := realTemp(t)
+	s.in.Agent.Needs = &agentmeta.Needs{Dir: true}
+	s.in.Host.Roots = []string{filepath.Dir(vault)}
+	ask := func() string {
+		t.Helper()
+		r.runOne(s, protocol.Envelope{ID: "dir", From: "owner@h", To: s.name, Body: "go"})
+		return configurationReply(t, b).Body
+	}
+	if _, err := b.Configure("#fixture@h", "owner@h", []byte(`{"dir":"`+vault+`"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if got := ask(); got != vault {
+		t.Fatalf("script saw AGENT_BUS_DIR %q, want %q", got, vault)
+	}
+	if _, err := b.Configure("#fixture@h", "owner@h", []byte(`{"dir":"/"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if got := ask(); !strings.HasPrefix(got, "error: needs.dir: ") {
+		t.Fatalf("a changed dir was not refused at launch: %q", got)
+	}
+}
+
+func TestAKeptLaunchChecksTheDirOnTheConfigurationItJustRead(t *testing.T) {
+	r, b, _ := configurationFixture(t, "itself", `while :; do sleep .02; done`)
+	s := r.served["#fixture@h"]
+	vault := realTemp(t)
+	s.in.Agent.Needs = &agentmeta.Needs{Dir: true}
+	s.in.Host.Roots = []string{filepath.Dir(vault)}
+	for _, tc := range []struct {
+		dir, want string
+	}{{vault, ""}, {"/", "needs.dir"}, {"relative", "needs.dir"}, {filepath.Join(vault, "missing"), "needs.dir"}} {
+		if _, err := b.Configure("#fixture@h", "owner@h", []byte(`{"dir":"`+tc.dir+`"}`)); err != nil {
+			t.Fatal(err)
+		}
+		cmd, _, err := s.kept.command()
+		switch {
+		case tc.want == "" && (err != nil || !slices.Contains(cmd.Env, "AGENT_BUS_DIR="+vault)):
+			t.Fatalf("dir %q: err %v, env %v", tc.dir, err, cmd)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Fatalf("dir %q: err %v, want %q", tc.dir, err, tc.want)
+		}
+	}
+}
+
+func TestAPooledLaunchRefusesAnUnconfiguredDir(t *testing.T) {
+	st, _ := streamFixture(t, `cat`, 1)
+	st.s.in.Agent.Needs = &agentmeta.Needs{Dir: true}
+	if _, err := st.start(); err == nil || !strings.Contains(err.Error(), "needs.dir") {
+		t.Fatalf("start with no dir: %v", err)
 	}
 }
