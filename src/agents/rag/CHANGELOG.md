@@ -5,6 +5,7 @@
 Retrieve namespaced evidence with keyword, dense semantic or Qdrant RRF hybrid search.
 Require source provenance and immutable namespace model bindings; refuse legacy data.
 Add free static capabilities and manager-only namespace inventory and confirmed, resumable drop.
+Refuse an embedding answer that names another model than configured (`model_mismatch`), for documents and queries alike; an answer naming no model is accepted.
 
 ## 0.2.0
 

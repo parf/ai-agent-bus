@@ -172,7 +172,7 @@ agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 | The outcome is **unknown** | Inspect the affected record and follow that operation's recovery instructions; a repeated upsert can spend provider balance again or replace newer content |
 | `incomplete: repeat the same delete to continue` | Repeat the delete |
 | A stale-cursor error | Start that listing again without a cursor |
-| `model_mismatch` or `legacy_data` | Inspect the namespace binding and [storage requirements](#namespace-state-and-removal); never infer a model from old records |
+| `model_mismatch` or `legacy_data` | Inspect the namespace binding and [storage requirements](#namespace-state-and-removal); never infer a model from old records. `model_mismatch` is also raised when the embedding provider answers with a different model than configured: nothing is stored or searched, so fix the provider or the setting and repeat. An answer that names no model is accepted |
 | `busy` after a namespace drop | Explicitly confirm continuation of that drop |
 | `not_found` | The id is absent from the selected namespace |
 | `search` says `keyword index not built yet` | Run `keyword_index` ([Installing it](#installing-it)) |

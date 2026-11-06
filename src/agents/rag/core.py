@@ -143,6 +143,8 @@ class Core:
             for batch in batches:
                 answer=self.backend.embed(batch)
                 try:
+                    # A provider answer that names a model must name the configured one. One that names none is tolerated: the
+                    # provider does not always echo it, and the collection's own model binding already pins what the vectors mean.
                     if 'model' in answer and answer['model']!=self.cfg['embedding_model']:
                         raise NamedRefusal('model_mismatch','provider answered with another model')
                     rows=answer['data']
@@ -316,6 +318,7 @@ class Core:
         try:
             rows=answer['data']
             if not isinstance(rows,list) or len(rows)!=1 or type(rows[0].get('index')) is not int or rows[0]['index']!=0:raise RagError('invalid query embedding response')
+            # Same rule as for documents: a named model must be the configured one, and an answer naming none is tolerated.
             if 'model' in answer and answer['model']!=cfg['embedding_model']:raise NamedRefusal('model_mismatch','provider answered with another model')
             return vector(rows[0]['embedding'],cfg['dimensions'])
         except (KeyError,TypeError,AttributeError):raise RagError('invalid query embedding response') from None
