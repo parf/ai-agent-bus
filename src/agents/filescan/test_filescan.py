@@ -1,5 +1,6 @@
 """FileScan end to end against a fake bus: scan, subscribe, deliver, confirm, answer calls."""
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -13,9 +14,12 @@ import unittest
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE));sys.path.insert(0,str(HERE.parent/'shared'));sys.path.insert(0,str(HERE.parents[1]/'clients/python'))
 import filescan as fs
+import settings as cfg
 import change_sync as core
 import test_change_sync as fake
 from agent_bus.message import CallReply
+from agent_bus.errors import Refusal
+from agent_bus import storage as bus_storage
 sys.path.insert(0,str(HERE.parent/'rag'))
 import rag as rag_agent
 import test_rag
@@ -266,6 +270,93 @@ class RagBus(Bus):
         with contextlib.redirect_stderr(io.StringIO()):
             answer=self.rag.handle(SimpleNamespace(ask=None,body=body,envelope={'from':NAME,'roles':['write']},roles=('write',)))
         return CallReply(SimpleNamespace(body=answer))
+
+
+class BigBus(Bus):
+    """Own-record bigfiles through the REAL client (agent_bus.storage.Record), over a daemon stand-in that answers the documented
+    shape `{record,name,size,sha256,held,expires,replaced}`, refuses bytes that do not match X-Bigfile-Sha256, and keeps what it stores."""
+    def __init__(self):
+        super().__init__();self.files={};self.puts=[];self.put_refused=None
+    def record(self,name):
+        if name==self.name:return bus_storage.Record(self,name)
+        return super().record(name)
+    def _request(self,method,path,query=None,headers=None,upload=None,total=None,**more):
+        assert (method,path)==('PUT','/bigfile'),(method,path)
+        if self.put_refused:
+            for _ in upload:pass
+            raise Refusal(*self.put_refused)
+        data=b''.join(upload)
+        if headers.get('X-Bigfile-Sha256') not in (None,hashlib.sha256(data).hexdigest()):raise Refusal(400,'malformed: hash does not match')
+        key=(query['record'],query['name']);replaced=key in self.files;self.files[key]=data;self.puts.append(dict(query))
+        return {'record':query['record'],'name':query['name'],'size':len(data),'sha256':hashlib.sha256(data).hexdigest(),'held':'file',
+                'expires':'2026-11-06T09:00:00Z','replaced':replaced}
+
+
+class BigfileTests(Base):
+    BIG='x'*40
+
+    def setUp(self):
+        super().setUp();self.bus=BigBus();self.agent=self.make({'max_file_size':'10B'})
+
+    def messages(self,to=None):return [json.loads(b) for t,b,_ in self.bus.sent if to in (None,t)]
+
+    def test_a_subscriber_that_opted_in_gets_a_bigfile_for_a_file_over_the_inline_limit(self):
+        self.put('big.txt',self.BIG);self.put('small.txt','tiny');self.bus.kinds['#plain@n.test']='queue'
+        self.add('#q@n.test',extra='bigfile');self.add('#plain@n.test');self.call('scan')
+        by={m['path']:m for m in self.messages('#q@n.test')};plain={m['path']:m for m in self.messages('#plain@n.test')}
+        digest=hashlib.sha256(self.BIG.encode()).hexdigest();found=by['big.txt']['bigfile']
+        self.assertEqual({k:found[k] for k in ('record','name','size','sha256')},{'record':NAME,'name':digest,'size':40,'sha256':digest})
+        self.assertEqual(found['expires'],'2026-11-06T09:00:00Z');self.assertNotIn('contents',by['big.txt']);self.assertNotIn('text',by['big.txt'])
+        self.assertEqual(self.bus.files,{(NAME,digest):self.BIG.encode()},'the bytes are stored under the hash, once')
+        self.assertEqual(by['small.txt']['text'],'tiny');self.assertNotIn('bigfile',by['small.txt'])
+        self.assertEqual(plain['big.txt']['contents'],'omitted: over max_file_size or not text');self.assertNotIn('bigfile',plain['big.txt'])
+        self.assertEqual(len(self.bus.puts),1)
+
+    def test_a_binary_file_under_the_limit_is_a_bigfile_too_and_the_ttl_is_the_setting(self):
+        (Path(self.root)/'img.bin').write_bytes(b'\xff\xfe\x00\x01');self.add(extra='bigfile');self.call('scan')
+        self.assertEqual(self.messages()[0]['bigfile']['size'],4);self.assertEqual(self.bus.puts[0]['ttl'],3600,'the default is one hour')
+        self.agent=self.make({'max_file_size':'10B','bigfile_ttl':'30m'});(Path(self.root)/'img2.bin').write_bytes(b'\xfe\xfd');self.call('scan')
+        self.assertEqual(self.bus.puts[-1]['ttl'],1800)
+
+    def test_a_file_over_the_bus_limit_is_named_omitted_and_never_uploaded(self):
+        self.put('huge.txt','y'*100);self.add(extra='bigfile')
+        old=fs.BIGFILE_MAX;fs.BIGFILE_MAX=64
+        try:self.call('scan')
+        finally:fs.BIGFILE_MAX=old
+        (m,)=self.messages();self.assertIn('MiB bigfile limit',m['contents']);self.assertNotIn('bigfile',m);self.assertEqual(self.bus.puts,[])
+
+    def test_a_refused_upload_holds_the_change_and_it_is_sent_once_when_the_store_recovers(self):
+        self.put('big.txt',self.BIG);self.add(extra='bigfile');self.bus.put_refused=(503,'unavailable')
+        self.call('scan');self.assertEqual(self.messages(),[]);self.assertIn('body_failed',self.warnings)
+        self.assertEqual(self.call('status')['subscribers'][0]['pending'],1)
+        self.bus.put_refused=None;self.call('scan');self.call('scan')
+        self.assertEqual([m['path'] for m in self.messages()],['big.txt'],'exactly one message, after recovery')
+
+    def test_a_file_that_changed_under_the_upload_is_refused_by_the_hash_and_tried_again(self):
+        self.put('big.txt',self.BIG);self.add(extra='bigfile');real=fs.scanning.digest;calls=[]
+        def stale(root,rel,keep=0):
+            sha,size,text=real(root,rel,keep);calls.append(1)
+            return ('0'*64,size,text) if len(calls)==2 else (sha,size,text)   # call 1 is the poll's hash, call 2 the body's
+        fs.scanning.digest=stale
+        try:
+            self.call('scan');self.assertEqual(self.messages(),[],'the hash the store checks did not match the bytes')
+            self.call('scan')
+        finally:fs.scanning.digest=real
+        (m,)=self.messages();self.assertEqual(m['bigfile']['sha256'],hashlib.sha256(self.BIG.encode()).hexdigest())
+
+    def test_bigfile_is_a_queue_option_and_cannot_join_as_rag(self):
+        self.assertEqual(fs.parse('sub add #q@n /\\.bin$/ bigfile replay:false'),('sub.add',{'target':'#q@n','pattern':'/\\.bin$/','bigfile':True,'replay':False}))
+        self.assertEqual(self.call('sub add #q@n.test bigfile as rag vault notes')['error']['code'],'invalid_selector')
+        self.assertEqual(self.call('{"method":"sub.add","target":"#q@n.test","bigfile":"yes"}')['error']['code'],'invalid_selector')
+        self.assertEqual(self.call('{"method":"sub.add","target":"#q@n.test","bigfile":false}')['error']['code'],'invalid_selector')
+        self.assertNotIn('error',self.call('sub add #q@n.test bigfile'));self.assertEqual(self.call('sub list')['subscriptions'][0]['selector'],{'bigfile':True})
+
+    def test_a_delete_carries_no_bigfile_and_the_setting_is_checked(self):
+        self.put('big.txt',self.BIG)
+        for i in range(10):self.put(f'k{i}.txt','k')
+        self.add(extra='bigfile');self.call('scan');self.bus.sent.clear();os.unlink(Path(self.root)/'big.txt')
+        self.call('scan');self.assertEqual([k for k in self.messages() if k['change']=='deleted'],[{'change':'deleted','path':'big.txt','warning':fs.WARNING}])
+        with self.assertRaises(cfg.SettingsError):cfg.parse({'bigfile_ttl':'0s'})
 
 
 class RagTests(Base):

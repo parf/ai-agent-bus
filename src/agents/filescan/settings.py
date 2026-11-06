@@ -3,7 +3,7 @@ import math
 import re
 
 KEYS={'dir','include','exclude','mode','every','settle','namespace','table','batch','max_file_size',
-      'max_per_scan','baseline','delete_pct','delete_max','state_max'}
+      'max_per_scan','baseline','delete_pct','delete_max','state_max','bigfile_ttl'}
 DURATION=re.compile(r'(\d+)(s|m|h)\Z')
 SIZE=re.compile(r'(\d+)(B|KiB|MiB|GiB)?\Z')
 UNIT={'B':1,'KiB':1024,'MiB':1024**2,'GiB':1024**3}
@@ -64,6 +64,7 @@ def parse(config):
         'namespace':config.get('namespace'),'table':config.get('table'),
         'batch':count('batch',config.get('batch',20),1,500),
         'max_file_size':size('max_file_size',config.get('max_file_size','32KiB'),0,64*1024*1024),
+        'bigfile_ttl':duration('bigfile_ttl',config.get('bigfile_ttl','1h'),1),
         'max_per_scan':count('max_per_scan',config.get('max_per_scan',200),1,100000),
         'baseline':config.get('baseline',False),
         'delete_pct':count('delete_pct',config.get('delete_pct',20),1,100),

@@ -80,7 +80,7 @@ def parse(body):
 
 
 def sub_args(text,words):
-    """sub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false]"""
+    """sub add <target> [/regex/] [bigfile | as rag [<namespace> [<table>]]] [replay:false]"""
     args={'target':words[2]};rest=text.split(None,3)[3] if len(words)>3 else ''
     if rest.startswith('/'):
         m=re.match(r'(/(?:\\.|[^/\\])*/[a-z]*)(?:\s+(.*))?\Z',rest,re.S)
@@ -90,6 +90,7 @@ def sub_args(text,words):
     while tokens:
         t=tokens.pop(0)
         if t=='replay:false':args['replay']=False
+        elif t=='bigfile' and 'rag' not in args:args['bigfile']=True
         elif t=='as' and tokens[:1]==['rag']:
             tokens.pop(0);args['rag']=True
             for key in ('namespace','table'):
@@ -99,7 +100,8 @@ def sub_args(text,words):
 
 
 def selector(value):
-    if not isinstance(value,dict) or set(value)-{'pattern','rag','namespace','table'}:raise ValueError()
+    if not isinstance(value,dict) or set(value)-{'pattern','rag','namespace','table','bigfile'}:raise ValueError()
+    if 'bigfile' in value and (value['bigfile'] is not True or value.get('rag')):raise ValueError()   # RAG takes text, never a reference
     if 'pattern' in value:
         if not isinstance(value['pattern'],str):raise ValueError()
         try:filters.compile_filter(value['pattern'])
@@ -108,6 +110,7 @@ def selector(value):
 
 
 RAG_TEXT=32*1024
+BIGFILE_MAX=32<<20   # the bus's own limit for one bigfile
 UPSERT_ECHO=('namespace','tableName','id','source','content_hash')   # what a RAG upsert's answer must repeat from the call
 RAG_SOURCE=2048   # RAG's own limit on `source`, in UTF-8 bytes
 
@@ -311,8 +314,20 @@ class FileScan:
             except OSError:sha,size,text=record['fp'],record['size'],None
             message.update(size=size,mtime_ns=record.get('mtime_ns'),sha256=sha)
             if text is not None:message['text']=text
+            elif row['selector'].get('bigfile'):message.update(self._bigfile(key,sha,size))
             else:message['contents']='omitted: over max_file_size or not text'
         return dumps(message)
+
+    def _bigfile(self,key,sha,size):
+        """The contents of a file too big or not text, as a bigfile on this agent's own record named by the hash, for a subscriber
+        that opted in. The upload is checked against the hash, so a file that changed under it is refused and tried again next
+        round (the body raises), and a file past the 32 MiB bigfile limit is named as omitted, never cut."""
+        if size>BIGFILE_MAX:return {'contents':f'omitted: over the {BIGFILE_MAX>>20} MiB bigfile limit'}
+        with os.fdopen(scanning.open_under(self.root,key),'rb') as reader:
+            result=self.bus.record(self.bus.name).bigfile.put(sha,reader,size=size,ttl=int(self.settings['bigfile_ttl']),sha256=sha)
+        found={'record':self.bus.name,'name':sha,'size':size,'sha256':sha}
+        if isinstance(result,dict) and 'expires' in result:found['expires']=result['expires']
+        return {'bigfile':found}
 
     def tick(self,paths=None):
         """The timer's and the watch's work: walk (all, or just `paths`), then deliver. An overlap is skipped quietly."""
@@ -384,7 +399,7 @@ class FileScan:
             summary=self.scan(confirm=bool(args.get('confirm')));self._round()
             return dumps(summary)
         if method=='sub.add':
-            value={k:args[k] for k in ('rag','namespace','table') if k in args}
+            value={k:args[k] for k in ('rag','namespace','table','bigfile') if k in args}
             if 'pattern' in args:value['pattern']=args['pattern']
             replay=args.get('replay',not self.settings['baseline'])
             if not isinstance(replay,bool):raise ValueError('invalid_request')
