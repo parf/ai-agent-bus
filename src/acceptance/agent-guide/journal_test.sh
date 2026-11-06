@@ -3,6 +3,7 @@
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 source "$here/lib.sh"
+GUIDE_JOURNAL=1
 GUIDE_SCOPE=guide-fixture.scope
 RUNNER_SCOPE=runner-fixture.scope
 JOURNAL_START=fixture-start
@@ -47,4 +48,13 @@ if require_guide_scope "bogus-exported-guide.scope" >/dev/null 2>&1; then
 else
   echo 'ok   a bogus inherited scope is refused'
 fi
+# Explicit manager detection accepts degraded managers, not an unavailable bus.
+systemctl() { printf '%s\n' "$manager_state"; return "$manager_rc"; }
+manager_state=offline manager_rc=1
+if guide_user_manager; then echo 'FAIL an absent manager was detected as present'; failures=$((failures+1)); else echo 'ok   an absent user manager is detected'; fi
+manager_state=degraded manager_rc=1
+if guide_user_manager; then echo 'ok   a degraded user manager is still present'; else echo 'FAIL a degraded manager was skipped'; failures=$((failures+1)); fi
+GUIDE_JOURNAL=0
+out=$(journal_silent attribution)
+if [ "$out" = 'no user systemd manager: journal silence not checked' ]; then echo 'ok   only the journal assertion is skipped with its reason'; else echo 'FAIL no-manager skip lost its reason'; failures=$((failures+1)); fi
 [ "$failures" = 0 ]

@@ -14,15 +14,19 @@ set -uo pipefail
 MODE=${1:-normal}
 case $MODE in fast|normal|slow) ;; *) echo "usage: guide.sh fast|normal|slow" >&2; exit 2 ;; esac
 here=$(cd "$(dirname "$0")" && pwd)
-# Own the whole fixture tree, including short-lived CLI and agent descendants.
-# The runner uses a separately named delegated scope, included by journal_silent.
-if [ -z "${GUIDE_SCOPE:-}" ]; then
-  scope="agent-guide-$$-$RANDOM.scope"
-  exec systemd-run --user --scope --quiet --unit="$scope" \
-    env GUIDE_SCOPE="$scope" bash "$0" "$@"
-fi
 source "$here/lib.sh"
-require_guide_scope "$GUIDE_SCOPE" || exit 1
+# Detect an absent manager before attempting a scope. A manager whose scope
+# cannot start is a failure, never a reason to disable the journal assertion.
+GUIDE_JOURNAL=0
+if guide_user_manager; then
+  GUIDE_JOURNAL=1
+  if [ -z "${GUIDE_SCOPE:-}" ]; then
+    scope="agent-guide-$$-$RANDOM.scope"
+    exec systemd-run --user --scope --quiet --unit="$scope" \
+      env GUIDE_SCOPE="$scope" bash "$0" "$@"
+  fi
+  require_guide_scope "$GUIDE_SCOPE" || exit 1
+fi
 bash "$here/journal_test.sh" || exit 1
 trap 'guide_down' EXIT
 trap 'exit 143' TERM INT

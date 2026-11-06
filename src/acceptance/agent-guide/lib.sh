@@ -16,6 +16,18 @@ lacks() { if grep -Eq -- "$3" <<<"$2"; then bad "$1" "[$2] still has [$3]"; else
 eq()    { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "got [$2], want [$3]"; fi; }
 sec()   { echo "== $1"; }
 
+# A user manager can be degraded (exit 1) and still run scopes. This probes
+# the manager explicitly; a failed systemd-run is never used as detection.
+guide_user_manager() {
+  local state
+  command -v systemctl >/dev/null 2>&1 || return 1
+  state=$(systemctl --user is-system-running 2>/dev/null) || :
+  case $state in
+    running|degraded|initializing|starting|maintenance|stopping) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # A stale exported scope must not make our actual unit look foreign.
 require_guide_scope() {
   local cgroup
@@ -30,6 +42,10 @@ require_guide_scope() {
 # journald enriches a record: unknown attribution still counts as stray output.
 # A foreign process without unit metadata can therefore still fail this check.
 journal_silent() {
+  if [ "${GUIDE_JOURNAL:-1}" = 0 ]; then
+    echo 'no user systemd manager: journal silence not checked'
+    return 0
+  fi
   local out
   if out=$(
     set -o pipefail
