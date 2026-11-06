@@ -53,7 +53,7 @@ def plan(root, mode, targets='', paths=None):
         why = {c: fallback for c in ALL}
     else:
         for path in paths:
-            if path.startswith('src/smoke') or path == 'src/agents/test-pool.py' or path.endswith(('/go.mod', '/go.sum', '/bun.lock', '/package-lock.json', '/Cargo.lock')) or path in ('go.mod', 'go.sum'):
+            if path.startswith('src/smoke') or path == 'src/agents/test-pool.py' or path.endswith(('/go.mod', '/go.sum', '/bun.lock', '/package-lock.json', '/Cargo.lock')) or path in ('go.mod', 'go.sum', 'Plans/subsystems.md'):
                 fallback = 'shared test/build dependency: '+path
                 break
             letter = next((letter for prefix, letter in rows if path.startswith(prefix)), None)

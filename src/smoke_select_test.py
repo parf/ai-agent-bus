@@ -136,7 +136,8 @@ class Selection(unittest.TestCase):
         self.assertEqual(config['fast']['agent_guide'], [{'argv': ['bash', 'acceptance/agent-guide/guide.sh', 'fast']}])
 
     def test_shared_or_unknown_fails_closed(self):
-        for path in ['src/smoke.sh', 'src/go.mod', 'src/web/bun.lock', 'new-unknown-file']:
+        # The subsystem table is the selector's own input, so a change to it can move any selection.
+        for path in ['src/smoke.sh', 'src/go.mod', 'src/web/bun.lock', 'new-unknown-file', 'Plans/subsystems.md']:
             p = self.plan([path])
             self.assertEqual(set(p['checks'].values()), {'normal'}, path)
 
