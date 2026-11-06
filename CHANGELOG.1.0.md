@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.27 — 2026-11-05
+
+The daemon's default --ssh-token is the helper beside its own resolved binary, and a missing or non-executable helper refuses the start
+
 ## 1.0.26 — 2026-11-05
 
 Launcher warns NO BUS and marks the tab when a Claude session has had no live bus face for 20 s

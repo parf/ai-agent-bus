@@ -12,7 +12,7 @@ import { addDays } from "../ui/range.tsx";
 const ORIGIN = "http://127.0.0.1:6781";
 let dir = "", bin = "", daemon: ReturnType<typeof Bun.spawn> | undefined;
 let handle: (r: Request) => Promise<Response>;
-let owner = "", bob = "";
+let owner = "", bob = "", sshToken = "";
 
 async function api(path: string, body: unknown, token = owner) {
   const r = await fetch(`http://unix${path}`, { method: "POST", body: JSON.stringify(body), headers: { "X-Agent-Bus-Token": token }, unix: join(dir, "bus.sock") } as RequestInit);
@@ -30,7 +30,7 @@ beforeAll(async () => {
     if (b.exitCode) throw new Error(b.stderr.toString());
   }
   // SSH key storage needs a valid program path; this fixture never executes it.
-  const sshToken = join(dir, "agent-bus-token");
+  sshToken = join(dir, "agent-bus-token");
   writeFileSync(sshToken, "#!/bin/sh\nexit 1\n", { mode: 0o700 });
   daemon = Bun.spawn([join(bin, "agent-busd"), "--addr", "127.0.0.1:0", "--socket", join(dir, "bus.sock"), "--owner", "owner@test", "--db", join(dir, "bus.db"), "--create", "--flush-every", "0", "--dashboard", "", "--ssh-keys", join(dir, "ssh", "authorized_keys"), "--ssh-token", sshToken], { stdout: "ignore", stderr: "ignore" });
   const user = join(dir, `user-${userInfo().username}.sock`);
@@ -545,7 +545,7 @@ describe("pages as the daemon owner", () => {
     const first = edKey();
     const made = await req("/user", { cookie: s, form: { action: "create", name: "keyed@test", ssh_key: first + " keyed@laptop", return: "/users" } });
     expect(made.status).toBe(303);
-    expect(keys()).toContain(`restrict,command="/usr/local/bin/agent-bus-token keyed@test" ${first}\n`);
+    expect(keys()).toContain(`restrict,command="${sshToken} keyed@test" ${first}\n`);
     expect(keys()).not.toContain("keyed@laptop");
     // On the user's page, whoever may edit them adds or replaces it.
     const profile = await (await req("/user?name=keyed@test", { cookie: s })).text();
