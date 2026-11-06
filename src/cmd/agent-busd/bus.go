@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -148,7 +149,7 @@ func runBus(c config) {
 	face.Dashboard(c.dash)
 	face.Calls(callHistory.Snapshot)
 	if c.sshKeys != "" {
-		program, err := sshTokenProgram(c.sshToken, os.Args[0])
+		program, err := sshTokenProgram(c.sshToken)
 		if err != nil {
 			fatal("--ssh-token: %v", err)
 		}
@@ -420,17 +421,34 @@ func countCalls(calls *atomic.Uint64, h http.Handler) http.Handler {
 }
 
 // sshTokenProgram is the forced command of a key added through the API: the given program, or the
-// credential wrapper beside the daemon. One no key line could be read back for is a configuration
-// error at start, not a failure when the first key is added.
-func sshTokenProgram(given, self string) (string, error) {
+// credential wrapper beside the resolved daemon executable, independent of argv or cwd.
+// A missing/non-executable wrapper or one no key line could be read back for is
+// a configuration error at start, not a failure when the first key is added.
+func sshTokenProgram(given string) (string, error) {
 	program := given
 	if program == "" {
+		self, err := os.Executable()
+		if err != nil {
+			return "", fmt.Errorf("locate daemon executable: %w", err)
+		}
+		self, err = filepath.EvalSymlinks(self)
+		if err != nil {
+			return "", fmt.Errorf("resolve daemon executable: %w", err)
+		}
 		program = filepath.Join(filepath.Dir(self), "agent-bus-token")
 	}
-	if !filepath.IsAbs(program) {
-		if abs, err := filepath.Abs(program); err == nil && given == "" {
-			program = abs
-		}
+	if err := authkeys.CheckProgram(program); err != nil {
+		return program, err
 	}
-	return program, authkeys.CheckProgram(program)
+	info, err := os.Stat(program)
+	if err != nil {
+		return program, fmt.Errorf("SSH credential wrapper %s: %w", program, err)
+	}
+	if !info.Mode().IsRegular() {
+		return program, fmt.Errorf("SSH credential wrapper %s is not an executable regular file", program)
+	}
+	if _, err := exec.LookPath(program); err != nil {
+		return program, fmt.Errorf("SSH credential wrapper %s is not executable: %w", program, err)
+	}
+	return program, nil
 }
