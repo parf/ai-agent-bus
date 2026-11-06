@@ -46,7 +46,7 @@ Normal and fast runs write nothing to the host journal or syslog; systemd's own 
 
 Prove each behavioural fix can fail ([below](#mutation-first-then-belief)); reproduce review findings before accepting them. Documentation-only changes need path/anchor and scope/status checks (`src/check-links.py` reads every link in the changed files and every link, in any file, to a path the change moved or deleted), without a version bump or runtime gate solely for prose.
 
-Workers take every smoke or mutant lock under their own bus name via MCP `ab_lock`, never the `parf` CLI; `parf` holds only for `#ab-gate` and the owner.
+Workers take every smoke or mutant lock under their own bus name via MCP `ab_lock`, never the `parf` CLI; `parf` holds only for `#ab-gate` and the owner. A hold you did not just take is not yours: wait; never extend, release or run under it.
 
 Claude workers run `smoke.sh` from their session shell as-is, keeping `AGENT_BUS_SESSION_FILE`: it checks their identity before clearing the session itself.
 

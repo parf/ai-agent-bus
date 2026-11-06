@@ -22,8 +22,7 @@ Rules added by the owner, 2026-11-01:
 - Act as CTO; the leads are lead developers (team leaders), not routers. Discuss every non-trivial task with its lead before work starts: approach, split, risks, acceptance, ETA. Settle the plan together, then they run it. Simple, obvious tasks (a docs flip, a known fix, a re-route) go out at once with no discussion.
 - Never fetch, pull or push origin/GitHub (a stray fetch prompted the owner's desktop for an ssh passphrase for 42 h, 11-01). Local refs only (`git rebase main`); only #ab-ceo pushes.
 - Owner questions: item form per Plans/MARKUP.md § Options and threads (`( )`/`[ ]`, 🌟/⭐, one `💡👾` line), never a table row (mdhouse cannot answer a table).
-- Workers take every smoke or mutant lock under their own bus name via MCP `ab_lock`, never the `parf` CLI. `parf` is only for `#ab-gate` and the owner. A hold you did not just take is not yours: never extend, release or run under it.
-- Claude workers run `smoke.sh` from their session shell as-is, keeping `AGENT_BUS_SESSION_FILE`: it checks their identity before clearing the session itself. Codex shells stay identity-less: Codex workers never run normal or slow smoke; they run only focused tests and mutants, taking required locks through MCP under their own bus name. Hand-run focused test commands keep `env -u AGENT_BUS_SESSION_FILE -u AGENT_BUS_TOKEN`.
+- Smoke lock identity: [CLAUDE.md § Verification](../../../CLAUDE.md#verification).
 - Code branches do not edit Plans/issues/ or DONE.md; issue ✅/move + DONE line go in a tiny docs commit at close-out, right after landing. After any rebase, grep changed files for conflict markers before ready.
 
 Rules added by the owner, 2026-11-05 (details in common.md):

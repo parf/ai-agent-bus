@@ -85,7 +85,7 @@ sequenceDiagram
 | Worker/window recovery | Worker writes a checkpoint at a clean boundary. Lead sends DIR `compact <WIN>` or `restart <WIN>` with its path; DIR forwards to CEO, which executes the authorized action and restores the window's identity/role/checkpoint. Leads and DIR never restart another session themselves. |
 | Owner questions | Worker/reader → lead → DIR → CEO. DIR resolves questions already inside the approved plan; the owner decides new scope or missing authority. Present owner choices in [item form](../MARKUP.md#options-and-threads), with a recommendation. Nobody waits on an approval prompt in their own window. |
 | No response | Check the actual status/work, resend once after ten minutes, then record a still-unresolved blocker and continue independent work. Do not flood an unavailable session with repeated requests. |
-| Shared gate resource | Follow [the lock rule](../../CLAUDE.md#verification), acquire in a separate call and read the grant before starting work, extend a hold you actually own before expiry and release at the batch boundary. An unexpected “already held by you” on the shared parf identity is not a new grant. |
+| Shared gate resource | Follow [the lock rule](../../CLAUDE.md#verification), acquire in a separate call and read the grant before starting work, extend a hold you actually own before expiry and release at the batch boundary. A hold you did not just take is not yours: wait. |
 | Focused Mac acceptance | Use the approved Mac run instructions through ssh mac, one checkout/workspace and cleanup after the run. Privileged actions and heavy work need their specific authorization; temporary access/deploy state does not widen it. |
 
 ## Window directories
