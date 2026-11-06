@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.48 — 2026-11-06
+
+RAG 0.3 (namespaces, keyword/semantic/hybrid search, citations); FileScan confirms RAG upserts by the echoed record and watches new folders before listing; the agent pack gets its own version.
+
 ## 1.0.47 — 2026-11-06
 
 The root runner unit starts the current release's runner, so an upgrade moves it; setup from a checkout starts the runner beside it
