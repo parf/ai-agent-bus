@@ -1,6 +1,6 @@
 // The shared vectors, run against the TypeScript twin. The Python engine runs
 // the same file; a case that passes here and fails there is a parity bug.
-import { expect, test } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
 import vectors from "../../testdata/subscriptions.json";
 import { checkText, compileFilter, FilterWorker, MATCH_MS, PATTERN_MS, SubscriptionError, Subscriptions, type Admission, type Options, type Port, type Row, type SendOutcome, type WarningCode } from "./subscriptions.ts";
 
@@ -69,9 +69,11 @@ function fake(initial: Row[]) {
 // A creation-only case pins engines that check the author's reach to the source only
 // when a subscription is made (Q326); this engine asks again before every send.
 const cases = (vectors.cases as Record<string, any>[]).filter((c) => c.profile !== "creation-only");
-test("runs every case but the creation-only ones", () => expect(cases.length).toBe(33));
+let ran = 0;
+afterAll(() => expect(ran).toBe(33)); // every case but the creation-only ones, counted as each one runs
 for (const c of cases) {
   test(`case ${c.name}`, async () => {
+    ran++;
     const { port, state } = fake(c.initial ?? []);
     const ids = [...(c.ids ?? [])];
     const warnings: WarningCode[] = [];

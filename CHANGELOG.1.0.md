@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.15 — 2026-11-05
+
+eventlog and logwatch check a subscription's source at creation only, imap still on every delivery; a Personal Allow may name #bus
+
 ## 1.0.14 — 2026-11-05
 
 agent-bus -h is help again; ls prints a table on a terminal (JSON when piped, --json/--table force either); call --body prints only the reply body

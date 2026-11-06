@@ -449,7 +449,7 @@ def delivery_worker():
                         signal.setitimer(signal.ITIMER_REAL,left)
                         def sending():print(json.dumps({'id':sub_id,'phase':'sending'}),flush=True)
                         status,code=deliver_one(bus,source,row,request['body'],request['topic'],request['tag'],min(deadline,time.monotonic()+1),cache,sending,
-                                                request['source_at_creation_only'] is True)
+                                                request.get('source_at_creation_only',False) is True)
                         running=False
                 except TimeoutError:
                     running=False;status,code='dropped','send_unknown'

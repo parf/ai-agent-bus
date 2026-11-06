@@ -201,8 +201,8 @@ func TestSharedOperationVectors(t *testing.T) {
 		if c.Profile == "per-delivery" {
 			continue
 		}
-		ran++
 		t.Run(c.Name, func(t *testing.T) {
+			ran++
 			store := &vectorStore{rows: map[string][]byte{}}
 			for _, row := range c.Initial {
 				value, _ := json.Marshal(row)

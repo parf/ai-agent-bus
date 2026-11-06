@@ -83,9 +83,12 @@ class SubscriptionBusTests(unittest.TestCase):
                 self.assertIsNone(receiver.consume(wait=.05))
                 self.assertEqual((imap.record(imap.name).kv.get(key, kind='json')['sent'], worker.sent), (1, 1))
 
-                # Receiver still admits IMAP, but the authenticated creator has lost
-                # admission: RD141 drops the next copy and the subscription stays.
-                owner.record(receiver.name).manage(allow=[imap.name])
+                # The creator loses its reach to #imap itself, the source, while the receiver
+                # still admits both: #imap asks again before every forward, so the copy is
+                # dropped (unlike #eventlog and #logwatch, which ask only at creation, Q326).
+                self.assertIs(worker.subs.source_at_creation_only, False)
+                allow = owner.record(imap.name).lookup().get('allow') or []
+                owner.record(imap.name).manage(allow=[owner.name])   # the fixture's allow is "*"
                 source.arrive(101)
                 clock.advance(60)
                 worker.tick()
@@ -93,6 +96,18 @@ class SubscriptionBusTests(unittest.TestCase):
                 row = imap.record(imap.name).kv.get(key, kind='json')
                 self.assertEqual((row['sent'], row['dropped']), (1, 1))
                 self.assertEqual(worker.warnings, {'admission_refused': 1})
+                owner.record(imap.name).manage(allow=allow)
+
+                # Receiver still admits IMAP, but the authenticated creator has lost
+                # admission: RD141 drops the next copy and the subscription stays.
+                owner.record(receiver.name).manage(allow=[imap.name])
+                source.arrive(102)
+                clock.advance(60)
+                worker.tick()
+                self.assertIsNone(receiver.consume(wait=.05))
+                row = imap.record(imap.name).kv.get(key, kind='json')
+                self.assertEqual((row['sent'], row['dropped']), (1, 2))
+                self.assertEqual(worker.warnings, {'admission_refused': 2})
                 with self.assertRaises(shared.SubscriptionError):
                     worker.add(envelope, receiver.name, '')
 

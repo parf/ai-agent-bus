@@ -17,9 +17,10 @@ def raw(subject='invoice'):
     return ('From: sender@example.test\r\nSubject: ' + subject + '\r\n\r\nexternal mail').encode()
 
 
-def deliver(bus):
+def deliver(bus, creation_only=False):
     """The engine's own decision path, in process: author checks to target and to this agent, then one send."""
-    return lambda row, body, deadline: shared.deliver_one(bus, SELF, row, body, 'imap', row['id'], deadline, {})
+    return lambda row, body, deadline: shared.deliver_one(bus, SELF, row, body, 'imap', row['id'], deadline, {},
+                                                          source_at_creation_only=creation_only)
 
 
 class KV:
@@ -128,7 +129,8 @@ class ForwardingTests(unittest.TestCase):
         def send_one(row, body, deadline):
             if self.stop_before_send:
                 raise Stop()
-            return deliver(self.bus)(row, body, deadline)
+            # With the real Forwarder's own source rule, as its private send helper uses it.
+            return deliver(self.bus, self.worker.subs.source_at_creation_only)(row, body, deadline)
         return Forwarder(self.bus, SELF, self.temp.name, self.source, self.clock, self.clock, send_one=send_one)
 
     def restart(self):
@@ -231,6 +233,17 @@ class ForwardingTests(unittest.TestCase):
         self.tick()
         self.assertEqual(len(self.bus.sent), 1)
         self.assertEqual((self.row(sub)['sent'], self.row(sub)['dropped']), (1, 1))
+
+    def test_the_source_is_checked_again_before_every_forward(self):
+        """Only the author's reach to #imap is gone; the target still admits it (Q326, Q339)."""
+        self.assertIs(self.worker.subs.source_at_creation_only, False)
+        sub = self.add()
+        self.bus.may_send.side_effect = lambda who, name: name != SELF
+        self.source.arrive(100)
+        self.worker.tick()
+        self.assertEqual(self.bus.sent, [])
+        self.assertEqual(self.row(sub)['dropped'], 1)
+        self.assertEqual(self.worker.warnings, {'admission_refused': 1})
 
     def test_a_revoked_author_is_checked_before_every_send(self):
         sub = self.add()
