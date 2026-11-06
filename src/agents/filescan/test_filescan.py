@@ -381,6 +381,25 @@ class BigfileTests(Base):
         self.call('scan');self.call('scan');held=self.agent.state.load()['meta']['bigfiles']
         self.assertEqual(held,{},'the key had expired (404): nothing is kept to delete')
 
+    def test_a_filter_timeout_does_not_free_a_key_its_subscriber_still_references(self):
+        for i in range(10):self.put(f'k{i}.txt','k')
+        self.put('big.txt',self.BIG);self.add(extra='/big/ bigfile');self.call('scan');old=self.sha(self.BIG);self.assertEqual(self.keys(),[old])
+        self.put('big.txt','y'*50,mtime=time.time()+5)
+        real=fs.path_matches;fs.path_matches=lambda pattern,keys:None   # the bounded filter helper times out this round
+        try:self.call('scan')
+        finally:fs.path_matches=real
+        self.assertEqual(len([m for m in self.messages() if m['path']=='big.txt']),1,'the subscriber was not told of the newer version this round')
+        self.assertIn(old,self.keys(),'its only message for big.txt still references the old key')
+        self.call('scan');self.assertEqual(self.keys(),[self.sha('y'*50)],'once it is told, the old key goes')
+
+    def test_a_path_with_an_unknown_send_keeps_its_key_when_the_file_goes(self):
+        for i in range(10):self.put(f'k{i}.txt','k')
+        self.put('big.txt',self.BIG);self.add(extra='bigfile');self.call('scan');old=self.sha(self.BIG)
+        data=self.agent.state.load();sub_id=next(iter(data['subs']));data['marks'][sub_id].pop('big.txt');data['maybe'][sub_id]['big.txt']=old;self.agent.state.save(data)
+        os.unlink(Path(self.root)/'big.txt');self.bus.send_refused.add('#q@n.test');self.call('scan')   # a send of unknown outcome may still be fetched
+        self.assertIn(old,self.keys(),'nothing is confirmed for the path, so its key stays')
+        self.bus.send_refused.clear();self.call('scan');self.assertEqual(self.keys(),[],'freed once the delete is confirmed')
+
     def test_a_key_stays_until_the_delete_of_its_path_is_confirmed(self):
         for i in range(10):self.put(f'k{i}.txt','k')
         self.put('one.txt',self.BIG);self.add(extra='bigfile');self.call('scan');os.unlink(Path(self.root)/'one.txt')
@@ -444,7 +463,8 @@ class BigfileTests(Base):
         self.put('big.txt',self.BIG);self.add(extra='bigfile');real=fs.scanning.open_under;done=[]
         def rewriting(root,rel):
             if rel=='big.txt':done.append(1)
-            if rel=='big.txt' and len(done)==3:(Path(root)/rel).write_text('w'*40)   # opens: the poll's hash, the body's hash, then the upload;os.utime(Path(root)/rel,(time.time()+9,time.time()+9))   # same size, other bytes
+            if rel=='big.txt' and len(done)==3:   # opens: the poll's hash, the body's hash, then the upload; same size, other bytes
+                (Path(root)/rel).write_text('w'*40);os.utime(Path(root)/rel,(time.time()+9,time.time()+9))
             return real(root,rel)
         fs.scanning.open_under=rewriting
         try:

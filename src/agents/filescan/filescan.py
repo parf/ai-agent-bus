@@ -361,10 +361,14 @@ class FileScan:
                 rows=[r for r in data['subs'].values() if r['selector'].get('bigfile')]
                 present={r['fp'] for r in data['items'].values() if not r.get('gone')}
                 def settled(row,path):
-                    if not self._wanted(row,path):return True
-                    item=data['items'].get(path);mark=data['marks'][row['id']].get(path);unsure=path in data['maybe'][row['id']]
-                    if item is None or item.get('gone'):return mark is None and not unsure
-                    return mark==item['fp'] and not unsure
+                    # Order matters: what the subscriber may hold (an unknown send, a mark) is judged before its filter, because a
+                    # filter that timed out this round matches nothing and says nothing about what it already got.
+                    mark=data['marks'][row['id']].get(path)
+                    if path in data['maybe'][row['id']]:return False
+                    if mark is None and not self._wanted(row,path):return True
+                    item=data['items'].get(path)
+                    if item is None or item.get('gone'):return mark is None
+                    return mark==item['fp']
                 changed=bool(uploaded)
                 for name,paths in list(held.items()):
                     if name in present or not all(settled(row,path) for row in rows for path in paths):continue
