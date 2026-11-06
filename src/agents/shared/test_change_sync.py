@@ -371,6 +371,10 @@ class DeliveryTests(Base):
         self.assertEqual([b for _,b,_ in self.bus.calls],['delete a'])
         self.assertEqual((self.state.load()['maybe'][row['id']],self.state.load()['marks'][row['id']]),({},{}))
 
+    def test_a_round_that_sent_nothing_still_saves_the_taken_back_record(self):
+        subs,row=self.add();r=self.round(deadline=time.monotonic()-1)[row['id']]
+        self.assertEqual((r['sent'],r['dropped']),(0,0));self.assertEqual(self.state.load()['maybe'][row['id']],{},'what was recorded for the batch was taken back on disk')
+
     def test_a_refusal_outright_is_not_possibly_delivered_but_a_timeout_or_a_bad_reply_is(self):
         subs,row=self.add();self.bus.send_refused.add('#q@n.test');self.round()
         self.assertEqual(self.state.load()['maybe'][row['id']],{},'refused outright: never queued')
