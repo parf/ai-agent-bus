@@ -104,7 +104,7 @@ An **agent** is a small helper with a name, such as `#systemd@node.example`. The
 | [Server-info](server-info.md) | Own service; normally no root | Admin installs; permitted people and AIs read it |
 | [Logwatch](logwatch.md) | Own service; an account that reads the chosen logs | Admin installs; permitted people and AIs read it |
 | [Tmux sessions](tmux-sessions.md) | User-account runner or own service, as the person | The person configures and starts the set |
-| [AI](ai.md) | Runner, one process per call | Admin enables; admitted callers may use it |
+| [AI](ai.md) | Runner, serves itself with two kept processes; pictures in its own bigfile record | Admin enables; admitted callers may use it and read its pictures |
 | [IMAP](imap.md) | Runner, serves itself with a private cache | Owner-only at first; a grant exposes that account's cached mail |
 | [Fetch](fetch.md) | Runner, stateless HTTP(S) reader and caller | Owner-only by default; private access requires a matching exact entry |
 | [Webhook](webhook.md) | Runner, kept HTTP listener and outbound calls | Owner-only by default; every grantee can use configured outbound routes |

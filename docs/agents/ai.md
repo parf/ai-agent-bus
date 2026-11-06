@@ -13,7 +13,7 @@
 - ✅ **Models:** list the provider's models as a table of context length, price per million tokens and input kinds, with your default marked (`models`; `models --images` gives image models and their price per image or megapixel), or see one model's context length, prices and input kinds for each provider that serves it (`model <id>`; for an image model, its parameters and prices).
 - ✅ **Account:** see the remaining credit (`balance`) or the key's spend limit, remaining credit and rate limit, never the key itself (`key`). Only the Owner and Maintainers may ask.
 - ✅ **Same as the provider:** every method goes to the configured provider and answers what it says. A provider without one of these methods gets `provider has no <method>`.
-- 🚫 **Images:** `image` checks the request and answers `image generation is not available yet`; no provider call is made, since `#ai` has nowhere to store the pictures.
+- ✅ **Images:** make pictures from a prompt (`image`, see [images](#images)). Each picture goes into `#ai`'s own bigfile record for 24 hours, and the answer names it. Only the Owner and Maintainers may ask.
 - 🚫 **Not for:** long conversations with memory (each call stands alone: send the context again), live word-by-word output (no streaming), or text that must never reach an outside AI provider (the provider sees every prompt).
 
 ## Typed decisions
@@ -37,10 +37,26 @@ agent-bus call '#ai@node.example' 'decide {"model":"typesafe/jev-1.14","state":"
 agent-bus call '#ai@node.example' 'embed ["first text","second text"]'
 ```
 
+## Images
+
+- **What:** `image` sends a prompt to the provider's image API and puts every picture it returns into `#ai`'s own [bigfile](../03-records-kv.md#bigfiles) record, kept 24 hours.
+- **Form:** a JSON object only: `image {"prompt":"a red panda","n":2}`. Other text after `image` is an ordinary prompt.
+- **Model:** set `image_model` in Configuration, or put `"model"` in the request. With neither, the answer is `no image model configured` and nothing is sent: `#ai` never picks a paid model for you.
+- **Answer:** one line per picture with its bigfile name, type and size, then the cost:
+
+```text
+#ai@node.example/image-3f9c0a1b2c3d4e5f.png image/png 1234567 bytes, kept 24 h
+
+[tokens 0 in, 4175 out; cost 0.04 USD]
+```
+
+- **Download:** `agent-bus bigfile get '#ai@node.example' image-3f9c0a1b2c3d4e5f.png -o panda.png`. The Owner, Maintainers and whoever the record's allowed list admits may read it.
+- **Room:** the record holds at most 100 pictures and 256 MiB. A request that might not fit, counting 32 MiB for each picture asked for, is refused before the paid call: `#ai@node.example bigfile record is full (...)`. Wait for older pictures to expire.
+
 ## You'll need
 
 - An account with an AI provider that speaks the common OpenAI format, such as OpenRouter: its key and a model name.
-- A bus runner with Python 3 and network access.
+- A bus runner with Python 3 and network access. `#ai` runs as two kept processes that read its own inbox, so the runner needs its token ([self-serving credential handoff](create-agent-prompt.md#self-serving-credential-handoff)).
 
 ## Try this first
 
@@ -75,16 +91,17 @@ agent-bus help '#ai@node.example'
 ## Installing it
 
 1. Use the AI package included with the bus installation.
-2. Put `OPENROUTER_API_KEY` in the instance's private [host environment file](../runner/configuration.md#environment-files), owned by the runner account with mode 0600.
-3. Set `enabled:true` for `ai` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries, then reload the runner.
-4. Set the default model: `agent-bus config '#ai@node.example' '{"model":"openai/gpt-4.1-mini"}'`.
-5. Grant access only to callers who may spend the provider balance.
+2. Put `OPENROUTER_API_KEY` in the instance's private [host environment file](../runner/configuration.md#environment-files), owned by the runner account with mode 0600. Without it each process exits 78 and logs `OPENROUTER_API_KEY is not set`.
+3. Hand the runner `#ai`'s token, as in [self-serving credential handoff](create-agent-prompt.md#self-serving-credential-handoff).
+4. Set `enabled:true` for `ai` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries, then reload the runner.
+5. Set the default model: `agent-bus config '#ai@node.example' '{"model":"openai/gpt-4.1-mini"}'`. A Configuration change restarts the processes, each after the message it is answering.
+6. Grant access only to callers who may spend the provider balance.
 
 ## Configuration
 
 - `model` is the default chat model when a call names none, for example `openai/gpt-4.1-mini`; it is not used by `decide`. `models` marks it.
 - `embed_model` is the default embedding model for `embed`, for example `openai/text-embedding-3-small`.
-- `image_model` is the default image model, for example `openai/gpt-image-2`; `models --images` marks it.
+- `image_model` is the default image model, for example `openai/gpt-image-2`; `models --images` marks it. Without it, `image` needs a `model` in each request.
 - `base_url` is the OpenAI-compatible API root; default: `https://openrouter.ai/api/v1`. Only a trusted administrator should change it: it receives the provider key. Redirects are not followed.
 
 ## Secret keys
@@ -95,7 +112,8 @@ agent-bus help '#ai@node.example'
 ## Who may use it
 
 - **Only callers on the agent's allowed list;** it alone decides who spends the provider balance.
-- **`balance` and `key` are for the Owner and Maintainers only.** Anyone else gets `<method> needs the owner or maintainer role`, and no provider call is made.
+- **`balance`, `key` and `image` are for the Owner and Maintainers only.** Anyone else gets `<method> needs the owner or maintainer role`, and no provider call is made. The roles are the ones the daemon puts on the message; a sender cannot add one.
+- **Every picture is readable by every allowed caller.** The bigfile record is `#ai`'s own, so anyone on its allowed list can list and download all its pictures until they expire; do not put a private prompt's picture there.
 - **No other roles or per-caller limits.**
 - **The provider sees each prompt** and may keep it under its own policy.
 
@@ -129,6 +147,9 @@ agent-bus manage '#ai@node.example' --remove-allow '*'
 | `provider has no <method>` | The configured provider lacks that method; use OpenRouter, or skip it |
 | `N items × D dims > max M` | Send at most M texts per `embed` call |
 | `balance needs the owner or maintainer role` | Ask the Owner; only the Owner and Maintainers see the account |
+| `no image model configured` | Set `image_model` in Configuration or put `model` in the `image` request |
+| `bigfile record is full` | Wait for older pictures to expire (24 hours), or delete some with `agent-bus bigfile rm` |
+| `cannot store images (<status>: ...)` | The bigfile store refused or is unavailable; see the daemon's bigfile status |
 
 ## Warnings and alerts
 
@@ -158,12 +179,12 @@ Besides the [entries every runner agent gets](README.md#warnings-and-alerts), `#
 <details>
 <summary>Lookups and embeddings</summary>
 
-- `models` reads `GET /models` (`--images`: `GET /images/models`), `model <id>` reads `GET /models/<id>/endpoints` and, when that is a 404, `GET /images/models/<id>/endpoints`, `balance` reads `GET /credits`, `key` reads `GET /key`, and `embed` posts to `/embeddings`, each under the configured `base_url`.
+- `models` reads `GET /models` (`--images`: `GET /images/models`), `model <id>` reads `GET /models/<id>/endpoints` and, when that is a 404, `GET /images/models/<id>/endpoints`, `balance` reads `GET /credits`, `key` reads `GET /key`, `embed` posts to `/embeddings` and `image` to `/images`, each under the configured `base_url`.
 - A 401 or 403 from any method names the refused key, and a 402 the missing credit, with the provider's text masked.
-- `image` is for the Owner and Maintainers. Like `decide`, only a JSON object is a request: `image {"prompt":"..."}` or `{"method":"image","prompt":"..."}`; "image recognition is…" stays an ordinary prompt for every caller. It takes a prompt, `model`, `n` from 1 to 4, `aspect_ratio`, `resolution`, `size`, `output_format` (png, jpeg, webp, svg or gif), `quality`, `background`, `seed`, and up to 16 `input_references` as https or `data:image/...;base64,` URLs, within 1 MiB. A request that passes these checks is not yet sent.
+- `image` is for the Owner and Maintainers. Like `decide`, only a JSON object is a request: `image {"prompt":"..."}` or `{"method":"image","prompt":"..."}`; "image recognition is…" stays an ordinary prompt for every caller. It takes a prompt, `model`, `n` from 1 to 4, `aspect_ratio`, `resolution`, `size`, `output_format` (png, jpeg, webp, svg or gif), `quality`, `background`, `seed`, and up to 16 `input_references` as https or `data:image/...;base64,` URLs, within 1 MiB. Each returned `b64_json` (or `data:image/...;base64,` URL) is decoded; its type is the provider's `media_type` or, without one, what its bytes show (PNG, JPEG, WebP, GIF or SVG); anything else is `provider returned no image`. Each picture is put as `image-<16 hex>.<ext>` with a 24-hour ttl. A picture over 32 MiB is named and not kept. The room check runs before the paid call and again with the real sizes; if another process fills the record in between, the answer names what was kept, the refusal and the cost.
 - `model <id>` lists every endpoint with its own context length and prices; they are never merged.
 - `key` answers only the limit fields; the provider's key label is dropped, since it repeats part of the key.
-- `embed` allows at most floor((1048576 − O) / (25·D + 2)) texts for a D-dimension model. 1048576 bytes is the most the daemon reads of the answer envelope the runner sends back. O is that envelope around an empty answer: the reply route, its topic and tag, and the body's escaping. Each number takes at most 24 characters plus a comma. A batch over the cap gets only the refusal, never a cut answer. Known vector sizes are kept in the agent's work directory, at most 256 models.
+- `embed` allows at most floor((1048576 − O) / (25·D + 2)) texts for a D-dimension model. 1048576 bytes is the most the daemon reads of the reply request `#ai` sends back, sized here as the larger runner answer envelope. O is that envelope around an empty answer: the reply route, its topic and tag, and the body's escaping. Each number takes at most 24 characters plus a comma. A batch over the cap gets only the refusal, never a cut answer. Known vector sizes are kept in the agent's work directory, at most 256 models.
 - `model <id>` takes `author/slug` or `author/slug:variant`; an empty, `.` or `..` part is refused before any call.
 
 </details>
