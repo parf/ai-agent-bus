@@ -41,6 +41,7 @@ agent-bus call '#ai@node.example' 'embed ["first text","second text"]'
 
 - **What:** `image` sends a prompt to the provider's image API and puts every picture it returns into `#ai`'s own [bigfile](../03-records-kv.md#bigfiles) record, kept 24 hours.
 - **Form:** a JSON object only: `image {"prompt":"a red panda","n":2}`. Other text after `image` is an ordinary prompt.
+- **Wait:** use `agent-bus call --wait=90s '#ai@node.example' 'image {"prompt":"a red panda"}'`. A call leaving less than 30 seconds for generation is refused before the paid request: `image needs --wait of at least 60s`.
 - **Model:** set `image_model` in Configuration, or put `"model"` in the request. With neither, the answer is `no image model configured` and nothing is sent: `#ai` never picks a paid model for you.
 - **Answer:** one line per picture with its bigfile name, type and size, then the cost:
 

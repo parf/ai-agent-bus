@@ -55,7 +55,7 @@ IMAGE_TYPES = {"image/png": "png", "image/jpeg": "jpeg", "image/webp": "webp", "
 # answer, 64 MiB baseline per process and 64 MiB shared headroom:
 # (512 - 2*64 - 64) / (2*3) = 53.3 MiB; round down to 48 MiB.
 IMAGE_READ = 48 * 1024 * 1024
-# Leave storage puts and the reply time inside the runner's 60s stop deadline.
+# Leave storage puts and the reply time inside the runner's stop deadline.
 IMAGE_REPLY_RESERVE = 15
 
 
@@ -330,8 +330,10 @@ def exchange(envelope, base, verb, path, payload, key, limit=MAX_BYTES, image=Fa
     try:
         if image:
             remaining -= IMAGE_REPLY_RESERVE
-            if remaining <= 0:
-                raise TimeoutError()
+            if remaining < 30:
+                # Refuse before connecting: a short default call must not pay
+                # for image generation that cannot finish and be stored.
+                raise ProxyError("image needs --wait of at least 60s")
             signal.setitimer(signal.ITIMER_REAL, remaining)
         connection = connect(base, remaining)
         if verb == "POST":

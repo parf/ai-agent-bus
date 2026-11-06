@@ -4,7 +4,7 @@
   "serves": "itself",
   "form": "json",
   "processes": 2,
-  "deadline": "60s",
+  "deadline": "90s",
   "needs": {
     "network": [
       "openrouter.ai"

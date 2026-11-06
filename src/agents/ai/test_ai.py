@@ -947,18 +947,20 @@ class ImageReadBounds(unittest.TestCase):
 
     def test_image_reserves_fifteen_seconds_for_storage_and_reply(self):
         base = proxy.trusted_base({'base_url': 'https://fixture.invalid/v1'})
-        for remaining, expected in ((60, 45), (25, 10), (10, None)):
+        for remaining, expected in ((60, 45), (45, 30), (44.9, None), (29.9, None), (10, None)):
             response, connection = self.transport(2)
-            with self.subTest(remaining=remaining), patch.object(proxy, 'arm_deadline', return_value=(signal.SIG_DFL, remaining)), patch.object(proxy, 'connect', return_value=connection) as connect, patch.object(proxy, 'post', return_value=response), patch.object(signal, 'setitimer') as alarm, patch.object(signal, 'signal'):
+            with self.subTest(remaining=remaining), patch.object(proxy, 'arm_deadline', return_value=(signal.SIG_DFL, remaining)), patch.object(proxy, 'connect', return_value=connection) as connect, patch.object(proxy, 'post', return_value=response) as post, patch.object(signal, 'setitimer') as alarm, patch.object(signal, 'signal'):
                 if expected is None:
-                    with self.assertRaises(TimeoutError):
+                    with self.assertRaisesRegex(proxy.ProxyError, '^image needs --wait of at least 60s$'):
                         proxy.provider_call('image', {}, base, 'POST', '/images', b'{}', KEY, proxy.IMAGE_READ)
                     connect.assert_not_called()
+                    post.assert_not_called()
                 else:
                     self.assertEqual(proxy.provider_call('image', {}, base, 'POST', '/images', b'{}', KEY, proxy.IMAGE_READ), (200, {}))
                     connect.assert_called_once_with(base, expected)
                     self.assertEqual(alarm.call_args_list[0].args, (signal.ITIMER_REAL, expected))
                 self.assertEqual(alarm.call_args_list[-1].args, (signal.ITIMER_REAL, 0))
+        self.assertEqual(json.loads((HERE / 'agent.json').read_text())['deadline'], '90s')
 
 
 if __name__ == '__main__':
