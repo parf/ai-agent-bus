@@ -70,6 +70,7 @@ The runner reads shared packages first, then bundled packages. The first package
 
 - Bundled manifests under `standalone/` are included when they declare a runner `command`. Valid metadata-only services managed by their own units are skipped, as are support directories without a manifest. New bundled agents appear at the next `reload`.
 - Each status row's `agent_dir` names the selected package directory.
+- **Pack agents are checked against the daemon.** A bundled agent, or a package that carries the pack's `support/agents/VERSION`, must carry a `protocol.json` ([the pack's declaration](../agents/README.md#which-daemon-the-helpers-work-with)) that covers the daemon's [protocol range](../09-daemon-api.md#protocol-version). `load` and every `reload` ask the daemon, and a mismatch, a missing or a malformed file refuses that agent as `pack protocol unsupported: …` in `status`. An unreachable daemon checks nothing: the agent's own client still refuses at connect. Your own agents are never checked.
 - A bundled agent without an explicit enable is `available`, with no reader or process. Explicitly disabling it shows `disabled`.
 
 Deployment calls use only a host-provisioned writable shared directory; read-only roots are refused ([deploying an agent](operations.md#deploying-an-agent)). The host provisions private Git access under `runner/.deploy/`, outside the file-call namespace.

@@ -150,6 +150,11 @@ Bundled packages are already installed under `/usr/local/lib/agent-bus/current/a
 
 The bundled helpers are one agent pack with a version of its own, separate from the bus version. A helper's help shows it, for example `v1.0.0`.
 
+### Which daemon the helpers work with
+
+- The pack's `protocol.json` beside `VERSION` (and in each package's `support/agents`) holds the two [protocol fields](../09-daemon-api.md#protocol-version) the pack speaks, `protocol` and `protocol_min`. It equals what the bundled client libraries speak.
+- The runner checks it when it loads and on every `reload`. A helper whose declaration does not cover the daemon, or is missing or malformed, is **refused by name** and not started: `pack protocol unsupported: pack 1..1, daemon 2..2`, shown in `status` and the runner's log. Helpers you wrote yourself are never checked.
+
 ### Runner helpers
 
 - Helpers marked "Runner" above need [a person's runner](../runner/setup.md#a-persons-runner) (a background program that keeps a person's helpers running), such as `#runner/ann@node.example` running as `ann-ab-runner`.
