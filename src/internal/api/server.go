@@ -860,7 +860,8 @@ func (s *Server) names(w http.ResponseWriter, r *http.Request, caller protocol.N
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	recs, err := s.listRecords(caller, r.URL.Query())
 	if err != nil {
-		answer(w, http.StatusBadRequest, "malformed", err.Error())
+		// Its only error is a tag filter it cannot read: the caller's, so counted like any refusal.
+		s.refuse(w, http.StatusBadRequest, "malformed", err.Error())
 		return
 	}
 	ok(w, recs)

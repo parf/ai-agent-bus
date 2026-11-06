@@ -127,3 +127,22 @@ func TestListingFiltersByEveryListedTag(t *testing.T) {
 		}
 	}
 }
+
+// E2: a /ls tag filter the daemon cannot read is a counted refusal, like any
+// other endpoint's: 400 malformed, and the status refusal count moves by one.
+func TestABadListingTagFilterIsACountedMalformedRefusal(t *testing.T) {
+	bus := core.New()
+	s, tok := serverFor(t, bus, "owner@h")
+	before := bus.Status().Refused["malformed"]
+	code, body := send(s, tok("owner@h"), "GET", "/ls?tag=no-tags,runner", "", "")
+	if code != http.StatusBadRequest {
+		t.Fatalf("GET /ls?tag=no-tags,runner: %d %s", code, body)
+	}
+	var refusal map[string]string
+	if err := json.Unmarshal([]byte(body), &refusal); err != nil || refusal["kind"] != "malformed" || refusal["error"] == "" {
+		t.Fatalf("refusal body = %s (%v), want kind malformed with its reason", body, err)
+	}
+	if got := bus.Status().Refused["malformed"]; got != before+1 {
+		t.Fatalf("malformed refusals counted = %d, want %d", got, before+1)
+	}
+}
