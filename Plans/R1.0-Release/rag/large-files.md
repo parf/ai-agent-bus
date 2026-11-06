@@ -30,7 +30,7 @@ A chunk keeps the same identity across re-syncs when its text has not changed.
 - It is never a running index over the whole file. An edit in one section therefore leaves the identities of every other section unchanged.
 - A section too long for one chunk splits at paragraph, then line, then whitespace boundaries. The parts are numbered within the section only.
 - Text before the first heading has an empty heading path.
-- This is a new chunk format, with its own permanent version beside today's ([technical details](../../../docs/agents/rag.md#technical-details)).
+- This is a new chunk format, with its own permanent version beside today's ([technical details](../../../docs/agents/rag.md#technical-details)). The file's text lives only in its chunks. A large file's head holds the whole-file hash and the chunk list, never the text, because today's head stores the full `data` under the 32 KiB data limit.
 
 ## Hashes
 
