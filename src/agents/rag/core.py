@@ -13,7 +13,7 @@ from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMA
                    config,dumps,identity,match,point_id,revision,scope,number,sparse,vector,summary,text,DATA_MAX,BODY_MAX)
 from blocks import Budget
 from namespaces import Catalogue,manager,SCHEMA
-from rules import NamedRefusal,PROVENANCE_FIELDS,provenance
+from rules import NamedRefusal,PROVENANCE_FIELDS,provenance,FACET_MAX
 
 
 def finite(value):
@@ -52,6 +52,8 @@ class Core:
     def run(self,request,envelope=None):
         method=request['method']
         if method in ('keyword_index','namespaces','drop_namespace'):manager(envelope)
+        # Refused before any call: classify is the extra that pays, and only when configured.
+        if method=='classify' and not self.cfg['classify']:raise NamedRefusal('classify_unavailable','classify is off: set classify to true in the configuration')
         if method=='drop_namespace' and request.get('confirm')!=request['namespace']:
             raise NamedRefusal('confirmation_required','confirm must equal the requested namespace')
         self.budget=Budget(envelope);self.backend.begin(self.budget)
@@ -74,6 +76,9 @@ class Core:
                 return result
             if method=='list':return self.list(request,repo)
             if method=='search':return self.search(request,repo)
+            if method=='count':return self.count(request,repo)
+            if method=='similar':return self.similar(request,repo)
+            if method=='classify':return self.classify(request,repo)
             if method=='keyword_index':return self.keyword_index(envelope,repo)
             if method=='delete':return self.delete(request,repo)
             raise RagError('unknown method')
@@ -135,17 +140,10 @@ class Core:
         if 'embeddings' in v:
             if not isinstance(v['embeddings'],list) or len(v['embeddings'])!=len(chunks):raise RagError('one supplied vector required per chunk')
             supplied=[vector(row,dimensions) for row in v['embeddings']]
-        classification={'model':self.cfg['decision_model'],'state':source,'questions':{'labels':{'type':'choice','instructions':settings['instructions'],'criteria':settings['labels']}}}
+        classification=self._classification(settings,source)
         batches=[{'model':self.cfg['embedding_model'],'input':chunks[i:i+4],'input_type':'document','output_dimension':dimensions,'output_dtype':'float'} for i in range(0,len(chunks),4)]
         if any(len(dumps(x).encode())>(1<<20)-1024 for x in [classification,*batches]):raise RagError('provider request exceeds 1 MiB before provider work')
-        result=self.backend.decide(classification)
-        try:
-            if result['answers']['labels']['type']!='choice':raise RagError('expected Jev Choice probabilities')
-            probabilities=result['answers']['labels']['probabilities']
-            if not isinstance(probabilities,dict) or set(probabilities)!=set(settings['labels']):raise RagError('Jev labels mismatch')
-            for p in probabilities.values():number(p,0,1,'probability')
-        except (KeyError,TypeError):raise RagError('invalid Jev probabilities') from None
-        labels=dict(sorted(((k,p) for k,p in probabilities.items() if p>=settings['threshold']),key=lambda x:(-x[1],x[0]))[:settings['top_k']])
+        labels,_=self._labels(self.backend.decide(classification),settings)
         vectors=supplied
         if vectors is None:
             vectors=[]
@@ -169,6 +167,90 @@ class Core:
         summary={k:full[k] for k in SUMMARY_FIELDS if k in full}
         if len(dumps(summary,ascii=True).encode())>SUMMARY_MAX:raise RagError('prepared summary exceeds byte cap')
         return full,chunks,vectors
+    def _classification(self,settings,source):
+        """One Jev Choice question over the table's labels: upsert and classify ask the same."""
+        return {'model':self.cfg['decision_model'],'state':source,'questions':{'labels':{'type':'choice','instructions':settings['instructions'],'criteria':settings['labels']}}}
+    def _labels(self,result,settings):
+        """The kept labels (at or above threshold, at most top_k) and every probability, from one Jev answer."""
+        try:
+            if result['answers']['labels']['type']!='choice':raise RagError('expected Jev Choice probabilities')
+            probabilities=result['answers']['labels']['probabilities']
+            if not isinstance(probabilities,dict) or set(probabilities)!=set(settings['labels']):raise RagError('Jev labels mismatch')
+            for p in probabilities.values():number(p,0,1,'probability')
+        except (KeyError,TypeError):raise RagError('invalid Jev probabilities') from None
+        ordered=sorted(probabilities.items(),key=lambda x:(-x[1],x[0]))
+        return dict([(k,p) for k,p in ordered if p>=settings['threshold']][:settings['top_k']]),dict(ordered)
+    def classify(self,v,repo):
+        """Labels for a text, as upsert would assign them, without storing anything: one paid #ai call."""
+        settings=repo.prompt('get',v['tableName'])
+        if settings is None:raise RagError('classification prompts are not configured')
+        source,_=extract(v)
+        request=self._classification(settings,source)
+        if len(dumps(request).encode())>(1<<20)-1024:raise RagError('provider request exceeds 1 MiB before provider work')
+        labels,probabilities=self._labels(self.backend.decide(request),settings)
+        return {'labels':labels,'probabilities':probabilities}
+    def count(self,v,repo):
+        """Live records matching the filter, and how many carry each label; free."""
+        selected=repo.select(v,kind='head')
+        total=repo.count(selected)
+        answer=repo.qdrant('POST','/facet',{'key':'_rag_labels','filter':selected,'limit':FACET_MAX+1,'exact':True})
+        labels={}
+        try:
+            hits=answer['hits']
+            if not isinstance(hits,list) or len(hits)>FACET_MAX+1:raise RagError('invalid facet size')
+            for hit in hits:
+                value=text(hit['value'],'label',128,nfc=True)
+                if type(hit['count']) is not int or hit['count']<0 or value in labels:raise RagError('invalid facet count')
+                labels[value]=hit['count']
+        except (KeyError,TypeError):raise RagError('invalid facet response') from None
+        ordered=sorted(labels.items(),key=lambda x:(-x[1],x[0]))
+        # More distinct labels than one answer holds is said, never silently cut.
+        return {'count':total,'labels':dict(ordered[:FACET_MAX]),'labels_truncated':len(ordered)>FACET_MAX}
+    def similar(self,v,repo):
+        """Records whose stored vectors are nearest the given record's, in the same scope as search; free.
+
+        Qdrant recommends from the record's own chunk points, so its vectors never leave Qdrant and nothing is embedded.
+        """
+        subject={k:v[k] for k in ('namespace','tableName','id')}
+        head=repo.qdrant('GET','/points/'+repo.point_id(subject))
+        if head is None or head['payload'].get('_rag_kind')!='head':raise NamedRefusal('not_found','record is absent from this namespace')
+        ids=head['payload']['_rag_chunks']
+        scope={k:v[k] for k in ('namespace','tableName','key1','key2') if k in v}
+        def page(want,offset):
+            return {'filter':{**repo.select(scope,kind='chunk'),'must_not':[{'has_id':ids}]},'query':{'recommend':{'positive':ids}},
+                    'limit':want,'offset':offset,'with_payload':{'include':[*SUMMARY_FIELDS[:5],*PROVENANCE_FIELDS,'_rag_text']},'with_vector':False}
+        ranked,_=self._collect({**scope,'limit':v['limit']},repo,page,'similarity',-1,skip=identity(subject))
+        return {'records':ranked[:v['limit']]}
+    def _collect(self,v,repo,page,score,low,skip=None):
+        """One row per live record from up to four query pages, best first, and the window size each page asked for."""
+        best={};want=min(64,v['limit']*4);exhausted=False
+        for number_ in range(4):
+            answer=repo.qdrant('POST','/points/query',page(want,number_*want))
+            try:
+                rows=answer['points']
+                if not isinstance(rows,list) or len(rows)>want:raise RagError('invalid query size')
+                for row in rows:
+                    payload=row['payload'];number(row['score'],low,float('inf'),'score')
+                    if payload.get('namespace')!=v['namespace']:raise RagError('invalid query payload projection')
+                    if any(payload.get(k)!=v[k] for k in ('tableName','key1','key2') if k in v):raise RagError('query filter mismatch')
+                live=self._live(rows,repo)
+                for row in rows:
+                    payload=row['payload'];key=identity(payload)
+                    head=live.get(repo.point_id(payload))
+                    if key in best or key==skip or head is None or row['id'] not in head['_rag_chunks'] or payload['_rag_rev']!=head['_rag_rev']:continue
+                    if provenance(payload)!=provenance(head):raise RagError('live chunk provenance mismatch')
+                    record={k:payload[k] for k in SUMMARY_FIELDS[:5] if k in payload}
+                    record.update(provenance(payload))
+                    record['chunk_index']=payload['_rag_index']
+                    record['scores']={score:row['score']}
+                    record['excerpt']=text(payload.get('_rag_text'),'stored text',DATA_MAX,empty=True)
+                    best[key]=record
+            except (KeyError,TypeError,AttributeError):raise RagError('invalid query response') from None
+            if len(best)>=v['limit'] or len(rows)<want:break
+            exhausted=number_==3
+        # An empty answer must mean no match, never a window that dead chunks filled.
+        if exhausted and len(best)<v['limit']:raise Incomplete('search window exhausted before enough records were found; narrow the query, add filters or run cleanup')
+        return sorted(best.values(),key=lambda r:(-next(iter(r['scores'].values())),r['tableName'],r['id'])),want
     def upsert(self,v,repo):
         full,chunks,vectors=self.prepare(v,repo)
         rev=revision(full,vectors,self.cfg['embedding_model'],full['classification_ids'])
@@ -285,9 +367,8 @@ class Core:
             left=self._unindexed(repo)
             if left:raise RagError(f'keyword index incomplete ({left} chunks left); run keyword_index with this namespace')
         dense=self.query_embedding(v,repo) if mode in ('semantic','hybrid') else None
-        best={};want=min(64,v['limit']*4);exhausted=False
-        for page in range(4):
-            query={'filter':repo.select(v,kind='chunk'),'limit':want,'offset':page*want,
+        def page(want,offset):
+            query={'filter':repo.select(v,kind='chunk'),'limit':want,'offset':offset,
                    'with_payload':{'include':[*SUMMARY_FIELDS[:5],*PROVENANCE_FIELDS,'_rag_text']},'with_vector':False}
             if mode=='keyword':query.update(query=sparse(v['query'],query=True),using=BM25_VECTOR)
             elif mode=='semantic':query['query']=dense
@@ -296,32 +377,8 @@ class Core:
                 query.update(query={'fusion':'rrf'},prefetch=[
                     {'query':dense,'filter':repo.select(v,kind='chunk'),'limit':want*4},
                     {'query':sparse(v['query'],query=True),'using':BM25_VECTOR,'filter':repo.select(v,kind='chunk'),'limit':want*4}])
-            answer=repo.qdrant('POST','/points/query',query)
-            try:
-                rows=answer['points']
-                if not isinstance(rows,list) or len(rows)>want:raise RagError('invalid query size')
-                for row in rows:
-                    payload=row['payload'];number(row['score'],-1 if mode=='semantic' else 0,float('inf'),'score')
-                    if payload.get('namespace')!=v['namespace']:raise RagError('invalid query payload projection')
-                    if any(payload.get(k)!=v[k] for k in ('tableName','key1','key2') if k in v):raise RagError('query filter mismatch')
-                live=self._live(rows,repo)
-                for row in rows:
-                    payload=row['payload'];key=identity(payload)
-                    head=live.get(repo.point_id(payload))
-                    if key in best or head is None or row['id'] not in head['_rag_chunks'] or payload['_rag_rev']!=head['_rag_rev']:continue
-                    if provenance(payload)!=provenance(head):raise RagError('live chunk provenance mismatch')
-                    record={k:payload[k] for k in SUMMARY_FIELDS[:5] if k in payload}
-                    record.update(provenance(payload))
-                    record['chunk_index']=payload['_rag_index']
-                    record['scores']={dict(keyword='bm25',semantic='dense',hybrid='rrf')[mode]:row['score']}
-                    record['excerpt']=text(payload.get('_rag_text'),'stored text',DATA_MAX,empty=True)
-                    best[key]=record
-            except (KeyError,TypeError,AttributeError):raise RagError('invalid query response') from None
-            if len(best)>=v['limit'] or len(rows)<want:break
-            exhausted=page==3
-        # An empty answer must mean no match, never a window that dead chunks filled.
-        if exhausted and len(best)<v['limit']:raise Incomplete('search window exhausted before enough records were found; narrow the query, add filters or run cleanup')
-        ranked=sorted(best.values(),key=lambda r:(-next(iter(r['scores'].values())),r['tableName'],r['id']))
+            return query
+        ranked,want=self._collect(v,repo,page,dict(keyword='bm25',semantic='dense',hybrid='rrf')[mode],-1 if mode=='semantic' else 0)
         if not v.get('rerank'):return {'mode':mode,'records':ranked[:v['limit']]}
         # The candidate set is the same window the query asked for, never the whole namespace.
         candidates=ranked[:want]

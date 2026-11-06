@@ -23,7 +23,8 @@ CHUNK_FORMAT = 'utf8-ws4096-half-v1'
 KEYWORD_MODES = ('builtin','external')
 QUERY_MAX = 1024
 SEARCH_MODES = ('keyword','semantic','hybrid')
-METHODS = ('upsert','get','list','search','keyword_index','delete','prompts','capabilities','namespaces','drop_namespace')
+METHODS = ('upsert','get','list','search','count','similar','classify','keyword_index','delete','prompts','capabilities','namespaces','drop_namespace')
+FACET_MAX = 64      # distinct labels count answers; more says labels_truncated
 # Below own-KV's 512 KiB and the proxy body cap, including worst-case JSON escaping.
 CATALOGUE_MAX = 256 << 10
 NAMESPACE_MAX = 128
@@ -146,6 +147,8 @@ def parse(raw):
     allowed={'upsert':{'namespace','tableName','id','data','mime-type','key1','key2','embeddings','source','content_hash'},
              'get':{'namespace','tableName','id'},'list':{'namespace','tableName','key1','key2','limit','cursor'},
              'search':{'namespace','tableName','key1','key2','query','limit','mode','rerank'},
+             'count':{'namespace','tableName','key1','key2'},'similar':{'namespace','tableName','id','key1','key2','limit'},
+             'classify':{'namespace','tableName','data','mime-type'},
              'keyword_index':{'namespace'},'drop_namespace':{'namespace','confirm'},
              'delete':{'namespace','tableName','id','key1','key2','all'},'prompts':{'namespace','tableName','action','data'}}
     if not isinstance(method,str) or method not in allowed: raise NamedRefusal('unsupported_method','unknown method')
@@ -155,12 +158,16 @@ def parse(raw):
     if method=='drop_namespace':
         if 'confirm' in v: text(v['confirm'],'confirm',128,nfc=True)
         return v
-    required=('tableName','id') if method in ('upsert','get') else ('tableName',) if method=='prompts' else ()
+    required=('tableName','id') if method in ('upsert','get','similar') else ('tableName',) if method in ('prompts','classify') else ()
     for k in required: text(v.get(k),k,128,nfc=True)
     for k in ('tableName','id'):
         if k in v: text(v[k],k,128,nfc=True)
     for k in ('key1','key2'):
         if k in v: text(v[k],k,256,empty=True,nfc=True)
+    if method=='classify':
+        text(v.get('data'),'data',DATA_MAX)
+        if v.setdefault('mime-type','text/plain') not in ('text/plain','text/markdown','text/html','application/json'): raise RagError('unsupported mime-type')
+    if method=='similar':integer(v.setdefault('limit',16),1,16,'limit')
     if method=='upsert':
         text(v.get('source'),'source',SOURCE_MAX,nfc=True)
         text(v.get('data'),'data',DATA_MAX,empty=True)
@@ -191,8 +198,10 @@ def parse(raw):
 
 def config(v):
     required={'qdrant','voyage','ai','collection','embedding_model','dimensions'}
-    if not isinstance(v,dict) or set(v)-required-{'decision_model','keyword_search','rerank_model'} or not required<=set(v): raise RagError('configure block names, collection, embedding_model and dimensions')
+    if not isinstance(v,dict) or set(v)-required-{'decision_model','keyword_search','rerank_model','classify'} or not required<=set(v): raise RagError('configure block names, collection, embedding_model and dimensions')
     v=dict(v)
+    # Off by default: classify is the one extra that pays, so the owner turns it on.
+    if type(v.setdefault('classify',False)) is not bool: raise RagError('classify must be true or false')
     if v.setdefault('keyword_search','builtin') not in KEYWORD_MODES: raise RagError('keyword_search is builtin or external')
     for k in ('qdrant','voyage','ai'):
         text(v[k],k,256)

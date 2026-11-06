@@ -1,5 +1,5 @@
 {
-  "text": "Store namespaced documents and retrieve evidence by keyword, meaning or both. Start with free capabilities, then configure prompts and upsert records with their source path.\nupsert (JSON only): Classify and embed one sourced record, then publish its new revision. Provider failure changes no record; a first namespace binding can remain empty.; returns: Full record JSON, <=256 KiB with reconstructed embeddings and derived classification_ids(label->probability). Omitting key1/key2 clears them. Worst-case escaped-source, label and float32-vector budgets are refused before any paid call.\nget (JSON only): Get one record in the required namespace; a missing or foreign-namespace id answers not_found.\nlist (JSON only): Browse record summaries in stable order, up to 16 per call; send the returned cursor for the next page.; returns: JSON {records:[summaries],cursor:string|null}; <=16 summaries, excluding data and embeddings, each <=32 KiB. Filters do not grant access; no snapshot guarantee across calls.\nsearch (JSON only): Retrieve live evidence in the requested mode and namespace, one best chunk per record. Keyword is the free default; semantic and hybrid use the bound embedding model.; returns: JSON with effective mode and live citations: namespace, tableName, id, chunk_index, source, content_hash, excerpt, scores, indexed_at. scores contains bm25 (keyword), dense (semantic) or rrf (hybrid); no component scores are invented. With rerank:true, one paid Voyage rerank call reorders the query's candidates and adds a rerank score; reranked:true says it did, reranked:false with rerank_failure keeps the unreranked order. No generation or historical revision retrieval.\nkeyword_index (JSON only): Build only the selected namespace's keyword index. Owner or Maintainers only; collection vector provisioning remains a shared infrastructure action.; returns: JSON {status:\"ok\",indexed:n} when every chunk has its words (n counts this run), or \"incomplete: ...\" to repeat. If the Qdrant proxy refuses to add the vector, the answer names the owner's one-time command.; role: owner|maintainer\n[destructive] delete (JSON only): Remove one record, or exactly the namespace-scoped selection you name.; returns: JSON {status:\"ok\"}, without a count; a missing id answers not_found. id requires tableName and forbids key1/key2/all; otherwise all:true is required. Deletes selected revisions, never prompt KV. A retained tombstone allows explicit cleanup continuation; unknown outcomes never retry themselves.\n[destructive] prompts (JSON only): Read, replace or delete one table's classification prompts; existing records stay as they are.\ncapabilities (JSON only): Read static app version, methods, modes, limits and configured embedding model, even before configuration. Namespace-free; no storage or paid call and no health claim.\nnamespaces (JSON only): List known namespace names and exact live-record counts, including empty namespaces. Owner or Maintainers only; no record content. This metadata discovery is namespace-free.; returns: JSON {namespaces:[{namespace,count}],cursor:string|null}; a failed count refuses rather than inventing zero.; role: owner|maintainer\n[destructive] drop_namespace (JSON only): Remove one namespace's records, prompts and binding. Owner or Maintainers only, with confirm equal to namespace. A partial or uncertain drop stays blocked until an explicitly confirmed continuation; never retried automatically.; returns: JSON {status:\"dropped\"|\"absent\",namespace:string}; another namespace and the shared collection stay unchanged. An absent binding with existing data refuses as legacy_data.; role: owner|maintainer\n\nExamples\nagent-bus call '#rag@node.example' '{\"method\":\"upsert\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"data\":\"Tea is a drink.\",\"source\":\"notes/tea.md\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"get\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"list\",\"namespace\":\"team\",\"tableName\":\"notes\",\"limit\":2}'\nagent-bus call '#rag@node.example' '{\"method\":\"search\",\"namespace\":\"team\",\"query\":\"green tea\",\"limit\":5}'\nagent-bus call '#rag@node.example' --wait=120s '{\"method\":\"keyword_index\",\"namespace\":\"team\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"delete\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"prompts\",\"action\":\"set\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":{\"labels\":{\"drink\":\"Beverages\",\"other\":\"Other topics\"},\"instructions\":\"Choose the topic.\"}}'\nagent-bus call '#rag@node.example' '{\"method\":\"capabilities\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"namespaces\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"drop_namespace\",\"namespace\":\"team\",\"confirm\":\"team\"}'\n\nv0.4.0 · PolyForm Strict · parf.dev/agent-bus/ · © Sergey Porfiriev\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/rag.md\nMore: agent-bus help <name> config | secret | json",
+  "text": "Store namespaced documents and retrieve evidence by keyword, meaning or both. Start with free capabilities, then configure prompts and upsert records with their source path.\nupsert (JSON only): Classify and embed one sourced record, then publish its new revision. Provider failure changes no record; a first namespace binding can remain empty.; returns: Full record JSON, <=256 KiB with reconstructed embeddings and derived classification_ids(label->probability). Omitting key1/key2 clears them. Worst-case escaped-source, label and float32-vector budgets are refused before any paid call.\nget (JSON only): Get one record in the required namespace; a missing or foreign-namespace id answers not_found.\nlist (JSON only): Browse record summaries in stable order, up to 16 per call; send the returned cursor for the next page.; returns: JSON {records:[summaries],cursor:string|null}; <=16 summaries, excluding data and embeddings, each <=32 KiB. Filters do not grant access; no snapshot guarantee across calls.\nsearch (JSON only): Retrieve live evidence in the requested mode and namespace, one best chunk per record. Keyword is the free default; semantic and hybrid use the bound embedding model.; returns: JSON with effective mode and live citations: namespace, tableName, id, chunk_index, source, content_hash, excerpt, scores, indexed_at. scores contains bm25 (keyword), dense (semantic) or rrf (hybrid); no component scores are invented. With rerank:true, one paid Voyage rerank call reorders the query's candidates and adds a rerank score; reranked:true says it did, reranked:false with rerank_failure keeps the unreranked order. No generation or historical revision retrieval.\ncount (JSON only): Count live records matching a filter and how many carry each label; free.; returns: JSON {count, labels:{label:records}, labels_truncated}; labels holds at most 64 labels, most frequent first, and labels_truncated:true says more exist. Deleted records are not counted.\nsimilar (JSON only): Find live records whose stored vectors are nearest a given record's, in the same table and namespace; free, nothing is embedded.; returns: JSON {records:[citations]} like search, one best chunk per record, excluding the given record; scores contains similarity. A missing or deleted record answers not_found.\nclassify (JSON only): Label a text with the table's classification prompts as upsert would, without storing it; one paid #ai call, off unless the classify setting is true.; returns: JSON {labels:{label:probability}, probabilities:{label:probability}}: labels keeps those at or above the table's threshold, at most top_k; probabilities holds every label. With classify off it is refused as classify_unavailable before any call.\nkeyword_index (JSON only): Build only the selected namespace's keyword index. Owner or Maintainers only; collection vector provisioning remains a shared infrastructure action.; returns: JSON {status:\"ok\",indexed:n} when every chunk has its words (n counts this run), or \"incomplete: ...\" to repeat. If the Qdrant proxy refuses to add the vector, the answer names the owner's one-time command.; role: owner|maintainer\n[destructive] delete (JSON only): Remove one record, or exactly the namespace-scoped selection you name.; returns: JSON {status:\"ok\"}, without a count; a missing id answers not_found. id requires tableName and forbids key1/key2/all; otherwise all:true is required. Deletes selected revisions, never prompt KV. A retained tombstone allows explicit cleanup continuation; unknown outcomes never retry themselves.\n[destructive] prompts (JSON only): Read, replace or delete one table's classification prompts; existing records stay as they are.\ncapabilities (JSON only): Read static app version, methods, modes, limits and configured embedding model, even before configuration. Namespace-free; no storage or paid call and no health claim.\nnamespaces (JSON only): List known namespace names and exact live-record counts, including empty namespaces. Owner or Maintainers only; no record content. This metadata discovery is namespace-free.; returns: JSON {namespaces:[{namespace,count}],cursor:string|null}; a failed count refuses rather than inventing zero.; role: owner|maintainer\n[destructive] drop_namespace (JSON only): Remove one namespace's records, prompts and binding. Owner or Maintainers only, with confirm equal to namespace. A partial or uncertain drop stays blocked until an explicitly confirmed continuation; never retried automatically.; returns: JSON {status:\"dropped\"|\"absent\",namespace:string}; another namespace and the shared collection stay unchanged. An absent binding with existing data refuses as legacy_data.; role: owner|maintainer\n\nExamples\nagent-bus call '#rag@node.example' '{\"method\":\"upsert\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"data\":\"Tea is a drink.\",\"source\":\"notes/tea.md\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"get\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"list\",\"namespace\":\"team\",\"tableName\":\"notes\",\"limit\":2}'\nagent-bus call '#rag@node.example' '{\"method\":\"search\",\"namespace\":\"team\",\"query\":\"green tea\",\"limit\":5}'\nagent-bus call '#rag@node.example' '{\"method\":\"count\",\"namespace\":\"team\",\"tableName\":\"notes\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"similar\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"limit\":5}'\nagent-bus call '#rag@node.example' '{\"method\":\"classify\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":\"Green tea with lemon.\"}'\nagent-bus call '#rag@node.example' --wait=120s '{\"method\":\"keyword_index\",\"namespace\":\"team\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"delete\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"prompts\",\"action\":\"set\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":{\"labels\":{\"drink\":\"Beverages\",\"other\":\"Other topics\"},\"instructions\":\"Choose the topic.\"}}'\nagent-bus call '#rag@node.example' '{\"method\":\"capabilities\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"namespaces\"}'\nagent-bus call '#rag@node.example' '{\"method\":\"drop_namespace\",\"namespace\":\"team\",\"confirm\":\"team\"}'\n\nv0.4.0 · PolyForm Strict · parf.dev/agent-bus/ · © Sergey Porfiriev\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/rag.md\nMore: agent-bus help <name> config | secret | json",
   "json": {
     "description": "Store namespaced documents and retrieve evidence by keyword, meaning or both. Start with free capabilities, then configure prompts and upsert records with their source path.",
     "license": "LicenseRef-PolyForm-Strict-1.0.0",
@@ -235,6 +235,131 @@
         "returns": "JSON with effective mode and live citations: namespace, tableName, id, chunk_index, source, content_hash, excerpt, scores, indexed_at. scores contains bm25 (keyword), dense (semantic) or rrf (hybrid); no component scores are invented. With rerank:true, one paid Voyage rerank call reorders the query's candidates and adds a rerank score; reranked:true says it did, reranked:false with rerank_failure keeps the unreranked order. No generation or historical revision retrieval.",
         "example": "agent-bus call '#rag@node.example' '{\"method\":\"search\",\"namespace\":\"team\",\"query\":\"green tea\",\"limit\":5}'"
       },
+      "count": {
+        "type": "string",
+        "help": "Count live records matching a filter and how many carry each label; free.",
+        "text": "count (JSON only)",
+        "args": [
+          {
+            "type": "string",
+            "help": "Required explicit namespace for every data method, prompts and keyword_index; no default or wildcard. UTF-8 NFC, 1..128 bytes, no BOM, NUL or newline.",
+            "json_only": true,
+            "name": "namespace"
+          },
+          {
+            "type": "string",
+            "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient. All identity/filter strings must already be NFC; no aliases or silent normalization. Same byte, BOM/NUL/newline and non-blank rules as namespace.",
+            "json_only": true,
+            "name": "tableName",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
+            "json_only": true,
+            "name": "key1",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
+            "json_only": true,
+            "name": "key2",
+            "optional": true
+          }
+        ],
+        "returns": "JSON {count, labels:{label:records}, labels_truncated}; labels holds at most 64 labels, most frequent first, and labels_truncated:true says more exist. Deleted records are not counted.",
+        "example": "agent-bus call '#rag@node.example' '{\"method\":\"count\",\"namespace\":\"team\",\"tableName\":\"notes\"}'"
+      },
+      "similar": {
+        "type": "string",
+        "help": "Find live records whose stored vectors are nearest a given record's, in the same table and namespace; free, nothing is embedded.",
+        "text": "similar (JSON only)",
+        "args": [
+          {
+            "type": "string",
+            "help": "Required explicit namespace for every data method, prompts and keyword_index; no default or wildcard. UTF-8 NFC, 1..128 bytes, no BOM, NUL or newline.",
+            "json_only": true,
+            "name": "namespace"
+          },
+          {
+            "type": "string",
+            "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient. All identity/filter strings must already be NFC; no aliases or silent normalization. Same byte, BOM/NUL/newline and non-blank rules as namespace.",
+            "json_only": true,
+            "name": "tableName"
+          },
+          {
+            "type": "string",
+            "help": "Exact record ID, 1..128 UTF-8 bytes; strings only, no numeric coercion. All identity/filter strings must already be NFC; no aliases or silent normalization.",
+            "json_only": true,
+            "name": "id"
+          },
+          {
+            "type": "string",
+            "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
+            "json_only": true,
+            "name": "key1",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
+            "json_only": true,
+            "name": "key2",
+            "optional": true
+          },
+          {
+            "type": "int",
+            "help": "Page size 1..16; summaries omit data and embeddings and are each <=32 KiB, leaving proxy reply headroom.",
+            "json_only": true,
+            "optional": true,
+            "default": 16,
+            "name": "limit"
+          }
+        ],
+        "returns": "JSON {records:[citations]} like search, one best chunk per record, excluding the given record; scores contains similarity. A missing or deleted record answers not_found.",
+        "example": "agent-bus call '#rag@node.example' '{\"method\":\"similar\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"limit\":5}'"
+      },
+      "classify": {
+        "type": "string",
+        "help": "Label a text with the table's classification prompts as upsert would, without storing it; one paid #ai call, off unless the classify setting is true.",
+        "text": "classify (JSON only)",
+        "args": [
+          {
+            "type": "string",
+            "help": "Required explicit namespace for every data method, prompts and keyword_index; no default or wildcard. UTF-8 NFC, 1..128 bytes, no BOM, NUL or newline.",
+            "json_only": true,
+            "name": "namespace"
+          },
+          {
+            "type": "string",
+            "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient. All identity/filter strings must already be NFC; no aliases or silent normalization. Same byte, BOM/NUL/newline and non-blank rules as namespace.",
+            "json_only": true,
+            "name": "tableName"
+          },
+          {
+            "type": "string",
+            "help": "UTF-8 source, at most 32768 bytes; no BOM, NUL or invalid encoding. For application/json, supply JSON text. The source cap is an upper bound: whitespace break points can require more than 8 chunks and refuse early.",
+            "json_only": true,
+            "name": "data"
+          },
+          {
+            "type": [
+              "text/plain",
+              "text/markdown",
+              "text/html",
+              "application/json"
+            ],
+            "help": "Content type; HTML excludes script/style, Markdown keeps its source, JSON is canonicalized for chunking.",
+            "json_only": true,
+            "optional": true,
+            "default": "text/plain",
+            "name": "mime-type"
+          }
+        ],
+        "returns": "JSON {labels:{label:probability}, probabilities:{label:probability}}: labels keeps those at or above the table's threshold, at most top_k; probabilities holds every label. With classify off it is refused as classify_unavailable before any call.",
+        "example": "agent-bus call '#rag@node.example' '{\"method\":\"classify\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":\"Green tea with lemon.\"}'"
+      },
       "keyword_index": {
         "type": "string",
         "help": "Build only the selected namespace's keyword index. Owner or Maintainers only; collection vector provisioning remains a shared infrastructure action.",
@@ -459,6 +584,12 @@
         "help": "Voyage rerank model for search with rerank:true; empty (default) turns rerank off and such a search is refused as rerank_unavailable",
         "default": "",
         "example": "rerank-2.5"
+      },
+      "classify": {
+        "type": "bool",
+        "help": "true turns on classify, which makes one paid #ai Jev call per request with decision_model; false (default) refuses classify as classify_unavailable",
+        "default": false,
+        "example": true
       }
     },
     "secrets": [],

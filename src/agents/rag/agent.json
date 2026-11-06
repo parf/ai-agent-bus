@@ -256,6 +256,79 @@
       "returns": "JSON with effective mode and live citations: namespace, tableName, id, chunk_index, source, content_hash, excerpt, scores, indexed_at. scores contains bm25 (keyword), dense (semantic) or rrf (hybrid); no component scores are invented. With rerank:true, one paid Voyage rerank call reorders the query's candidates and adds a rerank score; reranked:true says it did, reranked:false with rerank_failure keeps the unreranked order. No generation or historical revision retrieval.",
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"search\",\"namespace\":\"team\",\"query\":\"green tea\",\"limit\":5}'"
     },
+    "count": {
+      "help": "Count live records matching a filter and how many carry each label; free.",
+      "text": "count (JSON only)",
+      "args": [
+        {
+          "name": "namespace"
+        },
+        {
+          "name": "tableName",
+          "optional": true
+        },
+        {
+          "name": "key1",
+          "optional": true
+        },
+        {
+          "name": "key2",
+          "optional": true
+        }
+      ],
+      "returns": "JSON {count, labels:{label:records}, labels_truncated}; labels holds at most 64 labels, most frequent first, and labels_truncated:true says more exist. Deleted records are not counted.",
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"count\",\"namespace\":\"team\",\"tableName\":\"notes\"}'"
+    },
+    "similar": {
+      "help": "Find live records whose stored vectors are nearest a given record's, in the same table and namespace; free, nothing is embedded.",
+      "text": "similar (JSON only)",
+      "args": [
+        {
+          "name": "namespace"
+        },
+        {
+          "name": "tableName"
+        },
+        {
+          "name": "id"
+        },
+        {
+          "name": "key1",
+          "optional": true
+        },
+        {
+          "name": "key2",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "optional": true
+        }
+      ],
+      "returns": "JSON {records:[citations]} like search, one best chunk per record, excluding the given record; scores contains similarity. A missing or deleted record answers not_found.",
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"similar\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"limit\":5}'"
+    },
+    "classify": {
+      "help": "Label a text with the table's classification prompts as upsert would, without storing it; one paid #ai call, off unless the classify setting is true.",
+      "text": "classify (JSON only)",
+      "args": [
+        {
+          "name": "namespace"
+        },
+        {
+          "name": "tableName"
+        },
+        {
+          "name": "data"
+        },
+        {
+          "name": "mime-type",
+          "optional": true
+        }
+      ],
+      "returns": "JSON {labels:{label:probability}, probabilities:{label:probability}}: labels keeps those at or above the table's threshold, at most top_k; probabilities holds every label. With classify off it is refused as classify_unavailable before any call.",
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"classify\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":\"Green tea with lemon.\"}'"
+    },
     "keyword_index": {
       "help": "Build only the selected namespace's keyword index. Owner or Maintainers only; collection vector provisioning remains a shared infrastructure action.",
       "text": "keyword_index (JSON only)",
@@ -420,6 +493,12 @@
       "help": "Voyage rerank model for search with rerank:true; empty (default) turns rerank off and such a search is refused as rerank_unavailable",
       "default": "",
       "example": "rerank-2.5"
+    },
+    "classify": {
+      "type": "bool",
+      "help": "true turns on classify, which makes one paid #ai Jev call per request with decision_model; false (default) refuses classify as classify_unavailable",
+      "default": false,
+      "example": true
     }
   },
   "deadline": "120s",

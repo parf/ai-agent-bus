@@ -181,7 +181,7 @@ class NamespaceAccess:
             if not isinstance(ids,list) or not 1<=len(ids)<=64:raise RagError('invalid scoped id batch')
             body={'filter':{'must':[{'has_id':ids}]},'limit':len(ids),'with_payload':body.get('with_payload',True),'with_vector':body.get('with_vector',False)}
             path='/points/scroll'
-        if path in ('/points/scroll','/points/query','/points/count') or path.startswith('/points/delete?') or path.startswith('/points/payload?'):
+        if path in ('/points/scroll','/points/query','/points/count','/facet') or path.startswith('/points/delete?') or path.startswith('/points/payload?'):
             if 'points' in (body or {}):raise RagError('unfiltered point deletion is not allowed')
             body['filter']=self.filter(body.get('filter'))
             for prefetch in body.get('prefetch',[]):prefetch['filter']=self.filter(prefetch.get('filter'))
