@@ -112,13 +112,12 @@ How the two share code is [Q314](resolved.md#Q314); [FileScan](filescan.md#quest
 
 ## Deletes
 
-A deleted row leaves nothing for `updated > cursor` to see. Three ways, one chosen at configuration ([Q316](resolved.md#Q316)):
+A deleted row leaves nothing for `updated > cursor` to see. R1.1 reports a delete one way, chosen first by the owner ([Q316](resolved.md#Q316)); the other is a follow-up, not a setting of this stage.
 
-| Way | What it takes |
+| Way | Status |
 |---|---|
-| **Soft delete** | The table marks a row deleted and keeps it with a new `updated`; DBSync sends it as a delete |
-| **Key diff** | A slow periodic query lists all keys and the agent compares them with its state; a mass-delete guard like [FileScan's](filescan.md#the-mass-delete-guard) pauses it when too many keys vanish |
-| **None** | Deletes are never reported; the guide says so |
+| **Soft delete** | Built. The table marks a row deleted and keeps it with a new `updated`; DBSync sends it as a delete. The Owner names the marker column at configuration; a table without one reports no deletes, and the guide says so |
+| **Key diff** | Deferred, a later follow-up: a slow periodic query that lists all keys and compares them with the state, with a mass-delete guard like [FileScan's](filescan.md#the-mass-delete-guard). It is not offered by S3: no setting selects it and no code path for it ships |
 
 ## State
 
@@ -128,10 +127,10 @@ A deleted row leaves nothing for `updated > cursor` to see. Three ways, one chos
 
 ## Who may use it
 
-This is [FileScan's model](filescan.md#who-may-use-it) and the [shared subscription rules](../../docs/agents/subscriptions.md#the-shared-behaviour), with one added question: whose database grant a query runs under ([Q315](resolved.md#Q315)).
+This is [FileScan's model](filescan.md#who-may-use-it) and the [shared subscription rules](../../docs/agents/subscriptions.md#the-shared-behaviour), with the rule for whose database grant a query runs under settled by [Q315](resolved.md#Q315): the query runs under the DBSync instance's own read grant, fixed by its Owner, and the author also needs may-send to the DB agent at `sub add` and before every forward, so nobody reads through DBSync what they could not read directly.
 
 - The author needs may-send to the target and to `#dbsync` at `sub add`, and again before every forward; there is no Owner bypass.
-- The query is fixed by the Owner's settings; a subscriber chooses nothing about it.
+- The query is fixed by the Owner's settings; a subscriber chooses nothing about it, and the DB-agent may-send above is checked with the may-send to the target and to `#dbsync`.
 - The retry difference from the shared send-once rule is the same as FileScan's: a row stays pending until confirmed.
 
 ## What the DB agent offers, and what DBSync does not assume

@@ -199,7 +199,7 @@ Owner, 2026-11-02; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [dbsy
 - ☐ DS.1 `#dbsync/<name>`: a runner agent that tracks new and changed rows of one table by an `updated` column, asks through a read-only [DB agent](../../src/agents/db/guide.md#what-it-does), and hands the rows to subscribed agents; steps D0–D3 with an estimate of four to five hours of agent time
   - Depends: the DB agent (built); the S1 shared core library from [FS.1](#filescan) ([Q314](resolved.md#Q314))
   - Deploy: a kept process serving itself with its own token, handed over once like FileScan's; it holds no database credential, which stays in the read-only DB agent
-  - Follow-ups, outside this stage: ClickHouse ([Q319](resolved.md#Q319)) and a counter mode for `updated` ([Q320](resolved.md#Q320))
+  - Follow-ups, outside this stage: ClickHouse ([Q319](resolved.md#Q319)), the key-diff way to notice deletes ([Q316](resolved.md#Q316); soft delete is what S3 builds), and a counter mode for `updated` ([Q320](resolved.md#Q320))
   - Acceptance, each against the DB fixture and a fake subscriber, never the live bus:
     - **Cursor:** three rows sharing one `updated` value with `batch` of two are all sent, once each; a cursor on `updated` alone fails this
     - **Paging:** an uncut short page ends the poll; a full page, or a cut whose scan position advanced, triggers the next query at once from the last raw pair received; the page is `max_rows` minus `ceil(max_rows / 10)`, recomputed each poll; `max_rows` 1 is refused with an alert; `max_rows` lowered after a cursor is saved gives a smaller page and the same saved cursor
