@@ -111,8 +111,9 @@ RAG_TEXT=32*1024
 def rag_id(path):
     """(id, key1): the path itself as the id when RAG takes it, else a hash with the path kept in key1."""
     import hashlib,unicodedata
-    if len(path)<=128 and path.isprintable() and unicodedata.normalize('NFC',path)==path:return path,None
-    return hashlib.sha256(path.encode()).hexdigest(),path[:256]
+    if len(path)<=128 and path.isprintable() and unicodedata.normalize('NFC',path)==path and not path.startswith('sha256:'):return path,None
+    # A distinct form: no plain path can equal it, so a file named like a hash never collides with a hashed one.
+    return 'sha256:'+hashlib.sha256(path.encode()).hexdigest(),path[:256]
 
 
 def rag_mime(path):
@@ -255,12 +256,14 @@ class FileScan:
         ident,key1=rag_id(key)
         if action=='delete':
             return dumps({'method':'delete','namespace':namespace,'tableName':table,'id':ident})
-        if record['size']>RAG_TEXT:
-            self._skip(row['id'],key,f"{record['size']} bytes is over RAG's {RAG_TEXT} byte text limit");return None
+        def refused(why):
+            # A file RAG cannot take: nothing to upsert. If RAG held an earlier version, that text is stale, so delete it.
+            self._skip(row['id'],key,why+('; its earlier text was deleted from RAG' if action=='change' else ''))
+            return dumps({'method':'delete','namespace':namespace,'tableName':table,'id':ident}) if action=='change' else None
+        if record['size']>RAG_TEXT:return refused(f"{record['size']} bytes is over RAG's {RAG_TEXT} byte text limit")
         try:sha,size,text=scanning.digest(self.root,key,RAG_TEXT)
-        except OSError:self._skip(row['id'],key,'unreadable');return None
-        if text is None:
-            self._skip(row['id'],key,'not UTF-8 text, or over the limit');return None
+        except OSError:return refused('unreadable')
+        if text is None:return refused('not UTF-8 text, or over the limit')
         call={'method':'upsert','namespace':namespace,'tableName':table,'id':ident,'data':text,'mime-type':rag_mime(key)}
         if key1:call['key1']=key1
         self.skipped.get(row['id'],{}).pop(key,None)

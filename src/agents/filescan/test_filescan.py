@@ -237,7 +237,7 @@ class RagTests(Base):
         long='d/'+'x'*130+'.md';self.put(long,'t');self.put('line break.md','t');self.rag();self.call('scan')
         by={c['id']:c for c in self.calls()}
         h=[c for c in by.values() if c.get('key1')==long]
-        self.assertEqual((len(h),len(h[0]['id'])),(1,64))
+        self.assertEqual((len(h),len(h[0]['id'])),(1,71))
         self.assertEqual(len([c for c in by.values() if c.get('key1','').startswith('line')]),1)
 
     def test_a_file_over_rags_limit_or_not_text_is_skipped_for_rag_and_named_in_status(self):
@@ -246,6 +246,19 @@ class RagTests(Base):
         self.assertEqual([c['id'] for c in self.calls()],['ok.md'])
         skipped=self.call('status')['skipped_for_rag'];names=set(next(iter(skipped.values())))
         self.assertEqual(names,{'big.md','bin.dat'});self.assertEqual(self.call('status')['subscribers'][0]['pending'],0)
+
+    def test_a_file_that_grows_past_ragss_limit_has_its_stale_text_deleted_and_is_named(self):
+        self.agent=self.make({'max_file_size':'1MiB'});self.put('a.md','small');self.rag();self.call('scan');self.bus.calls.clear()
+        self.put('a.md','x'*(fs.RAG_TEXT+1),mtime=time.time()+5);self.call('scan')
+        self.assertEqual(self.calls(),[{'method':'delete','namespace':'vault','tableName':'notes','id':'a.md'}])
+        self.assertIn('earlier text was deleted',next(iter(self.call('status')['skipped_for_rag'].values()))['a.md'])
+        self.bus.calls.clear();self.call('scan');self.assertEqual(self.bus.calls,[],'done, not repeated')
+
+    def test_a_path_that_looks_like_a_hash_cannot_collide_with_a_hashed_one(self):
+        import hashlib
+        long='d/'+'y'*130;h=hashlib.sha256(long.encode()).hexdigest()
+        self.assertEqual(fs.rag_id(h),(h,None));self.assertEqual(fs.rag_id(long)[0],'sha256:'+h);self.assertNotEqual(fs.rag_id(h)[0],fs.rag_id(long)[0])
+        self.assertEqual(fs.rag_id('sha256:'+h)[0],'sha256:'+hashlib.sha256(('sha256:'+h).encode()).hexdigest(),'a plain path in the hashed form is hashed too')
 
     def test_without_a_namespace_and_table_rag_gets_nothing_and_status_says_so(self):
         self.put('a.md');self.rag(extra='as rag');self.call('scan');self.assertEqual(self.bus.calls,[])
