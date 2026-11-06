@@ -415,6 +415,22 @@ class Proxy(unittest.TestCase):
             self.assertEqual(json.loads(self.call(body)[0]), self.MODELS['data'])
         self.assertEqual(json.loads(self.call('models --json free')[0]), self.MODELS['data'][2:4])
 
+    def test_models_prices_are_exact_finite_and_one_unit_and_cells_stay_on_one_line(self):
+        # A price under 0.00005 USD/M is not free, a non-finite price is no price, and per-image never meets per-megapixel.
+        rows = {'data': [{'id': 'fixture/tiny', 'pricing': {'prompt': '0.00000000001', 'completion': '0'}},
+                         {'id': 'fixture/odd', 'pricing': {'prompt': 'NaN', 'completion': 'inf'}},
+                         {'id': 'fixture/line\nbreak', 'context_length': 'a\rb', 'architecture': {'input_modalities': ['te\nxt']}}]}
+        self.route('/models', rows)
+        self.assertEqual([line.split() for line in self.call('models fixture')[0].split('\n')[1:-1]],
+                         [['fixture/tiny', '-', '0', '0', '-'], ['fixture/odd', '-', '-', '-', '-'],
+                          ['fixture/line\\x0abreak', 'a\\x0db', '-', '-', 'te\\x0axt']])
+        self.assertEqual(self.call('models free')[0].split('\n')[1:-1], [])
+        self.route('/images/models', {'data': [{'id': 'fixture/both', 'pricing': [{'unit': 'megapixel', 'cost_usd': 0.001},
+                                                                                {'unit': 'image', 'cost_usd': 0.05}, {'unit': 'image', 'cost_usd': 0.04}]},
+                                               {'id': 'fixture/mp', 'pricing': [{'unit': 'megapixel', 'cost_usd': 0.02}, {'unit': 'megapixel', 'cost_usd': 'inf'}]}]})
+        self.assertEqual([line.split()[:2] for line in self.call('models --images')[0].split('\n')[1:-1]],
+                         [['fixture/both', '0.04/image'], ['fixture/mp', '0.02/megapixel']])
+
     def test_model_keeps_each_endpoints_own_context_and_prices(self):
         self.route('/models/openai/gpt-4/endpoints', self.ENDPOINTS)
         for body in ['model openai/gpt-4', '{"method":"model","id":"openai/gpt-4"}']:

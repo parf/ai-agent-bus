@@ -3,6 +3,7 @@
 import contextlib
 import http.client
 import json
+import math
 import os
 import re
 import signal
@@ -82,31 +83,46 @@ def models_options(words):
     return options
 
 
+def price(value):
+    """A provider price as a finite float, or None: NaN and infinities are no price."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
 def per_million(value):
     """A per-token price string as USD per million tokens; a negative price means the router decides."""
-    try:
-        price = float(value)
-    except (TypeError, ValueError):
+    number = price(value)
+    if number is None:
         return "-"
-    if price < 0:
+    if number < 0:
         return "varies"
-    return f"{price * 1e6:.4f}".rstrip("0").rstrip(".")
+    return f"{number * 1e6:.4f}".rstrip("0").rstrip(".")
 
 
 def image_price(row):
-    """The cheapest per-image or per-megapixel price the listing gives, or -."""
-    prices = [(p["cost_usd"], p["unit"]) for p in row.get("pricing") or [] if isinstance(p, dict)
-              and p.get("unit") in ("image", "megapixel") and isinstance(p.get("cost_usd"), (int, float))]
-    if not prices:
-        return "-"
-    cost, unit = min(prices)
-    return f"{cost:g}/{unit}"
+    """The cheapest price within one unit, per image if the listing gives one, else per megapixel, or -."""
+    for unit in ("image", "megapixel"):
+        costs = [price(p.get("cost_usd")) for p in row.get("pricing") or [] if isinstance(p, dict)
+                 and p.get("unit") == unit and not isinstance(p.get("cost_usd"), bool)]
+        costs = [cost for cost in costs if cost is not None]
+        if costs:
+            return f"{min(costs):g}/{unit}"
+    return "-"
 
 
 def is_free(row):
+    """A :free variant, or a model whose prompt and completion prices are both exactly zero."""
     pricing = row.get("pricing") or {}
-    return row["id"].endswith(":free") or (isinstance(pricing, dict) and per_million(pricing.get("prompt")) == "0"
-                                           and per_million(pricing.get("completion")) == "0")
+    return row["id"].endswith(":free") or (isinstance(pricing, dict) and price(pricing.get("prompt")) == 0
+                                           and price(pricing.get("completion")) == 0)
+
+
+def cell(value):
+    """A table cell on one line: control characters from the provider are shown escaped."""
+    return re.sub(r"[\x00-\x1f\x7f]", lambda m: f"\\x{ord(m.group()):02x}", str(value))
 
 
 def default_row(rows, default):
@@ -133,20 +149,20 @@ def models_answer(rows, options, default):
         return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
     if options["images"]:
         table = [("id", "price USD", "input")]
-        table += [(row["id"], image_price(row), ",".join((row.get("architecture") or {}).get("input_modalities") or []) or "-") for row in rows]
+        table += [(cell(row["id"]), image_price(row), cell(",".join((row.get("architecture") or {}).get("input_modalities") or []) or "-")) for row in rows]
     else:
         table = [("id", "context", "$/M in", "$/M out", "input")]
         for row in rows:
             pricing = row.get("pricing") if isinstance(row.get("pricing"), dict) else {}
-            table.append((row["id"], str(row.get("context_length") or "-"), per_million(pricing.get("prompt")),
-                          per_million(pricing.get("completion")), ",".join((row.get("architecture") or {}).get("input_modalities") or []) or "-"))
+            table.append((cell(row["id"]), cell(row.get("context_length") or "-"), per_million(pricing.get("prompt")),
+                          per_million(pricing.get("completion")), cell(",".join((row.get("architecture") or {}).get("input_modalities") or []) or "-")))
     widths = [max(len(line[i]) for line in table) for i in range(len(table[0]))]
-    lines = [("* " if marked is not None and line[0] == marked["id"] and n else "  ")
+    lines = [("* " if marked is not None and line[0] == cell(marked["id"]) and n else "  ")
              + "  ".join(cell.ljust(width) for cell, width in zip(line, widths)).rstrip() for n, line in enumerate(table)]
     if not isinstance(default, str) or not default:
         lines.append("default: unset")
     else:
-        lines.append("default: " + default + ("" if marked is not None else " (not listed)"))
+        lines.append("default: " + cell(default) + ("" if marked is not None else " (not listed)"))
     return "\n".join(lines)
 
 
