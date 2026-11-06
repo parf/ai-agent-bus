@@ -3,7 +3,7 @@
 📌 **TL;DR:** Changes to the bundled agents in `src/agents/`, newest first.
 The pack has its own SemVer in `src/agents/VERSION`, separate from the bus version.
 
-## 1.0.0 — 2026-11-05
+## 1.0.0 — 2026-11-06
 
-The agent pack is versioned separately from the bus. It starts from the agents as of bus 1.0.11.
-An agent change no longer re-tests the daemon.
+The pack's first version: the bundled agents are versioned separately from the bus. RAG keeps its own app version in its `agent.json`, apart from this one.
+An agent change, FileScan and DBSync included, runs that agent's checks and the pack contract, and no longer re-tests the daemon.
