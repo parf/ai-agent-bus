@@ -53,8 +53,9 @@ Blocks first (R.1–R.4), then the app (R.5–R.9).
   - Builds: hybrid `search` with filters and optional rerank; the keyword configuration option and default follow [Q194](README.md#rules). R.5 supplies comparison evidence, not the backend choice.
   - Acceptance: on a fixture set, filters hold exactly; a keyword-only match and a meaning-only match both appear; rerank reorders; hits carry the agreed fields
 
-- ☐ R.8 `#rag` extras: `complete`, `similar`, `count`, `classify`
-  - Approved: all four (owner, 2026-11-06, [Q360](QUESTIONS.md)); tests use fixtures and fake providers only
+- ⏳ R.8 `#rag` extras: `complete`, `similar`, `count`, `classify`
+  - State: all four approved (Q360, [decisions](../DECISIONS.md#recorded-decisions)); `count`, `similar` and `classify` built in app 0.4.1 ([done](DONE.md#r8-count-similar-and-classify)); `complete` next, with its prefix index created by `keyword_index`
+  - Acceptance: fixture-only; `count` excludes deleted records and says when labels are truncated; `similar` never leaves the caller's scope and embeds nothing; `classify` is refused before any call when off and stores nothing; `complete` refuses until its index exists
 
 - ☐ R.9 Summary, docs and end-to-end
   - Builds: the optional summary chunk through `#ai`; a user guide under `docs/agents/`; one end-to-end run on the owner's data, approved by the owner

@@ -1,5 +1,9 @@
 # RAG changelog
 
+## 0.4.1
+
+Add `count` (live records and records per label for a filter) and `similar` (records nearest a stored record's vectors), both free, and `classify` (labels for a text without storing it), one paid `#ai` call, off unless the new `classify` setting is true.
+
 ## 0.4.0
 
 Rerank: `search` with `rerank:true` reorders its candidate window, at most four times `limit`, in one paid Voyage rerank call with the `rerank_model` setting.
