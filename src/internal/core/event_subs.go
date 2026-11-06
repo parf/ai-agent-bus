@@ -401,10 +401,26 @@ func (b *Bus) SubList(caller, source string) ([]SubscriptionEntry, error) {
 	}
 	if source != "" {
 		r, _, _, err := b.eventAccess(caller, source, false)
-		if err != nil {
+		if err == nil {
+			return out, collect(r, true)
+		}
+		// The bare listing narrowed to one log: an author who does not manage it
+		// sees their own rows there. With none, the refusal is the one a missing
+		// or unmanaged log gives, so the narrowed form reveals nothing more.
+		if eventlog.Code(err) != "forbidden" {
 			return nil, err
 		}
-		return out, collect(r, true)
+		r, ok := b.authoredSource(caller, source)
+		if !ok {
+			return nil, err
+		}
+		if cerr := collect(r, false); cerr != nil {
+			return nil, cerr
+		}
+		if len(out) == 0 {
+			return nil, err
+		}
+		return out, nil
 	}
 	b.mu.Lock()
 	if b.acting(caller) != nil {
@@ -454,6 +470,45 @@ func (b *Bus) SubList(caller, source string) ([]SubscriptionEntry, error) {
 		}
 	}
 	return out, nil
+}
+
+// authoredSource is the live agent log source when the caller, acting, made a
+// subscription of it; the bare listing reaches the same logs the same way.
+func (b *Bus) authoredSource(caller, source string) (protocol.Record, bool) {
+	caller, err := canon(caller)
+	if err != nil {
+		return protocol.Record{}, false
+	}
+	source, err = canon(source)
+	if err != nil {
+		return protocol.Record{}, false
+	}
+	b.mu.Lock()
+	if b.acting(caller) != nil {
+		b.unlock()
+		return protocol.Record{}, false
+	}
+	r, live := b.entity(source)
+	var port ports.SubscriptionStore = &b.subFallback
+	if b.store != nil {
+		if p, ok := b.store.(ports.SubscriptionStore); ok {
+			port = p
+		}
+	}
+	b.unlock()
+	if !live || r.Kind != protocol.KindAgent {
+		return protocol.Record{}, false
+	}
+	authored, err := port.SubscriptionSources(caller)
+	if err != nil {
+		return protocol.Record{}, false
+	}
+	for _, id := range authored {
+		if id == r.ID {
+			return r, true
+		}
+	}
+	return protocol.Record{}, false
 }
 
 // SubDelete removes a subscription by its id: its author, or a manager of its source.

@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.39 — 2026-11-06
+
+sub list for one log shows an author their own rows there even without managing it, and the ring total reads its defaults from the bus settings
+
 ## 1.0.38 — 2026-11-06
 
 Telegram retries its startup identity lookup with a capped backoff, warns while it is unknown and keeps serving

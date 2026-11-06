@@ -117,8 +117,10 @@ func TestSubscriptionAuthorityFollowsTheSourcesManagers(t *testing.T) {
 	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Maintainers: ptr(protocol.MaintainerList{})}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.SubList("maint@h", "#a@h"); eventlog.Code(err) != "forbidden" {
-		t.Fatalf("a former Maintainer listed the source: %v", err)
+	// Narrowed to the source, a former Maintainer sees its own row there, as
+	// the bare listing shows it (A5).
+	if rows, err := b.SubList("maint@h", "#a@h"); err != nil || len(rows) != 1 || rows[0].Listed.Row == nil || rows[0].Listed.Row.CreatedBy != "maint@h" {
+		t.Fatalf("a former Maintainer's own row, narrowed to the source: %v %v", rows, err)
 	}
 	if rows, err := b.SubList("maint@h", ""); err != nil || len(rows) != 1 {
 		t.Fatalf("a former Maintainer's own subscription is not listed: %v %v", rows, err)
@@ -130,6 +132,17 @@ func TestSubscriptionAuthorityFollowsTheSourcesManagers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Another author's row in that source stays hidden from the former
+	// Maintainer, and a caller with no row there is refused as before.
+	if rows, err := b.SubList("maint@h", "#a@h"); err != nil || len(rows) != 1 || rows[0].Listed.Row.ID != row.ID {
+		t.Fatalf("a non-manager author saw more than its own row: %v %v", rows, err)
+	}
+	if rows, err := b.SubList("alice@h", "#a@h"); err != nil || len(rows) != 2 {
+		t.Fatalf("the Owner's listing of both rows: %v %v", rows, err)
+	}
+	if _, err := b.SubList("bob@h", "#a@h"); eventlog.Code(err) != "forbidden" {
+		t.Fatalf("a caller with no row in the source listed it: %v", err)
+	}
 	if err := b.SubDelete("maint@h", other.ID); eventlog.Code(err) != "not_author" {
 		t.Fatalf("an author deleted another's subscription: %v", err)
 	}
@@ -138,6 +151,9 @@ func TestSubscriptionAuthorityFollowsTheSourcesManagers(t *testing.T) {
 	}
 	if err := b.SubDelete("maint@h", row.ID); err != nil {
 		t.Fatalf("an author deleting its own: %v", err)
+	}
+	if _, err := b.SubList("maint@h", "#a@h"); eventlog.Code(err) != "forbidden" {
+		t.Fatalf("a non-manager with no row left listed the source: %v", err)
 	}
 	if err := b.SubDelete("alice@h", other.ID); err != nil {
 		t.Fatalf("a manager deleting another's: %v", err)
