@@ -356,7 +356,8 @@ func (r *runner) serve(ctx context.Context) {
 		name, as, env, box := p.name, p.as, p.env, p.box
 		// The package directory, serving mode and process span are fixed at
 		// adoption: slots and keeper loops cannot be resized in place. Retire
-		// any change before adopting its replacement.
+		// any change before adopting its replacement. Compare the whole span:
+		// a minimum-only change also changes the pool policy.
 		if s := r.served[name]; s != nil && (in.Source != s.in.Source || in.Span != s.in.Span || (s.in.Agent.Serves == "itself") != (in.Agent.Serves == "itself") || (s.stream != nil) != isStream(*in)) {
 			r.stop(name, s)
 		}
