@@ -16,6 +16,7 @@ dest=$(realpath "$dest")
 "$here/cron/package.sh" "$dest/agents/cron"
 "$here/at/package.sh" "$dest/agents/at"
 "$here/eventlog/package.sh" "$dest/agents/eventlog"
+"$here/dbsync/package.sh" "$dest/agents/dbsync"
 "$here/filescan/package.sh" "$dest/agents/filescan"
 "$here/webhook/package.sh" "$dest/agents/webhook"
 "$here/fetch/package.sh" "$dest/agents/fetch"

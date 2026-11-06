@@ -72,6 +72,18 @@ def check(root):
         assert (eventlog / 'support/agents/shared' / shared).read_bytes() == (root / 'agents/shared' / shared).read_bytes(), 'eventlog engine copy'
     print('eventlog: offline metadata, private config example and shared engine copies loaded')
 
+    dbsync = root / 'agents/dbsync'
+    for relative in ('dbsync.py', 'settings.py', 'statements.py', 'agent.json', 'env.dist', 'config.json.dist'):
+        if not (dbsync / relative).is_file():
+            raise ValueError('missing runtime artifact: agents/dbsync/' + relative)
+    output, _ = run(['python3', str(dbsync / 'dbsync.py')], root, {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
+    metadata = json.loads(output)
+    assert_methods('dbsync', {'help'}, metadata['methods'])
+    assert metadata['secrets'] == [] and metadata['docs'].endswith('/dbsync.md')
+    for shared in ('change_sync.py', 'subscriptions.py', 'subscription_filters.py'):
+        assert (dbsync / 'support/agents/shared' / shared).read_bytes() == (root / 'agents/shared' / shared).read_bytes(), 'dbsync engine copy'
+    print('dbsync: offline metadata and shared core copies loaded')
+
     filescan = root / 'agents/filescan'
     for relative in ('filescan.py', 'settings.py', 'scan.py', 'watch.py', 'path_filter.py', 'agent.json', 'env.dist', 'config.json.dist'):
         if not (filescan / relative).is_file():
