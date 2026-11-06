@@ -203,6 +203,8 @@ type runner struct {
 	filter    []byte
 	filterErr error
 
+	fetch func(context.Context, installRequest, string) error // the git fetch of an install; nil is fetchDeploy, a test sets its own
+
 	events *eventSink // what the runner observed of each agent, written to its own log; nil writes nothing
 }
 

@@ -38,6 +38,98 @@ func deployName(name string) error {
 	return nil
 }
 
+// installTarget is what an install may start from: the checks on the host's
+// directories, whether the package is already installed, and the inventory.
+// It is asked twice: before the slow fetch or build, so a plain mistake is
+// refused at once, and again under reloadMu, which is the answer that counts.
+func (r *runner) installTarget(in installRequest) (existing bool, entries map[string]map[string]json.RawMessage, err error) {
+	if err := r.deployRoot(); err != nil {
+		return false, nil, err
+	}
+	if err := r.noLinks(r.agents, in.agent); err != nil {
+		return false, nil, err
+	}
+	if err := r.noLinks(r.host, in.agent); err != nil {
+		return false, nil, err
+	}
+	live := filepath.Join(r.agents, in.agent)
+	_, existingErr := os.Lstat(live)
+	existing = existingErr == nil
+	if existingErr != nil && !errors.Is(existingErr, os.ErrNotExist) {
+		return false, nil, existingErr
+	}
+	// A bundled source itself is an available source, not an already deployed
+	// tree; opt-in does not require --replace. An installed writable tree does.
+	if existing && !in.replace {
+		return false, nil, fmt.Errorf("%s already exists; install --replace is required", in.agent)
+	}
+	entries, err = readAgents(r.host)
+	if err != nil {
+		return false, nil, err
+	}
+	if err := checkAgents(mustJSON(entries)); err != nil {
+		return false, nil, err
+	}
+	return existing, entries, nil
+}
+
+// stageInstall fetches or builds the package into a private staging directory
+// under agents/ (the loader skips dot directories). It takes no lock: a git
+// fetch and a package build can each last two minutes, and every control call
+// of the runner, stop and disable included, waits for reloadMu. On failure it
+// removes the staging directory.
+func (r *runner) stageInstall(ctx context.Context, in installRequest) (temp, staged string, err error) {
+	dir, err := os.MkdirTemp(r.agents, ".install-")
+	if err != nil {
+		return "", "", fmt.Errorf("create install staging directory: %w", err)
+	}
+	// dir, not the result temp: a failing return has already blanked temp.
+	defer func() {
+		if err != nil {
+			os.RemoveAll(dir)
+		}
+	}()
+	temp = dir
+	staged = filepath.Join(temp, in.agent)
+	if in.remote != "" {
+		if err := os.Mkdir(staged, 0700); err != nil {
+			return "", "", err
+		}
+		fetch := r.fetchDeploy
+		if r.fetch != nil {
+			fetch = r.fetch
+		}
+		if err := fetch(ctx, in, staged); err != nil {
+			return "", "", err
+		}
+		return temp, staged, nil
+	}
+	source, err := r.bundledInstallSource(in.agent)
+	if err != nil {
+		return "", "", err
+	}
+	script := filepath.Join(source, "package.sh")
+	scriptInfo, scriptErr := os.Lstat(script)
+	if scriptErr == nil || gitAgentDirectory(r.bundled) {
+		if scriptErr != nil || !scriptInfo.Mode().IsRegular() {
+			return "", "", fmt.Errorf("checkout bundled package has no regular package.sh")
+		}
+		buildCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		cmd := exec.CommandContext(buildCtx, "/bin/sh", script, staged)
+		cmd.Env = scriptEnv.ChildEnv(os.Environ())
+		// Only the host's trusted bundled packager is executed. Never a script
+		// from a fetched repository. Its output is not a secret-return channel.
+		err = cmd.Run()
+		cancel()
+		if err != nil {
+			return "", "", fmt.Errorf("bundled package build failed; live package unchanged")
+		}
+	} else if err := copyDeployTree(source, staged); err != nil {
+		return "", "", err
+	}
+	return temp, staged, nil
+}
+
 func (r *runner) installPackage(ctx context.Context, body string) error {
 	in, err := parseInstall(body)
 	if err != nil {
@@ -46,41 +138,16 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 	if err := deployName(in.agent); err != nil {
 		return err
 	}
-	r.reloadMu.Lock()
-	defer r.reloadMu.Unlock()
+	// The slow part first, without the lock; the lock only for what changes the host.
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := r.deployRoot(); err != nil {
+	if _, _, err := r.installTarget(in); err != nil {
 		return err
 	}
-	if err := r.noLinks(r.agents, in.agent); err != nil {
-		return err
-	}
-	if err := r.noLinks(r.host, in.agent); err != nil {
-		return err
-	}
-	live := filepath.Join(r.agents, in.agent)
-	_, existingErr := os.Lstat(live)
-	existing := existingErr == nil
-	if existingErr != nil && !errors.Is(existingErr, os.ErrNotExist) {
-		return existingErr
-	}
-	// A bundled source itself is an available source, not an already deployed
-	// tree; opt-in does not require --replace. An installed writable tree does.
-	if existing && !in.replace {
-		return fmt.Errorf("%s already exists; install --replace is required", in.agent)
-	}
-	entries, err := readAgents(r.host)
+	temp, staged, err := r.stageInstall(ctx, in)
 	if err != nil {
 		return err
-	}
-	if err := checkAgents(mustJSON(entries)); err != nil {
-		return err
-	}
-	temp, err := os.MkdirTemp(r.agents, ".install-")
-	if err != nil {
-		return fmt.Errorf("create install staging directory: %w", err)
 	}
 	clean := true
 	defer func() {
@@ -88,39 +155,16 @@ func (r *runner) installPackage(ctx context.Context, body string) error {
 			os.RemoveAll(temp)
 		}
 	}()
-	staged := filepath.Join(temp, in.agent)
-	if in.remote != "" {
-		if err := os.Mkdir(staged, 0700); err != nil {
-			return err
-		}
-		if err := r.fetchDeploy(ctx, in, staged); err != nil {
-			return err
-		}
-	} else {
-		source, err := r.bundledInstallSource(in.agent)
-		if err != nil {
-			return err
-		}
-		script := filepath.Join(source, "package.sh")
-		scriptInfo, scriptErr := os.Lstat(script)
-		if scriptErr == nil || gitAgentDirectory(r.bundled) {
-			if scriptErr != nil || !scriptInfo.Mode().IsRegular() {
-				return fmt.Errorf("checkout bundled package has no regular package.sh")
-			}
-			buildCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-			cmd := exec.CommandContext(buildCtx, "/bin/sh", script, staged)
-			cmd.Env = scriptEnv.ChildEnv(os.Environ())
-			// Only the host's trusted bundled packager is executed. Never a script
-			// from a fetched repository. Its output is not a secret-return channel.
-			err = cmd.Run()
-			cancel()
-			if err != nil {
-				return fmt.Errorf("bundled package build failed; live package unchanged")
-			}
-		} else if err := copyDeployTree(source, staged); err != nil {
-			return err
-		}
+	r.reloadMu.Lock()
+	defer r.reloadMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
 	}
+	existing, entries, err := r.installTarget(in)
+	if err != nil {
+		return err
+	}
+	live := filepath.Join(r.agents, in.agent)
 	if err := validateDeployTree(staged); err != nil {
 		return err
 	}
