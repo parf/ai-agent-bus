@@ -59,6 +59,12 @@ Only unresolved choices, in [agent markup](http://localhost:7777/mdhouse/doc/age
 
 - ✅ Q326 → [№Q326](resolved.md#Q326)
 
+- ❓ Q339 Does `#imap` also check a subscription only at creation (T-41, after [№Q326](resolved.md#Q326))
+  - Context: `#eventlog` and `#logwatch` forward log copies; `#imap` forwards mail through the same helper. Checking only at creation lets an author who has lost access to a mailbox keep receiving its mail. `#cron` does not use the helper; Discord waits for R1.2
+  - ( ) `#imap` keeps the per-delivery check, for mail confidentiality; only `#eventlog` and `#logwatch` check at creation 🌟
+  - ( ) `#imap` checks at creation too: one rule everywhere ⭐
+  > 💡👾 Keep the check for mail. Either answer is a one-line switch.
+
 - ✅ Q328 → [№Q328](resolved.md#Q328)
 
 ## Auth context
