@@ -271,3 +271,38 @@ func TestAStopAfterThePublishStopsTheInstalledPackage(t *testing.T) {
 		t.Fatalf("the published package is not live: %q", got)
 	}
 }
+
+// F1: a shutdown racing the very first control is either refused or run,
+// exactly once, and the queue it makes is never read unguarded (run with -race).
+func TestShutdownRacingTheFirstControlAnswersItOnce(t *testing.T) {
+	r := &runner{ctx: context.Background()}
+	answered := make(chan string, 2)
+	// The stop goes first, as in a shutdown that meets the first install
+	// publish. A sleep, not a channel: a channel would order the two for the
+	// race detector and hide an unguarded queue.
+	go r.refuseQueued()
+	time.Sleep(20 * time.Millisecond)
+	err := r.enqueue(controlJob{
+		run:    func() { answered <- "ran" },
+		refuse: func(reason string) { answered <- reason },
+	})
+	if err != nil {
+		if err.Error() != "runner stopping" {
+			t.Fatalf("the first control while stopping: %v", err)
+		}
+		return
+	}
+	select {
+	case got := <-answered:
+		if got != "ran" && got != "runner stopping" {
+			t.Fatalf("the first control: %q", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("the first control was neither run nor refused")
+	}
+	select {
+	case got := <-answered:
+		t.Fatalf("the first control was answered twice: %q", got)
+	case <-time.After(50 * time.Millisecond):
+	}
+}

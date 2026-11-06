@@ -26,10 +26,9 @@ type controlJob struct {
 // controlQueue is the control worker's FIFO and what it knows of the installs
 // under way.
 type controlQueue struct {
-	once   sync.Once
 	mu     sync.Mutex
-	jobs   chan controlJob
-	closed bool // the runner is stopping: every queued job is refused
+	jobs   chan controlJob // made, and the worker started, by the first enqueue; guarded by mu
+	closed bool            // the runner is stopping: every queued job is refused
 }
 
 // messageJob runs one call on the worker and answers it on its own route.
@@ -44,18 +43,18 @@ func (r *runner) messageJob(e protocol.Envelope, do func() string) controlJob {
 // queue is full, or the runner is stopping. It never blocks.
 func (r *runner) enqueue(j controlJob) error {
 	q := &r.queue
-	q.once.Do(func() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.closed {
+		return fmt.Errorf("runner stopping")
+	}
+	if q.jobs == nil {
 		q.jobs = make(chan controlJob, controlQueueMax)
 		ctx := r.ctx
 		if ctx == nil {
 			ctx = context.Background()
 		}
 		go r.controlWorker(ctx, q.jobs)
-	})
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	if q.closed {
-		return fmt.Errorf("runner stopping")
 	}
 	select {
 	case q.jobs <- j:
