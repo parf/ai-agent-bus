@@ -224,9 +224,25 @@ class RagTests(Base):
         for i in range(8):self.put(f'k{i}.md','k')
         self.put('notes/a.md','hello');self.rag();self.call('scan')
         mine=[c for c in self.calls() if c['id']=='notes/a.md']
-        self.assertEqual(mine,[{'method':'upsert','namespace':'vault','tableName':'notes','id':'notes/a.md','data':'hello','mime-type':'text/markdown'}])
+        import hashlib
+        self.assertEqual(mine,[{'method':'upsert','namespace':'vault','tableName':'notes','id':'notes/a.md','data':'hello','mime-type':'text/markdown',
+                                'source':'notes/a.md','content_hash':hashlib.sha256(b'hello').hexdigest()}])
         self.bus.calls.clear();os.unlink(Path(self.root)/'notes/a.md');self.call('scan')
         self.assertEqual(self.calls(),[{'method':'delete','namespace':'vault','tableName':'notes','id':'notes/a.md'}])
+
+    def test_every_upsert_names_the_path_filescan_reports_as_the_source_and_a_hash_that_rag_will_check(self):
+        import hashlib
+        self.put('d/x.md','café\r\nline');self.rag();self.call('scan');(c,)=self.calls()
+        self.assertEqual(c['source'],'d/x.md','the same relative path the change message reports, with no second path builder and no host layout')
+        self.assertEqual(c['content_hash'],hashlib.sha256(c['data'].encode()).hexdigest(),'the hash is of the exact text sent, as RAG checks it')
+        self.assertEqual(c['content_hash'],hashlib.sha256((Path(self.root)/'d/x.md').read_bytes()).hexdigest())
+
+    def test_a_deleted_file_needs_no_source_and_a_path_rag_cannot_take_is_skipped(self):
+        self.put('d/ok.md','a');self.put('e/'+'z'*2100+'.md','b');self.put('e/nfd-e\u0301.md','c')
+        self.rag();self.call('scan');ids=[c['id'] for c in self.calls()]
+        self.assertEqual(ids,['d/ok.md'],'a 2048+ character path and a non-NFC path cannot be RAG sources')
+        names=next(iter(self.call('status')['skipped_for_rag'].values()))
+        self.assertTrue(any('source' in why for why in names.values()),names)
 
     def test_nothing_is_tracked_on_a_refusal_and_it_is_sent_again(self):
         self.put('a.md','x');self.rag();self.bus.replies['#rag@n.test']='{"error":"no"}';self.call('scan')
