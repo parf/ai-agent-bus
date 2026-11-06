@@ -285,6 +285,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
       Before the sends, every create and change of the batch is recorded as possibly delivered (and saved), so a send whose
       outcome is never learned still earns its delete if the source later removes the key. A change the loop never reached,
       or whose send was refused outright, is taken back out; a timeout, an unknown result or a reply that is not ok keeps it.
+      A `body` that returns None has nothing to send that subscriber: the change is marked done and counted as `skipped`.
       A second unknown send of the same key turns its record into `?`, which stays owed until a confirmation.
     - After a crash a subscriber may get a delete for a key it never received (the record is written for the whole batch before
       the sends): deletes must be idempotent. Never the other way: a delete is not lost.
@@ -301,7 +302,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
     with state.hold():
         data=state.load()
         for sub_id in sorted(data['subs']):
-            row=data['subs'][sub_id];count={'sent':0,'confirmed':0,'dropped':0,'pending':0};results[sub_id]=count
+            row=data['subs'][sub_id];count={'sent':0,'confirmed':0,'dropped':0,'pending':0,'skipped':0};results[sub_id]=count
             todo=pending(data,sub_id,lambda key,row=row:matches(row,key))[:batch]
             # Written down before any send: a send whose outcome is never learned (a timeout, a crash, a failed save) may
             # have been applied, so a later delete of that key must still be sent. Cleared by the confirmation.
@@ -322,6 +323,13 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                     attempted.add(key)
                     try:
                         payload=body(row,key,action,record)
+                        if payload is None:
+                            # Nothing to send this subscriber for it (the agent says why): done, never blocking the rest.
+                            count['skipped']+=1
+                            if key in prior:_restore(data['maybe'][sub_id],key,prior)  # nothing was sent, so nothing is possibly delivered
+                            if action=='delete':data['marks'][sub_id].pop(key,None)
+                            else:data['marks'][sub_id][key]=record['fp']
+                            continue
                         count['sent']+=1;row['sent']=min(base.MAX_SAFE,row['sent']+1)
                         if kind=='queue':
                             bus.send(row['target'],payload,topic=topic,tag=tag);confirmed=True
@@ -343,7 +351,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                 for k in owed:
                     if k not in attempted:_restore(data['maybe'][sub_id],k,prior);restored=True
                 count['pending']=len(pending(data,sub_id,lambda key,row=row:matches(row,key)))
-            if count['sent'] or count['dropped'] or restored:
+            if count['sent'] or count['dropped'] or count['skipped'] or restored:
                 try:state.save(data)
                 except SyncError as error:
                     count['unsaved']=True;warning(error.code,sub_id);break

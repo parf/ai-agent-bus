@@ -279,7 +279,7 @@ class DeliveryTests(Base):
     def test_a_queue_accepting_the_send_confirms_and_nothing_is_sent_twice(self):
         subs,row=self.add()
         result=self.round()
-        self.assertEqual(result[row['id']],{'sent':2,'confirmed':2,'dropped':0,'pending':0})
+        self.assertEqual(result[row['id']],{'sent':2,'confirmed':2,'dropped':0,'pending':0,'skipped':0})
         self.assertEqual([b for _,b,_ in self.bus.sent],['create a','create b']);self.assertEqual(self.bus.sent[0][2],{'topic':'t','tag':'x'})
         self.assertEqual(self.round()[row['id']]['sent'],0);self.assertEqual(len(self.bus.sent),2)
         stored=self.state.load()['subs'][row['id']];self.assertEqual((stored['sent'],stored['confirmed'],stored['dropped']),(2,2,0))
@@ -443,6 +443,13 @@ class DeliveryTests(Base):
         subs,row=self.add('#rag@n.test',kind='agent');self.round()
         data=self.state.load();del data['items']['a'];self.state.save(data);self.bus.replies['#rag@n.test']='timeout'
         self.assertEqual(self.round()[row['id']]['pending'],1);self.assertIn('a',self.state.load()['marks'][row['id']])
+
+    def test_a_body_with_nothing_to_send_is_skipped_marked_done_and_does_not_block_the_rest(self):
+        subs,row=self.add();body=lambda sub,key,action,record:None if key=='a' else f'{action} {key}'
+        r=self.round(body=body)[row['id']]
+        self.assertEqual((r['sent'],r['confirmed'],r['skipped'],r['pending']),(1,1,1,0));self.assertEqual([b for _,b,_ in self.bus.sent],['create b'])
+        self.assertEqual(self.round(body=body)[row['id']]['skipped'],0,'a skipped change is done, not retried')
+        self.assertEqual(self.state.load()['marks'][row['id']],{'a':'1','b':'2'})
 
     def test_the_matcher_decides_what_a_subscriber_sees(self):
         subs,row=self.add();self.round(matches=lambda sub,key:key=='b')
