@@ -356,19 +356,21 @@ class DBSync:
     # --- delivery -----------------------------------------------------------------------------------------------
     def _deliver(self):
         data=self.state.load();order=set(data['items'])
-        refused=set();vanished=set();stale=set()
+        refused=set();vanished=set();stale=set();named=[False]   # the last body failure was already named here
         def matches(row,key):
             return key in order and self._owes(data,row['id'],key,data['items'][key])
         def body(row,key,action,record):
+            named[0]=False
             # Checked before every forward, never once per round: a right revoked mid-batch stops the next row.
             code=base.checked_admission(self.bus,row['created_by'],self.settings['db'],{})
             if code:
-                refused.add(row['id']);self.warning(code,row['id'])
+                refused.add(row['id']);self.warning(code,row['id']);named[0]=True
                 raise SubscriptionError(code)
             try:return self._body(key,action,record)
-            except Vanished:vanished.add(key);raise
-            except Stale:stale.add(key);raise
+            except Vanished:vanished.add(key);named[0]=True;raise
+            except Stale:stale.add(key);named[0]=True;raise
         def warning(code,sub_id=None):
+            if code=='body_failed' and named[0]:named[0]=False;return   # a refusal, a vanished or a stale row is not a failure
             if code=='admission_refused' and sub_id:refused.add(sub_id)
             self.warning(code,sub_id)
         result=core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='dbsync',tag=self.settings['table'],

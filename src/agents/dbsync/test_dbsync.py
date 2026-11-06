@@ -201,6 +201,7 @@ class PollTests(Base):
             self.bus.deny.add((AUTHOR,DB));return send(to,body,**options)
         self.bus.send=revoke;self.agent.poll()
         self.assertEqual(self.keys(),['1'])
+        self.assertEqual([c for c,_ in self.warnings],['admission_refused'])   # named once, not again as body_failed
 
     def test_a_refused_subscriber_is_parked_and_stops_holding_the_window_for_the_others(self):
         self.agent=self.make(window_max=3)
