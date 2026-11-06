@@ -210,6 +210,21 @@ class Redaction(unittest.TestCase):
             self.assertNotIn(password, out)
             self.assertNotIn(json.dumps(password)[1:-1], out)
 
+    def test_nested_result_masks_passwords_before_cell_json_escaping(self):
+        password = 'p"w\\x'
+        env = {'DB_USER': 'ro', 'DB_ADMIN_PASSWORD': password}
+        def runner(_config, _tier, _user, _password, _sql, cap, _seconds, passwords):
+            collect = proxy.Collect(cap, passwords)
+            collect.columns = ['jsonb', 'array']
+            collect.add([{'a': password, 'nested': [password]}, [password, {'a': password}]])
+            return collect.result()
+        with unittest.mock.patch.dict(proxy.RUNNERS, {'mysql': runner}), \
+                contextlib.redirect_stderr(io.StringIO()):
+            out, _ = proxy.answer({'body': 'SELECT 1'}, {'engine': 'mysql', 'host': 'h'}, env)
+        row = json.loads(out)['rows'][0]
+        self.assertEqual(json.loads(row[0]), {'a': '***', 'nested': ['***']})
+        self.assertEqual(json.loads(row[1]), ['***', {'a': '***'}])
+
     def test_all_account_errors_mask_users_as_tokens_and_passwords_as_substrings(self):
         env = {'DB_USER': 'ro', 'DB_PASSWORD': 'pass'}
         for tier in proxy.TIERS:

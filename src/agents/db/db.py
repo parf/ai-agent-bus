@@ -123,8 +123,9 @@ def statement_of(body):
     return sql
 
 
-def cell(value):
+def cell(value, passwords=()):
     """A deterministic, bounded text or JSON value for any driver type."""
+    value = redact_result(value, passwords)
     if value is None or isinstance(value, (bool, int, str)):
         pass
     elif isinstance(value, float):
@@ -149,14 +150,15 @@ def cell(value):
 class Collect:
     """Rows up to the row cap and the byte cap; remembers that it cut."""
 
-    def __init__(self, cap):
+    def __init__(self, cap, passwords=()):
+        self.passwords = passwords
         self.cap, self.rows, self.size, self.cut, self.columns = cap, [], 0, False, []
 
     def add(self, row):
         if len(self.rows) >= self.cap:
             self.cut = True
             return False
-        row = [cell(v) for v in row]
+        row = [cell(v, self.passwords) for v in row]
         self.size += len(json.dumps(row, ensure_ascii=False).encode())
         if self.size > MAX_BYTES // 2:
             self.cut = True
@@ -170,7 +172,7 @@ class Collect:
         return {'columns': self.columns, 'rows': self.rows, 'truncated': self.cut}
 
 
-def run_mysql(config, tier, user, password, sql, cap, seconds):
+def run_mysql(config, tier, user, password, sql, cap, seconds, passwords=()):
     import pymysql
     from pymysql.cursors import SSCursor
     args = {'user': user, 'password': password, 'database': config.get('database'),
@@ -204,7 +206,7 @@ def run_mysql(config, tier, user, password, sql, cap, seconds):
             else:
                 raise ProxyError('this server cannot start a read-only session')
             cursor.execute('START TRANSACTION READ ONLY')
-        collect = Collect(cap)
+        collect = Collect(cap, passwords)
         try:
             cursor.execute(sql)
             if cursor.description:
@@ -227,7 +229,7 @@ def run_mysql(config, tier, user, password, sql, cap, seconds):
             pass
 
 
-def run_postgres(config, tier, user, password, sql, cap, seconds):
+def run_postgres(config, tier, user, password, sql, cap, seconds, passwords=()):
     import psycopg
     options = f'-c statement_timeout={int(seconds * 1000)}'
     if tier == 'read':
@@ -244,7 +246,7 @@ def run_postgres(config, tier, user, password, sql, cap, seconds):
     try:
         if tier == 'read':
             connection.read_only = True
-        collect = Collect(cap)
+        collect = Collect(cap, passwords)
         with connection.cursor() as cursor:
             # prepare=True forces the extended protocol: one statement per call, or the server refuses.
             cursor.execute(sql, prepare=True)
@@ -270,7 +272,7 @@ class DatabaseError(ProxyError):
     """The database's own answer; it goes back to the caller."""
 
 
-def run_clickhouse(config, tier, user, password, sql, cap, seconds):
+def run_clickhouse(config, tier, user, password, sql, cap, seconds, passwords=()):
     settings = {'default_format': 'JSONCompact', 'max_execution_time': int(seconds),
                 'max_result_rows': cap + 1, 'result_overflow_mode': 'break'}
     if tier == 'read':
@@ -295,7 +297,7 @@ def run_clickhouse(config, tier, user, password, sql, cap, seconds):
         raise ConnectionError()
     if response.status >= 300:
         raise DatabaseError(text.strip())
-    collect = Collect(cap)
+    collect = Collect(cap, passwords)
     if text.strip():
         data = json.loads(text)
         collect.columns = [c['name'] for c in data.get('meta', [])]
@@ -320,7 +322,7 @@ def answer(envelope, config, environ):
         tier = role_tier(delivered_roles(environ))
         user, password = tier_account(environ, tier)
         timer, remaining = arm_deadline(envelope)
-        result = RUNNERS[engine](config, tier, user, password, sql, cap, remaining)
+        result = RUNNERS[engine](config, tier, user, password, sql, cap, remaining, secrets[0])
         output = json.dumps(redact_result(result, secrets[0]), ensure_ascii=False, default=str)
         if len(output.encode()) > MAX_BYTES:
             raise ProxyError('database answer exceeds 1048576 bytes')
