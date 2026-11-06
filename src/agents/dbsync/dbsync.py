@@ -60,6 +60,10 @@ class Vanished(Exception):
     """The row is no longer in the table: there is nothing to send for it."""
 
 
+class Stale(Exception):
+    """The row read again for its body is not the record the window holds: nothing goes this round, the record is replaced."""
+
+
 def dumps(value):return json.dumps(value,ensure_ascii=False,allow_nan=False,separators=(',',':'),default=str)
 
 
@@ -203,7 +207,7 @@ class DBSync:
         cutoff=self._cutoff()
         with self.state.hold(core.HOLD_WAIT):
             data=self.state.load();meta=data['meta'];meta['cutoff']=cutoff
-            self._forget_before(meta,cutoff);self.state.save(data)
+            self._forget(meta,cutoff);self.state.save(data)
         # The earlier of the cutoff and the scan position: in steady state the scan is recent, so the last `lookback`
         # is read again for rows that committed late with an older `updated`; with a backlog the scan is older and
         # the poll goes on strictly after it.
@@ -222,15 +226,16 @@ class DBSync:
                 raise CannotSync('cannot sync: a row after the scan position is larger than the DB agent returns; narrow columns, or the row must change'
                                  +('' if after is None else f' (after key {after[1]})'))
             with self.state.hold(core.HOLD_WAIT):
-                fresh=self.state.load();items=fresh['items'];dedup=fresh['meta'].setdefault('dedup',{});last=None
+                fresh=self.state.load();items=fresh['items'];last=None
+                active=[s for s in fresh['subs'] if s not in fresh['meta'].get('parked',{})]
                 for key,u,row in rows:
                     record=items.get(key);new=self._record(u,row)
-                    if record is None and dedup.get(key)==new['fp']:pass            # delivered to all and pruned: not again
+                    # A row read again that no subscriber is owed (confirmed, or below every position and outside the
+                    # lookback) stays out of the window; a held one is replaced when it changed.
+                    if record is None and not any(self._owes(fresh,s,key,new) for s in active):pass
                     elif record is None or record['fp']!=new['fp']:
                         if record is None and len(items)>=self.settings['window_max']:full=True;break
-                        if record is None and self._late(fresh,cutoff,(u,key)):new['late']=True
-                        if new.get('gone') and record is None:self._owe_delete(fresh,key)
-                        items[key]=new
+                        self._replace(fresh,key,record,new)
                     self.rows[key]=(u,row);last=(u,key);read+=1
                 if last is not None:fresh['meta']['scan']=[last[0],last[1]];after=last;since=None
                 fresh['meta'].pop('stuck',None);self.state.save(fresh)
@@ -253,16 +258,42 @@ class DBSync:
         except TypeError:
             raise CannotSync('cannot sync: the database time and the updated column differ in time zone form; use a column of the same type') from None
 
-    def _late(self,data,cutoff,pair):
-        """A row first seen inside the lookback below a subscriber's position committed late: that one is still owed it."""
-        if cutoff is None or self._before(pair[0],cutoff):return False
-        pos=data['meta'].get('pos',{});o=self.order(pair)
-        return any(pos.get(s) is not None and self.order(tuple(pos[s]))>=o for s in data['subs'])
+    def _owes(self,data,sub_id,key,record):
+        """Whether this subscriber is owed this record: one it confirmed at this fingerprint inside the lookback never;
+        otherwise one above its position, or one inside the lookback (a late commit below its position) after it joined."""
+        meta=data['meta']
+        if meta.get('recent',{}).get(sub_id,{}).get(key)==record['fp']:return False
+        o=self.order(self.item_pair(key,record));here=meta.get('pos',{}).get(sub_id)
+        if o>self.order(None if here is None else tuple(here)):return True
+        cutoff=meta.get('cutoff')
+        if cutoff is None or self._before(record['u'],cutoff):return False
+        joined=meta.get('joined',{}).get(sub_id)
+        return joined is None or o>self.order(tuple(joined))
 
-    def _forget_before(self,meta,cutoff):
-        """De-duplication marks older than the cutoff can never be read again by a lookback: drop them."""
-        dedup=meta.get('dedup',{})
-        for key in [k for k,fp in dedup.items() if cutoff is None or self._before(fp.split('|',1)[0],cutoff)]:del dedup[key]
+    def _remember(self,data,sub_id,key,record):
+        """Note a confirmation inside the lookback, so the row read again is not sent again. At the cap the note is not
+        kept and the subscriber is degraded: the row may then go twice, never not at all."""
+        meta=data['meta'];cutoff=meta.get('cutoff')
+        if cutoff is None or self._before(record['u'],cutoff):return
+        recent=meta.setdefault('recent',{}).setdefault(sub_id,{})
+        if key not in recent and len(recent)>=self.settings['window_max']:
+            meta.setdefault('degraded',{}).setdefault(sub_id,self.clock());return
+        recent[key]=record['fp']
+
+    def _forget(self,meta,cutoff):
+        """Confirmations and join points older than the cutoff can never matter to a lookback read again: drop them."""
+        old=lambda u:cutoff is None or self._before(u,cutoff)
+        for sub_id,recent in meta.get('recent',{}).items():
+            for key in [k for k,fp in recent.items() if old(fp.split('|',1)[0])]:del recent[key]
+            if len(recent)<self.settings['window_max']:meta.get('degraded',{}).pop(sub_id,None)
+        joined=meta.get('joined',{})
+        for sub_id in [s for s,pair in joined.items() if pair is not None and old(pair[0])]:del joined[sub_id]
+
+    def _replace(self,data,key,record,new):
+        """Put a row's new record in the window; a tombstone the window did not hold is owed as a delete to those that may
+        hold the row. One that replaces a held record is owed only by the marks and sends that record has."""
+        if new.get('gone') and record is None:self._owe_delete(data,key,new)
+        data['items'][key]=new
 
     def _record(self,u,row):
         """The state record of a row: a soft-deleted one is a tombstone, so it goes out as a delete."""
@@ -276,13 +307,14 @@ class DBSync:
         if type(wanted) is bool:return value is wanted or type(value) is int and value==int(wanted)
         return type(value) is type(wanted) and value==wanted
 
-    def _owe_delete(self,data,key):
-        """A tombstone for a key the window no longer holds: every subscriber already receiving may hold the row, so it is
-        owed the delete; one still at the start (a replay) never got it. A row made and deleted between two polls can
-        therefore reach a subscriber as a delete alone."""
+    def _owe_delete(self,data,key,record):
+        """A tombstone: every subscriber already receiving and owed it may hold the row, so it is owed the delete; one still
+        at the start (a replay) never got it. A row made and deleted between two polls can therefore reach a subscriber as a
+        delete alone, and deletes are idempotent."""
         pos=data['meta'].get('pos',{})
         for sub_id in data['subs']:
-            if pos.get(sub_id) is not None and key not in data['marks'][sub_id]:data['marks'][sub_id][key]='?'
+            if pos.get(sub_id) is not None and key not in data['marks'][sub_id] and self._owes(data,sub_id,key,record):
+                data['marks'][sub_id][key]='?'
 
     def _rows(self,answer):
         """(key text, updated text, row dict) per row, checked so each value can go back into a statement."""
@@ -297,15 +329,10 @@ class DBSync:
 
     # --- delivery -----------------------------------------------------------------------------------------------
     def _deliver(self):
-        data=self.state.load();meta=data['meta'];pos=dict(meta.get('pos',{}));order={}
-        for key,record in data['items'].items():order[key]=self.order(self.item_pair(key,record))
-        lows={s:self.order(None if pos.get(s) is None else tuple(pos[s])) for s in data['subs']}
-        refused=set();vanished=set();cache={}
-        late={k for k,r in data['items'].items() if r.get('late')}
+        data=self.state.load();order=set(data['items'])
+        refused=set();vanished=set();stale=set();cache={}
         def matches(row,key):
-            # Only rows in the window and above this subscriber's position: one it is past was delivered already,
-            # unless it committed late, below positions that had moved on.
-            return key in order and (order[key]>lows.get(row['id'],(0,)) or key in late)
+            return key in order and self._owes(data,row['id'],key,data['items'][key])
         def body(row,key,action,record):
             code=base.checked_admission(self.bus,row['created_by'],self.settings['db'],cache)
             if code:
@@ -313,12 +340,13 @@ class DBSync:
                 raise SubscriptionError(code)
             try:return self._body(key,action,record)
             except Vanished:vanished.add(key);raise
+            except Stale:stale.add(key);raise
         def warning(code,sub_id=None):
             if code=='admission_refused' and sub_id:refused.add(sub_id)
             self.warning(code,sub_id)
         result=core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='dbsync',tag=self.settings['table'],
                             batch=self.settings['batch'],warning=warning)
-        self._settle(result,refused,vanished)
+        self._settle(result,refused,vanished,stale)
         return result
 
     def _body(self,key,action,record):
@@ -332,24 +360,31 @@ class DBSync:
                 answer=self.query(self.sql.row(key));rows=self._rows(answer)
                 if not rows:raise Vanished(key)
                 held=(rows[0][1],rows[0][2]);self.rows[key]=held
+            # Changed since the poll, or now marked deleted: the window's record is replaced and the next round sends that.
+            if self._record(*held)['fp']!=record['fp']:raise Stale(key)
             message['row']=held[1]
-            if held[0]!=record['u']:message['updated']=held[0]   # changed since the poll: the newest state goes
             if len(dumps(message).encode())>MAX_INLINE:
                 message.pop('row');message['row_omitted']=f'over {MAX_INLINE} bytes'
         return dumps(message)
 
-    def _settle(self,result,refused,vanished):
-        """After a round: forget vanished rows, move positions, park or unpark, prune the window."""
+    def _settle(self,result,refused,vanished,stale=()):
+        """After a round: forget vanished rows, replace stale ones, note confirmations, move positions, park or unpark, prune."""
         now=self.clock()
         with self.state.hold(core.HOLD_WAIT):
             data=self.state.load();meta=data['meta'];items=data['items']
             subs=data['subs'];pos=meta.setdefault('pos',{});parked=meta.setdefault('parked',{});health=meta.setdefault('health',{})
-            for table in (pos,parked,health):
+            for table in (pos,parked,health,meta.get('recent',{}),meta.get('joined',{}),meta.get('degraded',{})):
                 for gone in [s for s in table if s not in subs]:del table[gone]
             for key in vanished:
                 # A hard-deleted row is not reported (soft delete is the only way): it leaves without a delete.
                 items.pop(key,None);self.rows.pop(key,None)
                 for sub_id in subs:data['marks'][sub_id].pop(key,None);data['maybe'][sub_id].pop(key,None)
+            for key in stale:
+                held=self.rows.get(key)
+                if key in items and held is not None:self._replace(data,key,items[key],self._record(*held))
+            for sub_id in subs:
+                for key,record in items.items():
+                    if self._confirmed(data,sub_id,key):self._remember(data,sub_id,key,record)
             ordered=sorted(items,key=lambda k:self.order(self.item_pair(k,items[k])))
             scan=meta.get('scan');scan_order=self.order(None if scan is None else tuple(scan))
             base_order=self.order(None if meta.get('base') is None else tuple(meta['base']))
@@ -362,7 +397,7 @@ class DBSync:
                 for key in ordered:
                     pair=self.item_pair(key,items[key]);o=self.order(pair)
                     if o<=self.order(here):continue
-                    if o>scan_order or not self._confirmed(data,sub_id,key):break
+                    if o>scan_order or not self._confirmed(data,sub_id,key) and self._owes(data,sub_id,key,items[key]):break
                     here=pair
                 if here is not None:pos[sub_id]=list(here)
             self._prune(data)
@@ -404,17 +439,12 @@ class DBSync:
         return code is None and base.checked_admission(self.bus,row['created_by'],self.settings['db'],{}) is None
 
     def _prune(self,data):
-        """Drop rows every active subscriber is past or has confirmed, with every mark for them; never a phantom delete."""
-        meta=data['meta'];items=data['items'];pos=meta['pos'];parked=meta['parked']
+        """Drop rows every active subscriber has confirmed or is not owed, with every mark for them; never a phantom delete."""
+        meta=data['meta'];items=data['items'];parked=meta['parked']
         active=[s for s in data['subs'] if s not in parked]
         if not active:return
         for key in list(items):
-            pair=self.item_pair(key,items[key]);o=self.order(pair)
-            past=lambda s:not items[key].get('late') and self.order(None if pos.get(s) is None else tuple(pos[s]))>=o
-            if all(past(s) or self._confirmed(data,s,key) for s in active):
-                cutoff=meta.get('cutoff')
-                # Inside the lookback the row is read again: remember it was delivered, so it is not sent twice.
-                if cutoff is not None and not self._before(items[key]['u'],cutoff):meta.setdefault('dedup',{})[key]=items[key]['fp']
+            if all(self._confirmed(data,s,key) or not self._owes(data,s,key,items[key]) for s in active):
                 del items[key];self.rows.pop(key,None)
                 for sub_id in data['subs']:
                     data['marks'][sub_id].pop(key,None)
@@ -434,7 +464,7 @@ class DBSync:
             low=meta.get('pos',{}).get(sub_id)
             subs.append({'id':sub_id,'target':row['target'],'position':low,'sent':row['sent'],'confirmed':row['confirmed'],'dropped':row['dropped'],
                          'pending':sum(1 for k,r in data['items'].items() if low is None or self.order(self.item_pair(k,r))>self.order(tuple(low))),
-                         'parked':meta.get('parked',{}).get(sub_id)})
+                         'parked':meta.get('parked',{}).get(sub_id),'lookback_degraded':meta.get('degraded',{}).get(sub_id)})
         return {'db':self.settings['db'],'table':self.settings['table'],'page':page,'scan':meta.get('scan'),'window':len(data['items']),
                 'window_max':self.settings['window_max'],'full':len(data['items'])>=self.settings['window_max'],'stuck':meta.get('stuck'),
                 'last_poll':self.last['poll'],'error':self.last['error'],'subscribers':subs,
@@ -476,7 +506,9 @@ class DBSync:
             row=self.subs.add(message,target,{},replay=False)
             with self.state.hold(core.HOLD_WAIT):
                 data=self.state.load()
-                if row['id'] in data['subs']:data['meta'].setdefault('pos',{})[row['id']]=pair;self.state.save(data)
+                if row['id'] in data['subs']:
+                    # The join point: rows the lookback reads again from before it are not owed to this subscriber.
+                    data['meta'].setdefault('pos',{})[row['id']]=pair;data['meta'].setdefault('joined',{})[row['id']]=pair;self.state.save(data)
             return row
         finally:self.polling.release()
 

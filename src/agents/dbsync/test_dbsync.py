@@ -283,12 +283,45 @@ class LookbackTests(Base):
         self.assertFalse(any(' >= ' in q for q in pages),pages)
         self.assertEqual(sorted(self.keys(),key=int),['1','2','3','4','5'])
 
-    def test_de_duplication_marks_older_than_the_cutoff_are_forgotten(self):
+    def test_confirmations_older_than_the_cutoff_are_forgotten(self):
         self.delivered()
-        self.assertEqual(set(self.agent.state.load()['meta']['dedup']),{'1','2'})
+        recent=lambda:{k for r in self.agent.state.load()['meta']['recent'].values() for k in r}
+        self.assertEqual(recent(),{'1','2'})
         self.db.now='2026-11-05 12:10:00';self.agent.poll()
-        self.assertEqual(self.agent.state.load()['meta']['dedup'],{})
+        self.assertEqual(recent(),set())
         self.assertEqual(len(self.bus.sent),2)
+
+    def test_past_the_confirmation_cap_a_row_may_go_twice_but_is_never_lost(self):
+        self.agent=self.make(window_max=2)
+        for k,u in ((1,'11:58:00'),(2,'11:58:10'),(3,'11:58:20')):self.db.put(k,'2026-11-05 '+u)
+        self.subscribe()
+        for _ in range(3):self.agent.poll()
+        self.assertTrue(self.agent.status()['subscribers'][0]['lookback_degraded'])
+        keys=self.keys()
+        self.assertEqual(set(keys),{'1','2','3'})
+        self.assertGreater(len(keys),3)   # the one not noted was read again and sent again
+        self.db.now='2026-11-05 12:10:00';self.agent.poll()
+        self.assertIsNone(self.agent.status()['subscribers'][0]['lookback_degraded'])
+
+    def test_a_subscriber_added_after_another_confirmed_the_lookback_rows_still_gets_them(self):
+        self.delivered()
+        self.assertEqual(self.agent.status()['window'],0)
+        self.subscribe(who='#late@n.test');self.agent.poll();self.agent.poll()
+        self.assertEqual(sorted(self.keys(),key=int),['1','1','2','2'])   # one confirmation is not the other's
+
+    def test_a_late_row_that_changes_before_it_is_delivered_goes_at_its_new_state(self):
+        self.db.put(1,'2026-11-05 11:59:00');self.subscribe();self.agent.poll()
+        self.bus.deny.add((AUTHOR,QUEUE))
+        self.db.put(2,'2026-11-05 11:58:00','first');self.agent.poll()   # late, below the position, refused
+        self.db.put(2,'2026-11-05 11:58:30','revised');self.bus.deny.clear();self.agent.poll()
+        self.assertEqual([m['row']['note'] for _,m in self.bus.sent if m['key']=='2'],['revised'])
+
+    def test_a_subscriber_that_asks_for_later_changes_only_gets_no_lookback_rows_from_before_it(self):
+        for k,u in ((1,'11:58:00'),(2,'11:59:00')):self.db.put(k,'2026-11-05 '+u)
+        self.agent.handle(msg(f'sub add {QUEUE} replay:false'));self.agent.poll()
+        self.assertEqual(self.bus.sent,[])
+        self.db.put(3,'2026-11-05 11:59:30');self.agent.poll()
+        self.assertEqual(self.keys(),['3'])
 
     def test_a_late_row_whose_send_is_refused_stays_until_it_is_delivered(self):
         self.delivered()
@@ -322,6 +355,16 @@ class SoftDeleteTests(Base):
         self.db.put(2,'2026-11-05 10:00:02');self.agent.poll()   # refused: row 2 stays in the window with no mark for it
         self.db.put(2,'2026-11-05 10:05:00','del');self.bus.deny.clear();self.agent.poll()
         self.assertEqual([(m['change'],m['key']) for _,m in self.bus.sent],[('changed','1')])
+
+    def test_a_held_row_read_again_as_deleted_is_not_sent_as_changed(self):
+        self.agent=self.make(window_max=1)
+        self.db.put(1,'2026-11-05 10:00:01','live');self.subscribe()
+        self.bus.deny.add((AUTHOR,QUEUE));self.agent.poll()
+        self.assertEqual((self.agent.status()['window'],self.bus.sent),(1,[]))
+        self.db.put(1,'2026-11-05 10:00:02','del');self.bus.deny.clear()
+        self.agent=self.make(window_max=1)   # a new process: the full window is not read, the body is read again
+        self.agent.poll();self.agent.poll()
+        self.assertEqual((self.bus.sent,self.agent.status()['window']),([],0))   # it never had the row: nothing to take back
 
     def test_the_marker_matches_only_as_the_database_returned_it(self):
         self.assertTrue(dbsync.DBSync._is(1,True));self.assertTrue(dbsync.DBSync._is('del','del'))
