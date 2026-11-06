@@ -20,6 +20,13 @@ ID_NAMESPACE = uuid.UUID('14c03739-20d3-5372-b739-a919d36eeb4f')
 CHUNK_FORMAT = 'utf8-ws4096-half-v1'
 KEYWORD_MODES = ('builtin','external')
 QUERY_MAX = 1024
+SEARCH_MODES = ('keyword','semantic','hybrid')
+METHODS = ('upsert','get','list','search','keyword_index','delete','prompts','capabilities','namespaces','drop_namespace')
+# Below own-KV's 512 KiB and the proxy body cap, including worst-case JSON escaping.
+CATALOGUE_MAX = 256 << 10
+NAMESPACE_MAX = 128
+TABLES_MAX = 256
+SOURCE_MAX = 2048
 BM25_VECTOR = 'text'
 # Qdrant's own BM25: the client sends term weights, the collection's idf modifier supplies the rest.
 BM25_K1 = 1.2
@@ -42,6 +49,13 @@ class Unknown(RagError):
 
 class Refused(RagError):
     pass
+
+
+class NamedRefusal(Refused):
+    """Machine-readable refusal name, also retained in the plain-text answer."""
+    def __init__(self,code,detail):
+        self.code=code
+        super().__init__(code+': '+detail)
 
 
 class Deadline(RagError):
@@ -119,16 +133,26 @@ def parse(raw):
     v=loads(raw)
     if not isinstance(v,dict): raise RagError('expected a JSON method object')
     method=v.get('method')
-    if method=='keyword_index':
+    if method=='capabilities':
         if set(v)!={'method'}: raise RagError('unknown method field')
         return v
-    allowed={'upsert':{'namespace','tableName','id','data','mime-type','key1','key2','embeddings'},
+    if method=='namespaces':
+        if set(v)-{'method','limit','cursor'}: raise RagError('unknown method field')
+        integer(v.setdefault('limit',16),1,16,'limit')
+        if 'cursor' in v: text(v['cursor'],'cursor',128)
+        return v
+    allowed={'upsert':{'namespace','tableName','id','data','mime-type','key1','key2','embeddings','source','content_hash'},
              'get':{'namespace','tableName','id'},'list':{'namespace','tableName','key1','key2','limit','cursor'},
-             'search':{'namespace','tableName','key1','key2','query','limit'},
+             'search':{'namespace','tableName','key1','key2','query','limit','mode'},
+             'keyword_index':{'namespace'},'drop_namespace':{'namespace','confirm'},
              'delete':{'namespace','tableName','id','key1','key2','all'},'prompts':{'namespace','tableName','action','data'}}
-    if not isinstance(method,str) or method not in allowed: raise RagError('unknown method')
+    if not isinstance(method,str) or method not in allowed: raise NamedRefusal('unsupported_method','unknown method')
     if set(v)-allowed[method]-{'method'}: raise RagError('unknown method field')
     text(v.get('namespace'),'namespace',128,nfc=True)
+    if v['namespace']=='*': raise NamedRefusal('invalid_namespace','wildcard namespace is not allowed')
+    if method=='drop_namespace':
+        if 'confirm' in v: text(v['confirm'],'confirm',128,nfc=True)
+        return v
     required=('tableName','id') if method in ('upsert','get') else ('tableName',) if method=='prompts' else ()
     for k in required: text(v.get(k),k,128,nfc=True)
     for k in ('tableName','id'):
@@ -136,7 +160,11 @@ def parse(raw):
     for k in ('key1','key2'):
         if k in v: text(v[k],k,256,empty=True,nfc=True)
     if method=='upsert':
+        text(v.get('source'),'source',SOURCE_MAX,nfc=True)
         text(v.get('data'),'data',DATA_MAX,empty=True)
+        if 'content_hash' in v:
+            if not isinstance(v['content_hash'],str) or not re.fullmatch('[0-9a-f]{64}',v['content_hash']): raise RagError('content_hash must be lower-case SHA256')
+            if v['content_hash']!=hashlib.sha256(v.get('data','').encode()).hexdigest(): raise RagError('content_hash does not match source bytes')
         mime=v.setdefault('mime-type','text/plain')
         if mime not in ('text/plain','text/markdown','text/html','application/json'): raise RagError('unsupported mime-type')
     if method=='list':
@@ -144,7 +172,8 @@ def parse(raw):
         if 'cursor' in v: text(v['cursor'],'cursor',128)
     if method=='search':
         text(v.get('query'),'query',QUERY_MAX)
-        if not tokens(v['query']): raise RagError('query has no searchable words')
+        if v.setdefault('mode','keyword') not in SEARCH_MODES: raise NamedRefusal('unsupported_mode','expected keyword, semantic or hybrid')
+        if v['mode'] in ('keyword','hybrid') and not tokens(v['query']): raise RagError('query has no searchable words')
         integer(v.setdefault('limit',16),1,16,'limit')
     if method=='delete':
         if 'all' in v and type(v['all']) is not bool: raise RagError('all must be boolean')

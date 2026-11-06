@@ -17,20 +17,28 @@ from agent_bus.errors import BusError
 from metadata import dispatch
 from blocks import Blocks,OwnKV,Budget
 from core import Core
-from rules import RagError,Unknown,Incomplete,config,dumps,loads,parse
+from rules import RagError,Unknown,Incomplete,config,dumps,loads,parse,BODY_MAX,RECORD_MAX,DATA_MAX,CHUNK_MAX,SCALARS_MAX,QUERY_MAX,SEARCH_MODES,METHODS,CATALOGUE_MAX,NAMESPACE_MAX,TABLES_MAX
 
 VERSION=json.loads((HERE/'agent.json').read_text())['version']
 
 
 class Agent:
     def __init__(self,bus,cfg):
-        self.core=None;self.problem='configure RAG block names and collection'
+        self.cfg=None;self.core=None;self.problem='configure RAG block names and collection'
         try:
-            cfg=config(cfg)
+            cfg=config(cfg);self.cfg=cfg
             backend=Blocks(bus,cfg)
             kv=OwnKV(bus,lambda:self.core.budget)
             self.core=Core(cfg,backend,kv)
         except RagError:pass
+    def capabilities(self):
+        # Static discovery is deliberately independent of provider and storage readiness.
+        return {'version':VERSION,'methods':list(METHODS),'modes':list(SEARCH_MODES),
+                'limits':{'body_bytes':BODY_MAX,'record_bytes':RECORD_MAX,'data_bytes':DATA_MAX,
+                          'chunks':CHUNK_MAX,'embedding_scalars':SCALARS_MAX,'query_bytes':QUERY_MAX,
+                          'page_records':16,'catalogue_bytes':CATALOGUE_MAX,'namespaces':NAMESPACE_MAX,'tables_per_namespace':TABLES_MAX},
+                'embedding_model':None if self.cfg is None else self.cfg['embedding_model'],
+                'dimensions':None if self.cfg is None else self.cfg['dimensions']}
     def status(self,envelope=None):
         if self.core is not None:
             try:
@@ -42,8 +50,10 @@ class Agent:
         if result is not None:return result
         method='invalid';status='error'
         try:
-            if self.core is None:raise RagError(self.problem)
             request=parse(message.body);method=request['method']
+            if method=='capabilities':
+                status='ok';return dumps(self.capabilities())
+            if self.core is None:raise RagError(self.problem)
             result=dumps(self.core.run(request,message.envelope))
             status='ok';return result
         except Incomplete as error:
