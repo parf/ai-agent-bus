@@ -226,8 +226,16 @@ Owner, 2026-11-02; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [dbsy
 
 ## Agents split
 
-- ☐ AS.1 Split the daemon and the bundled agents: the bundled agents pack moves to its own repository with its own SemVer (owner, 2026-11-02: "split Daemon and Agents - separate repo & semver for bundled agents pack")
-  - Today: one shared version for every program and agent ([versioning](../../CLAUDE.md#versioning)); agents live under `src/agents/` and ship with the daemon
+- ⏳ AS.1 Split the daemon and the bundled agents: the bundled agents pack moves to its own repository with its own SemVer (owner, 2026-11-02: "split Daemon and Agents - separate repo & semver for bundled agents pack")
+  - Before: one shared version for every program and agent ([versioning](../../CLAUDE.md#versioning)); agents live under `src/agents/` and ship with the daemon
+  - State: the repository question is settled by [Q331](resolved.md#Q331): one repository, separate SemVers for the daemon and the agent pack. Built:
+    - The pack's own `src/agents/VERSION` from 1.0.0 and `src/agents/CHANGELOG.md` (`ee19a656`).
+    - Agent-only selection: a change only under `src/agents/` runs that agent's checks and the pack contract (`aeef6364`). The gate gives such a landing an agents-only receipt (J117, in the untracked `local/gate.sh`).
+    - The pack's PATCH is raised once at deploy by `#ab-ceo` through `deploy-bump.sh --agents-summary`, never by a landing (T-39 `abc512b3`, usage `d45471cd`). Readers: `#ab-w1b`; earlier deltas `#ab-w1b` and `#ab-qa1`.
+  - Remaining:
+    - The pack declares the daemon protocols it supports and refuses others. Today only each client library's own protocol check applies.
+    - Whether a pack-only change gets its own image tag ([Q341](QUESTIONS.md#container-image-tags)).
+  - Superseded by Q331: "its own repository" in the row and in its acceptance.
   - Depends: an owner-approved plan first: what stays in this repository (daemon, runner, CLI, MCP, clients), which protocol versions the pack declares it works with ([client contract](../../docs/09-daemon-api.md#the-client-contract)), and how install, packaging and the smoke gate change
   - Acceptance: the pack builds, tests and releases from its own repository at its own version; a daemon release with no agent change bumps no agent version; the pack refuses a daemon whose protocol it does not support
 
