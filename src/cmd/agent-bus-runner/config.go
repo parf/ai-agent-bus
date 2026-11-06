@@ -196,7 +196,7 @@ func loadSources(sources []agentSource, runnerDir string) ([]installed, error) {
 			if packages[dir] {
 				continue
 			}
-			path, ok, err := packagePath(agentDir, dir)
+			path, ok, err := packagePath(agentDir, runnerDir, dir)
 			if !ok {
 				continue
 			}

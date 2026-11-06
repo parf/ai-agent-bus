@@ -66,8 +66,9 @@ func (r *runner) codeDir(in installed) string {
 // packagePath answers where the package named name under source lives: the
 // directory itself, or the directory a symbolic link there points to, such as
 // a git checkout linked in by hand. Any other entry is not a package (false);
-// a link to anything but a directory is refused by name, never skipped.
-func packagePath(source, name string) (string, bool, error) {
+// a link to anything but a directory, or to the runner's own directory host
+// (settings, secrets) or into source itself, is refused by name, never skipped.
+func packagePath(source, host, name string) (string, bool, error) {
 	p := filepath.Join(source, name)
 	fi, err := os.Lstat(p)
 	if err != nil {
@@ -86,14 +87,30 @@ func packagePath(source, name string) (string, bool, error) {
 	if st, err := os.Stat(real); err != nil || !st.IsDir() {
 		return "", true, fmt.Errorf("%s is a symbolic link to %s, which is not a directory", p, real)
 	}
+	// A package link points at a checkout elsewhere: never at what the host keeps private
+	// (env secrets, overrides) and never back into the directory of packages.
+	for _, guarded := range []struct{ dir, why string }{{host, "the runner's own directory, which holds secrets and settings"}, {source, "the package directory itself"}} {
+		if guarded.dir == "" {
+			continue
+		}
+		if resolved, err := filepath.EvalSymlinks(guarded.dir); err == nil && within(real, resolved) {
+			return "", true, fmt.Errorf("%s is a symbolic link to %s, which is inside %s; a package link points at a checkout elsewhere", p, real, guarded.why)
+		}
+	}
 	return real, true, nil
+}
+
+// within is whether path is dir or something under it; both are already resolved.
+func within(path, dir string) bool {
+	rel, err := filepath.Rel(dir, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // File controls use the same first-wins choice as loading. Host files stay
 // under runner/<name>; only the read-only author's root changes.
 func (r *runner) packageRoot(name string) (string, error) {
 	for _, source := range r.sources() {
-		dir, ok, err := packagePath(source.path, name)
+		dir, ok, err := packagePath(source.path, r.host, name)
 		if os.IsNotExist(err) {
 			continue
 		}

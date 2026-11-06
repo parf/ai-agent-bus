@@ -83,7 +83,7 @@ func (r *runner) hostFile(name string) (string, string, error) {
 			return "", "", err
 		}
 		// The package itself may be a linked checkout; nothing inside it may link.
-		pkg, _, err := packagePath(root, parts[1])
+		pkg, _, err := packagePath(root, r.host, parts[1])
 		if err != nil {
 			return "", "", err
 		}
