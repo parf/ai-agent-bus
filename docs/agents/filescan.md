@@ -157,7 +157,7 @@ A `created` message is the first one a subscriber gets for a path, so a replay s
 | `sub add` | `id`, `target`, `selector`, `created_by`, `created_at`, `sent`, `confirmed`, `dropped` |
 | `sub list` | `subscriptions`: those fields and `pending` for each |
 
-**Progress** is the `status` snapshot: files tracked, and for each subscriber its `sent`, `confirmed`, `dropped` and `pending` counts. A subscriber is caught up when `pending` is 0 **and** `paused` is null: while a mass delete is held, the held deletes are not counted as pending.
+**Progress** is the `status` snapshot: files tracked, and for each subscriber its `sent`, `confirmed`, `dropped` and `pending` counts. `pending` 0 with `paused` null means delivery is caught up for the state FileScan has scanned, not that the folder is fully read: files not yet scanned are not in `pending`, and held deletes are not counted. To know the folder is read, `last_scan` is not null and the latest `scan` answer shows `capped` false; a capped scan stopped early, so scan again until it does not.
 
 **What does not exist:**
 
