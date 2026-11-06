@@ -35,3 +35,7 @@ implementation waves.
 | ☐ AUTH authorization freshness | [Q35](QUESTIONS.md#authorization-refresh), independently of credential lifetime |
 
 Crypto acceptance must test what the daemon cannot decrypt.
+
+## Bind a watched directory by file descriptor
+
+The runner re-resolves an agent's `needs.dir` at every launch and then hands bwrap the path, so a swap between the check and the mount (by someone with write access beneath an owner root) is followed. Closing it means opening the directory once with `O_PATH` and no-follow, checking that descriptor, and giving bwrap `--ro-bind-fd` (bubblewrap 0.12), or checking the mount source after the bind. Deferred: it changes the sandbox job from paths to descriptors for all three launch paths. Until then the node owner keeps roots free of untrusted writers ([security](../../docs/runner/security.md#isolation-today)).
