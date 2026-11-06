@@ -22,7 +22,7 @@ ab_tab_title: >-
   Read or set this session's terminal tab label, the words after the runtime glyph. With no argument it answers the current and the recommended label; with a label it sets it, for example W1B T-35, until the launcher restarts. Set a short one when your task changes. It changes the tab only, never the bus name, the session title or anything a peer sees. Needs an ab-* launcher.
 
 ab_lock: >-
-  Take a named lock on a record: one holder at a time, every lock has a ttl, and the record's Owner, its Maintainers and its own Agent are the only ones who may. try: true answers now (granted or who holds it); without it the call waits up to wait for the holder to release or its ttl to end.
+  Take a named lock on a record: one holder at a time, every lock has a ttl, and the record's Owner, its Maintainers and its own Agent are the only ones who may. try: true answers now (granted or who holds it); without it the call waits up to wait (default in that parameter) for the holder to release or its ttl to end.
 
 ab_lock_release: >-
   Give a lock back before its ttl. Only the holder may; force: true releases a lock somebody else holds — its Owner, any Maintainer or its own Agent may, for one pipeline stage taking and a later one releasing. Refused holds say who holds it.

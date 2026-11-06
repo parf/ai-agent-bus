@@ -36,7 +36,7 @@ async function face(route: Handler, env: Record<string, string> = {}, more?: (po
     const r = await client.callTool({ name, arguments: args }, undefined, signal ? { signal } : undefined) as { content: { text: string }[]; isError?: boolean };
     return { text: r.content.map((c) => c.text).join("\n"), blocks: r.content.map((c) => c.text), isError: !!r.isError };
   };
-  return { call, stderr, notifications, pid: transport.pid };
+  return { call, client, stderr, notifications, pid: transport.pid };
 }
 
 const message = { message_id: "m1", from: "#peer@test", to: "#face@test", body: "queued-body", at: "2026-10-17T00:00:00Z" };
@@ -82,6 +82,23 @@ test("a cancelled ab_lock wait ends the daemon's request", async () => {
   await pending;
   for (let i = 0; i < 100 && !aborted; i++) await Bun.sleep(20);
   expect(aborted).toBe(true);
+});
+
+test("ab_lock waits as long as its schema says when no wait is given", async () => {
+  let waited: string | null = "no request";
+  const { call, client } = await face((_req, url) => {
+    if (url.pathname !== "/lock") return new Response("no", { status: 404 });
+    waited = url.searchParams.get("wait");
+    return new Response(null, { status: 204 });
+  });
+  const tool = (await client.listTools()).tools.find((t) => t.name === "ab_lock")!;
+  const said = /the default is (\S+)/.exec(String((tool.inputSchema.properties as any).wait.description));
+  expect(said).not.toBeNull();
+  await call("ab_lock", { record: "r@test", name: "n", ttl: "30s" });
+  // The number a caller reads in the schema is the one the handler sends.
+  expect(waited).toBe(said![1]);
+  // Its owning place is the schema: the tool's own text does not give a second copy of it.
+  expect(String(tool.description)).not.toContain(said![1]);
 });
 
 test("ab_kv_get answers an int past 2^53 exactly", async () => {

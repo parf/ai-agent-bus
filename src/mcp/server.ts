@@ -90,6 +90,9 @@ const noContext = (id: string) =>
   `no reply context for ${id}: this session did not consume it, or it aged out of the last ${REMEMBER}. ` +
   `Use ab_send with the original sender, topic and tag — a reply is matched on all three.`;
 
+// How long ab_lock waits for a holder when the caller gives no wait: named once, here, and said in
+// the wait parameter's schema text, which is where a caller reads it.
+const lockWaitDefault = "30s";
 const tools = [
   {
     name: "ab_ls",
@@ -187,7 +190,7 @@ const tools = [
         name: { type: "string", description: "the lock's name on the record" },
         ttl: { type: "string", description: "how long the hold lasts, like 30s; a crashed holder cannot wedge the rest" },
         try: { type: "boolean", description: "answer now rather than waiting" },
-        wait: { type: "string", description: "how long to wait for the holder to let go, like 30s" },
+        wait: { type: "string", description: `how long to wait for the holder to let go, like 5m; the default is ${lockWaitDefault}` },
       },
       required: ["record", "name", "ttl"],
     },
@@ -460,7 +463,7 @@ const callTool = async (req: { params: { name: string; arguments?: Record<string
         // information, not an error, so the refusal text is the answer.
         const record = need(args, "record"), name = need(args, "name"), ttl = need(args, "ttl");
         const path = args.try === true ? "/try-lock" : "/lock";
-        const wait = args.try === true ? "" : `?wait=${encodeURIComponent(maybe(args, "wait") ?? "30s")}`;
+        const wait = args.try === true ? "" : `?wait=${encodeURIComponent(maybe(args, "wait") ?? lockWaitDefault)}`;
         // The tool call's signal ends the request: a wait the caller gave up
         // on must not be granted a lock it will never know it holds.
         try { return text(JSON.stringify(await bus.post(path + wait, { record, name, ttl }, extra.signal))); }
