@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.1 — 2026-11-05
+
+Clarify whole-route overrides for all sidecar pushes
+
 ## 1.0.0 — 2026-11-04
 
 First stable release: named messaging, record-defined access, managed agents,

@@ -66,5 +66,6 @@ test("instructions and receipt tool teach RD103", async () => {
     expect(source).toContain("header's from/topic/tag");
     expect(source).toContain("Reply to line overrides");
     expect(source).toContain("header id");
+    expect(source).toContain("the Reply to line is the whole route and omitted fields stay empty");
   }
 });
