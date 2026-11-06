@@ -37,5 +37,5 @@ suggestion with `✅ 💡` or `🚫 💡`.
   >
   > 💬 👤parf agree
   >
-  > 💬👾 → №Q338: convert this node once, offline after a backup (implied by the cleanup); no legacy support for anyone else. №Q340: groups 1–4 are deleted in the same pass; the list is node-local in `local/ceo/j102-delete.txt` (79 names); `maxavg`, `hdb3` and `@ops` stay.
+  > 💬👾 → №Q338: convert this node once, offline after a backup (implied by the cleanup); no legacy support for anyone else. №Q340: groups 1–4 are deleted in the same pass; the list is node-local in `local/ceo/j102-delete.txt` (74 names); `maxavg`, `hdb3` and `@ops` stay.
 
