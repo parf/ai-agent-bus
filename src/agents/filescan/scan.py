@@ -1,4 +1,5 @@
 """The poll walk and what a message carries; no symlink under `dir` is ever followed."""
+import errno
 import fnmatch
 import hashlib
 import os
@@ -89,38 +90,97 @@ def digest(root,rel,keep=0):
     return h.hexdigest(),size,text
 
 
+def stat_under(root,rel):
+    """lstat of a path below root without following a link on the way; None when it is not there."""
+    parts=rel.split('/')
+    if not rel or '' in parts or '.' in parts or '..' in parts:raise OSError('bad relative path')
+    try:fd=os.open(root,OPEN_DIR)
+    except FileNotFoundError:return None
+    try:
+        for part in parts[:-1]:
+            nxt=os.open(part,OPEN_DIR,dir_fd=fd);os.close(fd);fd=nxt
+        return os.stat(parts[-1],dir_fd=fd,follow_symlinks=False)
+    except (FileNotFoundError,NotADirectoryError):return None
+    except OSError as error:
+        if error.errno==errno.ELOOP:return None  # a link where a directory was: nothing to read through it
+        raise
+    finally:os.close(fd)
+
+
+def _new_plan():
+    return {'upserts':{},'refresh':{},'deletes':[],'skipped':[],'capped':False,'seen':0,'unreadable_root':None}
+
+
+def _consider(items,root,settings,now,hasher,plan,rel,st,taken):
+    """One present file against its item; returns the new count of creates and changes taken."""
+    item=items.get(rel)
+    if item and item.get('size')==st.st_size and item.get('mtime_ns')==st.st_mtime_ns:return taken
+    if settings['settle'] and now-st.st_mtime<settings['settle']:return taken
+    if taken>=settings['max_per_scan']:
+        plan['capped']=True;return taken
+    try:sha,size,_=hasher(root,rel,0)
+    except OSError:
+        plan['skipped'].append((rel,'unreadable'));return taken
+    record={'fp':sha,'size':size,'mtime_ns':st.st_mtime_ns}
+    if item and item['fp']==sha:
+        plan['refresh'][rel]=record;return taken
+    plan['upserts'][rel]=record
+    return taken+1
+
+
 def poll(items,root,settings,*,now,hasher=None):
     """Compare the tree with the saved items and say what changed; nothing is written.
 
     A file whose size and modification time match its item is not hashed; one that differs is, and an
     unchanged hash only refreshes the time (a touch sends nothing). A file younger than `settle` seconds is left
     for the next scan. At most `max_per_scan` creates and changes are taken; the rest, and deletes beyond that
-    point, wait. Returns {'upserts','refresh','deletes','skipped','capped','seen'}.
+    point, wait. Returns {'upserts','refresh','deletes','skipped','capped','seen','unreadable_root'}.
     """
     hasher=hasher or digest
-    plan={'upserts':{},'refresh':{},'deletes':[],'skipped':[],'capped':False,'seen':0,'unreadable_root':None}
-    present=set();taken=0;blocked=[]
+    plan=_new_plan();present=set();taken=0;blocked=[]
     for kind,rel,info in walk(root,settings['include'],settings['exclude']):
-        if kind=='direrror' and rel=='' or kind=='error' and rel=='':
+        if kind in ('direrror','error') and rel=='':
             plan['unreadable_root']=info;continue
         if kind=='direrror':
             blocked.append(rel+'/');plan['skipped'].append((rel,'unreadable'));continue
         if kind=='error':
             present.add(rel);plan['skipped'].append((rel,'unreadable'));continue  # a file we could not stat is not a deletion
         present.add(rel);plan['seen']+=1
-        item=items.get(rel)
-        if item and item.get('size')==info.st_size and item.get('mtime_ns')==info.st_mtime_ns:continue
-        if settings['settle'] and now-info.st_mtime<settings['settle']:continue
-        if taken>=settings['max_per_scan']:
-            plan['capped']=True;continue
-        try:sha,size,_=hasher(root,rel,0)
-        except OSError:
-            plan['skipped'].append((rel,'unreadable'));continue
-        record={'fp':sha,'size':size,'mtime_ns':info.st_mtime_ns}
-        if item and item['fp']==sha:plan['refresh'][rel]=record;continue
-        plan['upserts'][rel]=record;taken+=1
+        taken=_consider(items,root,settings,now,hasher,plan,rel,info,taken)
     if plan['unreadable_root'] is None:
         plan['deletes']=sorted(k for k in items if k not in present and selected(k,settings['include'],settings['exclude']) and not any(k.startswith(b) for b in blocked))
+    return plan
+
+
+def poll_paths(items,root,settings,paths,*,now,hasher=None):
+    """The same comparison for just these paths (from the watch): a file path, or a directory prefix ending in `/`.
+
+    A directory that is gone deletes the items below it; one that appeared is walked. `seen` counts the files
+    still present among the saved items plus new ones, so the guard can tell an emptied tree.
+    """
+    hasher=hasher or digest
+    plan=_new_plan();taken=0;gone=set();present=set()
+    for path in paths:
+        if path.endswith('/'):
+            sub=path[:-1]
+            st=stat_under(root,sub) if sub else None
+            below=[k for k in items if k.startswith(path)]
+            if st is None or not stat.S_ISDIR(st.st_mode):
+                gone.update(below);continue
+            for kind,rel,info in walk(os.path.join(root,sub),settings['include'],settings['exclude']):
+                if kind!='file':continue
+                full=path+rel;present.add(full)
+                taken=_consider(items,root,settings,now,hasher,plan,full,info,taken)
+            gone.update(k for k in below if k not in present and not any(os.path.dirname(k)==sub for _ in [0]) and k not in present)
+            continue
+        if not selected(path,settings['include'],settings['exclude']):continue
+        st=stat_under(root,path)
+        if st is None or not stat.S_ISREG(st.st_mode):
+            if path in items:gone.add(path)
+            continue
+        present.add(path);taken=_consider(items,root,settings,now,hasher,plan,path,st,taken)
+    plan['deletes']=sorted(k for k in gone if k in items and k not in present)
+    plan['seen']=len(set(items)-set(plan['deletes'])|set(plan['upserts']))
     return plan
 
 
