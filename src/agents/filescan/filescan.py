@@ -314,14 +314,15 @@ class FileScan:
             except OSError:sha,size,text=record['fp'],record['size'],None
             message.update(size=size,mtime_ns=record.get('mtime_ns'),sha256=sha)
             if text is not None:message['text']=text
-            elif row['selector'].get('bigfile'):message.update(self._bigfile(key,sha,size))
+            elif row['selector'].get('bigfile'):message.update(self._bigfile(key,sha,size,record['fp']))
             else:message['contents']='omitted: over max_file_size or not text'
         return dumps(message)
 
-    def _bigfile(self,key,sha,size):
+    def _bigfile(self,key,sha,size,expected):
         """The contents of a file too big or not text, as a bigfile on this agent's own record named by the hash, for a subscriber
         that opted in. The upload is checked against the hash, so a file that changed under it is refused and tried again next
         round (the body raises), and a file past the 32 MiB bigfile limit is named as omitted, never cut."""
+        if sha!=expected:raise OSError('the file changed since it was scanned')   # the state holds `expected`: send and keep only that hash
         if size>BIGFILE_MAX:return {'contents':f'omitted: over the {BIGFILE_MAX>>20} MiB bigfile limit'}
         with os.fdopen(scanning.open_under(self.root,key),'rb') as reader:
             result=self.bus.record(self.bus.name).bigfile.put(sha,reader,size=size,ttl=int(self.settings['bigfile_ttl']),sha256=sha)

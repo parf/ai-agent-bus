@@ -421,6 +421,24 @@ class BigfileTests(Base):
     def test_a_subscriber_without_the_option_makes_no_key_to_collect(self):
         self.put('big.txt',self.BIG);self.add();self.call('scan');self.assertEqual(self.bus.puts,[]);self.assertNotIn('bigfiles',self.agent.state.load()['meta'])
 
+    def test_a_file_changed_between_the_scan_and_the_send_is_not_sent_under_a_hash_the_state_lacks(self):
+        for i in range(10):self.put(f'k{i}.txt','k')
+        self.put('big.txt',self.BIG);self.add(extra='bigfile');real=fs.scanning.digest;calls=[];newer='q'*55
+        def racing(root,rel,keep=0):
+            if rel=='big.txt':
+                calls.append(1)
+                if len(calls)==2:(Path(root)/rel).write_text(newer);os.utime(Path(root)/rel,(time.time()+9,time.time()+9))   # the second hash is the body's
+            return real(root,rel,keep)
+        fs.scanning.digest=racing
+        try:
+            self.call('scan')
+            self.assertEqual([m for m in self.messages() if m['path']=='big.txt'],[],'the body saw bytes the state does not hold: nothing sent, nothing kept')
+            self.assertEqual(self.bus.puts,[]);self.call('scan');self.call('scan')
+        finally:fs.scanning.digest=real
+        (m,)=[m for m in self.messages() if m['path']=='big.txt']
+        self.assertEqual(m['bigfile']['sha256'],self.sha(newer));self.assertEqual(self.keys(),[self.sha(newer)],'the key that was sent is still there')
+        self.assertEqual(self.bus.deletes,[]);self.assertEqual(self.agent.state.load()['items']['big.txt']['fp'],self.sha(newer))
+
     def test_bigfile_is_a_queue_option_and_cannot_join_as_rag(self):
         self.assertEqual(fs.parse('sub add #q@n /\\.bin$/ bigfile replay:false'),('sub.add',{'target':'#q@n','pattern':'/\\.bin$/','bigfile':True,'replay':False}))
         self.assertEqual(self.call('sub add #q@n.test bigfile as rag vault notes')['error']['code'],'invalid_selector')
