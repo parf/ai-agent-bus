@@ -370,7 +370,7 @@ func (b *Bus) incorrect(r protocol.Record) string {
 		}
 	}
 	if hasAssignments {
-		if _, err := b.normalizeAllow(r.Allow, r); err != nil {
+		if _, err := b.normalizeAllowTerms(r.Allow, r, false); err != nil {
 			return err.Error()
 		}
 	}

@@ -170,6 +170,12 @@ func (b *Bus) runtimeTerm(caller, term string, r protocol.Record) bool {
 // normalizeAllow validates an ACL as a whole before anything stores it: one
 // bad term refuses the lot. Caller holds b.mu.
 func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
+	return b.normalizeAllowTerms(in, r, true)
+}
+
+// Stored terms retain their syntax and kind rules, but another principal's
+// later edits cannot make them malformed. Resolve references on writes only.
+func (b *Bus) normalizeAllowTerms(in []string, r protocol.Record, checkReferences bool) ([]string, error) {
 	out := make([]string, 0, len(in))
 	seen := map[string]bool{}
 	for _, raw := range in {
@@ -195,20 +201,24 @@ func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
 			if !groupName(a) {
 				return nil, fmt.Errorf("%w: invalid ACL group %q", ErrBadName, raw)
 			}
-			if _, ok := b.groupMembers(a); !ok {
-				return nil, fmt.Errorf("%w: ACL group %s", ErrUnknown, a)
+			if checkReferences {
+				if _, ok := b.groupMembers(a); !ok {
+					return nil, fmt.Errorf("%w: ACL group %s", ErrUnknown, a)
+				}
 			}
 		default:
 			var err error
 			if a, err = canon(a); err != nil {
 				return nil, err
 			}
-			if err := b.unmarkedAgent(a); err != nil {
-				return nil, err
-			}
-			if r.Kind == protocol.KindGroup {
-				if err := b.groupMember(a); err != nil {
+			if checkReferences {
+				if err := b.unmarkedAgent(a); err != nil {
 					return nil, err
+				}
+				if r.Kind == protocol.KindGroup {
+					if err := b.groupMember(a); err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
