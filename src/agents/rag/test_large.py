@@ -133,7 +133,9 @@ class Large(unittest.TestCase):
         self.put(document())
         head=self.store.points[point_id({'namespace':'team','tableName':'docs','id':'Plans/big.md'})]['payload']
         self.assertGreater(len(head['_rag_chunks'])*1024,SCALARS_MAX,'the large head is over the small path\'s scalar cap')
-        self.assertIs(self.check()['complete'],True)
+        try:got=self.check()
+        except RagError as error:self.fail(f'a large head was refused: {error}')
+        self.assertIs(got['complete'],True)
     def test_plain_get_of_a_large_record_keeps_its_caps(self):
         self.put(document())
         with self.assertRaisesRegex(RagError,'stored record exceeds read cap'):self.call(method='get',id='Plans/big.md')
