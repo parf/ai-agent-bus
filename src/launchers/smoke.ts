@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { Bus, defaultName } from "../mcp/bus.ts";
 import { hash } from "./sessions.ts";
 import { version } from "../mcp/version.ts";
+import { glyph } from "./terminal.ts";
 
 const root = resolve(import.meta.dir, "../../tmp/launcher-smoke");
 mkdirSync(root, { recursive: true });
@@ -150,8 +151,8 @@ try {
     await settled(() => terminalOutput);
     proc.terminal?.close();
     const diagnostic = terminalOutput;
-    const titleRuntime = { claude: "Claude", codex: "Codex", opencode: "OpenCode", opencode1: "OpenCode1" }[runtime];
-    check(`${runtime} sets its named terminal title and restores it after TUI exit`, restoredTitle(terminalOutput) && terminalOutput.includes(`\x1b]0;${titleRuntime}(Named session`));
+    // The bus name's distinguishing part, after the runtime's glyph (docs/06-launchers.md#terminal-appearance).
+    check(`${runtime} sets its named terminal title and restores it after TUI exit`, restoredTitle(terminalOutput) && terminalOutput.includes(`\x1b]0;${glyph(runtime)} named-session`));
     if (code !== 17) console.log(diagnostic);
     check(`${runtime} propagates the runtime exit status`, code === 17);
     const rows = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
@@ -380,8 +381,8 @@ try {
       const liveID = argv[argv.indexOf("--session-id") + 1]!;
       const liveTitle = `Live tab ${process.pid}`; // one run's title, never a parallel run's
       writeFileSync(join(proj, liveID + ".jsonl"), JSON.stringify({ type: "custom-title", customTitle: liveTitle }) + "\n");
-      for (let i = 0; i < 70 && !held.some(h => h.output().includes(`Claude(${liveTitle})`)); i++) await Bun.sleep(50);
-      check("Claude updates its terminal title after a live session rename", held.some(h => h.output().includes(`\x1b]0;Claude(${liveTitle})\x07`)));
+      for (let i = 0; i < 70 && !held.some(h => h.output().includes(`${glyph("claude")} ${liveTitle}`)); i++) await Bun.sleep(50);
+      check("Claude updates its terminal title after a live session rename", held.some(h => h.output().includes(`\x1b]0;${glyph("claude")} ${liveTitle}\x07`)));
     }
     held[0]!.proc.kill("SIGTERM");
     check(`${runtime} propagates termination`, await held[0]!.proc.exited === 143);
