@@ -51,7 +51,7 @@ func smokeInterrupt(t *testing.T, startDelay time.Duration) {
 	dir := t.TempDir()
 	script, pidfile := filepath.Join(dir, "driver.sh"), filepath.Join(dir, "child.pid")
 	// The driver sources these beside itself.
-	for _, name := range []string{"smoke-options.sh", "smoke-port.sh", "smoke-gofail.sh", "smoke-bun.sh", "clients/cargo-target.sh"} {
+	for _, name := range []string{"smoke-options.sh", "smoke-port.sh", "smoke-gofail.sh", "smoke-bun.sh", "clients/cargo-target.sh", "agents/smoke.sh"} {
 		body, err := os.ReadFile("../../" + name)
 		if err != nil {
 			t.Fatal(err)

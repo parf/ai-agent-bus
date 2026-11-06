@@ -30,7 +30,8 @@ class BunOutput(unittest.TestCase):
         cls.output = result.stdout
         cls.log = Path(cls.temp.name) / 'bun.log'
         cls.log.write_text(cls.output)
-        cls.source = (ROOT / 'smoke.sh').read_text()
+        # The agent shards live in agents/smoke.sh, sourced by smoke.sh.
+        cls.source = (ROOT / 'smoke.sh').read_text() + (ROOT / 'agents/smoke.sh').read_text()
 
     def wrapper(self, name, shared_only=False):
         match = re.search(r'^' + name + r'\(\) \{\n.*?^\}', self.source, re.M | re.S)

@@ -20,6 +20,10 @@ agent_pack() {
   out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_envfile.py -v 2>&1); rc=$?
   ok_exit "the shared env-file reader keeps its rules" "$rc"
   [ "$rc" = 0 ] || echo "$out"
+  # The agent shards' own Bun wrappers keep a failure's diff and location.
+  out=$(python3 -B smoke_bun_test.py 2>&1); rc=$?
+  ok_exit "the agent shards' Bun failures retain their diff and source location" "$rc"
+  [ "$rc" = 0 ] || echo "$out"
   if normal; then
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p agent_docs_test.py -v 2>&1); rc=$?
     ok_exit "every bundled agent has its page, index entry and docs link" "$rc"
