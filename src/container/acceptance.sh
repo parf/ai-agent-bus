@@ -87,16 +87,17 @@ if [ -n "$published" ] && [ -z "$mutant" ]; then
 elif [ -n "$published" ]; then
   podman build -q --pull=never -t "$built" "$work" >"$work/build.log" 2>&1 ||
     { echo "mutant layer build: $(tail -3 "$work/build.log")" >&2; exit 2; }
-elif podman build -q --pull=never --build-context "release=$dist" -t "$built" "$work" >"$work/build.log" 2>&1; then
+elif archive=$(ls "$dist"/agent-bus-[0-9]*.tar.gz) && release=$(basename "$archive" .tar.gz) &&
+     version=$(tar -xzOf "$archive" "$release/internal/version/VERSION" | tr -d '[:space:]') &&
+     podman build -q --pull=never --build-arg "VERSION=$version" --build-context "release=$dist" -t "$built" "$work" >"$work/build.log" 2>&1; then
   pass "the image builds from the release archive"
-  archive=$(ls "$dist"/agent-bus-[0-9]*.tar.gz)
-  release=$(basename "$archive" .tar.gz)
-  version=$(tar -xzOf "$archive" "$release/internal/version/VERSION" | tr -d '[:space:]')
 else
   fail "image build: $(tail -3 "$work/build.log")"; finish
 fi
 got=$(podman run --rm "$image" agent-busd --version 2>&1 | head -1)
 [[ -n $version && $got == "$version" ]] && pass "the image runs release $version" || fail "agent-busd --version said '$got', expected '$version'"
+label=$(podman image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$image" 2>&1)
+[[ -n $version && $label == "$version" ]] && pass "the image's version label is $version" || fail "the version label says '$label', expected '$version'"
 # Check the built tree, rather than trusting the archive's uid/gid or packager umask.
 if podman run --rm -i --entrypoint /bin/sh "$image" -s <"$here/check-release-tree.sh"; then
   pass "release archive owners and write permissions are normalized"

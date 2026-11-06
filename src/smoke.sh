@@ -4282,6 +4282,9 @@ container_image() {
     out=$(bash container/entrypoint_test.sh 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "the entry point drops privilege for good, refuses a container-id realm, lists the agents present and leaves a usable mount alone" "$rc"
+    out=$(bash container/labels_test.sh 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "the image carries its title, version, source and licenses labels, the version from a checked build argument" "$rc"
     # The build never pulls: a host without the pinned base cannot build it,
     # and a selected check that cannot run fails rather than passing unrun.
     base=$(awk '$1 == "FROM" {print $2; exit}' container/Containerfile)

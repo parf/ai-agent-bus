@@ -25,10 +25,10 @@ the archive. The build checks the selected checksum, then its inner manifest:
 - Verification and unpacking happen in a builder stage; only the unpacked tree enters the final image, without release-input archive layers.
 
 ```sh
-podman build --build-context release=tmp/dist -t agent-bus src/container
+podman build --build-arg VERSION=$(cat src/internal/version/VERSION) --build-context release=tmp/dist -t agent-bus src/container
 ```
 
-`docker buildx build` takes the same `--build-context`. With more than one
+`docker buildx build` takes the same `--build-context`. The build argument is the release's version, set on the image as its `org.opencontainers.image.version` label; the build refuses an archive of another version. With more than one
 archive in the directory, pass `--build-arg ARCHIVE=agent-bus-<version>-linux-<arch>.tar.gz`.
 Use that explicit selection with a downloaded GitHub release, whose directory
 contains several platforms and `SHA256SUMS`, without per-archive sidecars.

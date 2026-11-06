@@ -1101,6 +1101,12 @@
           "bash",
           "container/entrypoint_test.sh"
         ]
+      },
+      {
+        "argv": [
+          "bash",
+          "container/labels_test.sh"
+        ]
       }
     ]
   }

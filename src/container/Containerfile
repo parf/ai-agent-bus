@@ -2,7 +2,8 @@
 # the daemon and a runner (README.md). Built from a release archive made by
 # src/package.sh, never from a checkout:
 #   podman build --build-context release=<directory holding the archive and SHA256SUMS or its .sha256> src/container
-# (docker buildx build takes the same --build-context). Pick the archive with
+# (docker buildx build takes the same --build-context), adding
+# --build-arg VERSION=$(cat src/internal/version/VERSION). Pick the archive with
 # --build-arg ARCHIVE=agent-bus-<version>-linux-<arch>.tar.gz when the
 # directory holds more than one release.
 FROM docker.io/library/almalinux:10-minimal@sha256:350ccb15938e7dcabdbc296f38c0cab9c5828ae30f4297d8cb2f82b2119fac4a AS runtime-base
@@ -46,12 +47,21 @@ RUN set -eu; cd /tmp/release; \
     mv unpacked "/out/releases/$version"
 
 FROM runtime-base
+# The version is the release's own: the build argument is the VERSION file's value, and the build
+# refuses an archive of another version, so the label never differs from what the image holds.
+ARG VERSION
+LABEL org.opencontainers.image.title="agent-bus" \
+      org.opencontainers.image.version="$VERSION" \
+      org.opencontainers.image.source="https://github.com/parf/ai-agent-bus" \
+      org.opencontainers.image.licenses="LicenseRef-PolyForm-Strict-1.0.0"
 COPY --from=verified-release /out/ /usr/local/lib/agent-bus/
 COPY agent-bus-container /usr/local/sbin/agent-bus-container
 COPY echo /var/lib/agent-bus/agent.d/echo
 RUN set -eu; \
     set -- /usr/local/lib/agent-bus/releases/*; [ "$#" = 1 ]; \
     version=$(tr -d '[:space:]' < "$1/internal/version/VERSION"); \
+    [ -n "$VERSION" ] || { echo "pass --build-arg VERSION=<the release version>" >&2; exit 1; }; \
+    [ "$version" = "$VERSION" ] || { echo "VERSION=$VERSION is not the archive's version $version" >&2; exit 1; }; \
     ln -s "releases/$version" /usr/local/lib/agent-bus/current; \
     for p in agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-token agent-bus-ts; do \
       ln -s "/usr/local/lib/agent-bus/current/$p" "/usr/local/bin/$p"; done; \
