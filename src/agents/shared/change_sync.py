@@ -312,6 +312,9 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
             # have been applied, so a later delete of that key must still be sent. Cleared by the confirmation.
             owed={k:(r['fp'] if k not in data['maybe'][sub_id] else '?') for k,a,r in todo if a!='delete' and data['maybe'][sub_id].get(k)!=r['fp']}
             prior={k:data['maybe'][sub_id].get(k) for k in owed};attempted=set();restored=False
+            gone=[k for k in data['skipped'][sub_id] if k not in data['items']]
+            for k in gone:del data['skipped'][sub_id][k]  # a removed item's skip memory would otherwise live forever
+            restored=bool(gone)
             if owed:
                 data['maybe'][sub_id].update(owed)
                 try:state.save(data)

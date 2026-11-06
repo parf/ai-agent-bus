@@ -477,6 +477,12 @@ class DeliveryTests(Base):
         data=self.state.load();data['items']['b']=item('2c');self.state.save(data);self.round()
         self.assertIn('change b',[b for _,b,_ in self.bus.sent],'confirmed once, so a change when it becomes sendable')
 
+    def test_the_skip_memory_of_a_removed_item_is_dropped_and_saved(self):
+        subs,row=self.add();self.round(body=lambda sub,key,action,record:None if key=='a' else f'{action} {key}')
+        self.assertEqual(self.state.load()['skipped'][row['id']],{'a':'1'})
+        data=self.state.load();del data['items']['a'];self.state.save(data)
+        self.round();self.assertEqual(self.state.load()['skipped'][row['id']],{},'it does not accumulate toward a full state')
+
     def test_a_confirmation_clears_the_skip_memory(self):
         subs,row=self.add();self.round(body=lambda sub,key,action,record:None if key=='a' else f'{action} {key}')
         data=self.state.load();data['items']['a']=item('9');self.state.save(data);self.round()
