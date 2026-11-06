@@ -10,10 +10,10 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Q268, Q178 MCP: hand-write the Go face's small JSON-RPC part; the runner adds the `mcp` tag | [resolved](resolved.md#Q268) | Owner, 2026-11-05 |
 | Q326, Q328 Subscriptions: one rule everywhere (source checked at creation); a Personal agent may list `#bus` in its Allow | [resolved](resolved.md#Q326) | Owner, 2026-11-05 |
 | Q334, Q305–Q310, Q314–Q320 Build FileScan and DBSync: shared core, replay the existing base by default, system paths allowed, MySQL and PostgreSQL first | [resolved](resolved.md#Q334) | Owner, 2026-11-05 |
-| Q308 FileScan runs as the runner's per-agent user, with no added privilege and no sudo; the record's Owner fixes the watched root at configure time and a subscriber never can | [host and sandbox](filescan.md#host-and-sandbox) | Owner, 2026-11-05 |
-| FileScan content: inline by default, a bigfile above the inline limit, never a silent truncation (`as rag` skips an oversize file and says so) | [what a message carries](filescan.md#what-a-message-carries) | Owner, 2026-11-01 and 2026-11-05 |
-| FileScan and DBSync are kept processes that serve themselves with their own token; the Owner hands the token over once at deploy | [host and sandbox](filescan.md#host-and-sandbox), [decisions](dbsync.md#decisions) | Owner, 2026-11-05 |
-| DBSync never holds a database credential; they stay in the read-only DB agent | [decisions](dbsync.md#decisions) | Owner, 2026-11-05 |
+| FileScan host boundary | [host and sandbox](filescan.md#host-and-sandbox) | Owner, 2026-11-05 (Q308) |
+| FileScan content | [what a message carries](filescan.md#what-a-message-carries) | Owner, 2026-11-01 and 2026-11-05 |
+| Kept-process deployment | [host and sandbox](filescan.md#host-and-sandbox), [DBSync decisions](dbsync.md#decisions) | Owner, 2026-11-05 |
+| DBSync credential boundary | [DBSync decisions](dbsync.md#decisions), [who may use it](dbsync.md#who-may-use-it) | Owner, 2026-11-05 |
 | Q281–Q284, Q286, Q287 IMAP large transfer: chunked calls, bounded staging, caller-built mail, optional hash, base64 windows | [resolved](resolved.md#Q281) | Owner, 2026-11-05 |
 | Q331 The agent pack keeps its own SemVer inside this one repository; Q332 an `agent.d` package may be a link to its checkout | [resolved](resolved.md#Q331) | Owner, 2026-11-05: "we have one monorepo, we just use diff semvers for daemon and agent-pack" |
 | Q333 AI agent images: only `#ai`'s Owner and Maintainers may generate them, stored in `#ai`'s own bigfile record with a 24-hour expiry; reference images by URL or inline | [T-36](TODO.md#ai-agent-methods) | Owner, 2026-11-05: "OK for #ai bigfile" |
