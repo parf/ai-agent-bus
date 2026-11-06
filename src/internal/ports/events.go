@@ -27,7 +27,8 @@ type EventIDStore interface {
 	ReserveEventIDs(recordID uint32, through uint64) error
 }
 
-// EventAlertStore is optional until the durable-alert adapter is assembled.
+// EventAlertStore is required for every store bound to a bus, including wrappers.
+// Only an unbound bus explicitly operates without alert persistence.
 // Replace atomically stores a whole bounded alert snapshot, including removals.
 // Load errors are fatal to that log, never interpreted as an empty log.
 type EventAlertStore interface {

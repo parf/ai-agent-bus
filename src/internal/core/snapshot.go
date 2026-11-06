@@ -57,11 +57,14 @@ func (b *Bus) snapshot() ports.Snapshot {
 }
 
 // Persistence binds the store before serving requests. Unbound buses are
-// intentionally in-memory (unit tests and embedded use).
-func (b *Bus) Persistence(st ports.Store) {
+// intentionally in-memory (unit tests and embedded use). A bound store must
+// expose EventAlertStore; startup must handle the error before serving.
+func (b *Bus) Persistence(st ports.Store) error {
 	b.mu.Lock()
 	defer b.unlock()
 	b.store = st
+	_, err := eventAlertStore(st)
+	return err
 }
 
 // queueMark is what a queue's counters were when it was last saved. Every

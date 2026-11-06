@@ -90,7 +90,9 @@ func runBus(c config) {
 	tokens.Journal(logs)
 	// Bound before the first write, so setup's seed below commits like any
 	// other change.
-	bus.Persistence(st)
+	if err := bus.Persistence(st); err != nil {
+		fatal("database %s: %v", c.db, err)
+	}
 	// Today's and yesterday's stored days put each ring back
 	// (docs/05-discovery.md#activity-history).
 	bus.RestoreActivityDays()

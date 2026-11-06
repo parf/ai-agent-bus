@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 	"time"
@@ -11,6 +12,19 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/subscription"
 )
+
+// A nil store explicitly selects memory-only operation. Every bound adapter,
+// including wrappers, must carry the alert port rather than lose durability.
+func eventAlertStore(st ports.Store) (ports.EventAlertStore, error) {
+	if st == nil {
+		return nil, nil
+	}
+	alerts, ok := st.(ports.EventAlertStore)
+	if !ok {
+		return nil, errors.New("persistent store requires ports.EventAlertStore for durable alerts")
+	}
+	return alerts, nil
+}
 
 // Unbound embedded buses keep private reservations in memory. A bound store
 // must implement the durable port: never silently downgrade a real store.
@@ -77,12 +91,14 @@ func (b *Bus) eventAccess(caller, target string, write bool) (protocol.Record, *
 	}
 	if b.events == nil {
 		var ids ports.EventIDStore
-		var alerts ports.EventAlertStore
+		alerts, err := eventAlertStore(b.store)
+		if err != nil {
+			return protocol.Record{}, nil, nil, err
+		}
 		if b.store == nil {
 			ids = &eventIDs{high: map[uint32]uint64{}}
 		} else {
 			ids, _ = b.store.(ports.EventIDStore)
-			alerts, _ = b.store.(ports.EventAlertStore)
 		}
 		b.events = eventlog.New(ids, alerts, b.clock)
 	}
