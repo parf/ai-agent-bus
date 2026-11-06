@@ -77,7 +77,7 @@
         "read",
         "write"
       ],
-      "text": "sub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false] [bigfile:true]",
+      "text": "sub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false]",
       "args": [
         {
           "name": "target",
@@ -112,12 +112,6 @@
           "name": "replay",
           "type": "bool",
           "help": "false: send only later changes",
-          "optional": true
-        },
-        {
-          "name": "bigfile",
-          "type": "bool",
-          "help": "reserved: send a file over the inline limit as a bigfile",
           "optional": true
         }
       ],

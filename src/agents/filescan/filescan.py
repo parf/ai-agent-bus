@@ -78,7 +78,7 @@ def parse(body):
 
 
 def sub_args(text,words):
-    """sub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false] [bigfile:true]"""
+    """sub add <target> [/regex/] [as rag [<namespace> [<table>]]] [replay:false]"""
     args={'target':words[2]};rest=text.split(None,3)[3] if len(words)>3 else ''
     if rest.startswith('/'):
         m=re.match(r'(/(?:\\.|[^/\\])*/[a-z]*)(?:\s+(.*))?\Z',rest,re.S)
@@ -88,7 +88,6 @@ def sub_args(text,words):
     while tokens:
         t=tokens.pop(0)
         if t=='replay:false':args['replay']=False
-        elif t=='bigfile:true':args['bigfile']=True
         elif t=='as' and tokens[:1]==['rag']:
             tokens.pop(0);args['rag']=True
             for key in ('namespace','table'):
@@ -98,7 +97,7 @@ def sub_args(text,words):
 
 
 def selector(value):
-    if not isinstance(value,dict) or set(value)-{'pattern','rag','namespace','table','bigfile'}:raise ValueError()
+    if not isinstance(value,dict) or set(value)-{'pattern','rag','namespace','table'}:raise ValueError()
     if 'pattern' in value:
         if not isinstance(value['pattern'],str):raise ValueError()
         try:filters.compile_filter(value['pattern'])
@@ -353,7 +352,7 @@ class FileScan:
             summary=self.scan(confirm=bool(args.get('confirm')));self._round()
             return dumps(summary)
         if method=='sub.add':
-            value={k:args[k] for k in ('rag','namespace','table','bigfile') if k in args}
+            value={k:args[k] for k in ('rag','namespace','table') if k in args}
             if 'pattern' in args:value['pattern']=args['pattern']
             replay=args.get('replay',not self.settings['baseline'])
             if not isinstance(replay,bool):raise ValueError('invalid_request')

@@ -136,7 +136,7 @@ class CallTests(Base):
         self.assertEqual(self.call('sub add #q@n.test /(a/')['error']['code'],'invalid_selector')
 
     def test_bad_requests_get_named_errors_not_a_crash(self):
-        for body in ('','nonsense','sub','sub add','scan confirm:maybe','{"method":3}','{"x":1}','sub add #q@n.test bogus-token','x'*5000):
+        for body in ('','nonsense','sub','sub add','scan confirm:maybe','{"method":3}','{"x":1}','sub add #q@n.test bogus-token','sub add #q@n.test bigfile:true','x'*5000):
             self.assertEqual(self.call(body)['error']['code'],'invalid_request',body[:20])
 
     def test_a_damaged_state_is_named_and_reset_repairs_it(self):
