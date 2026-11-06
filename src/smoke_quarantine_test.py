@@ -19,7 +19,7 @@ SMOKE = '''ok_exit "a web title" "$rc"
 has "an install title" "$out" 'x'
 '''
 GO_TEST = 'package core\nimport "testing"\nfunc TestCoreRace(t *testing.T) {}\nfunc TestCLIRestart(t *testing.T) {}\n'
-ISSUES = '''# Issues — Nov 6, 2026 · gate flakes
+ISSUES = '''# Issues — Dec 24, 2026 · gate flakes
 
 ## Gate flakes
 
@@ -29,7 +29,7 @@ ISSUES = '''# Issues — Nov 6, 2026 · gate flakes
 # A first run with a Go failure in a ⚠️ package and one in the CLI, a named title in a
 # non-⚠️ shard, a title in a ⚠️ shard, a fast failure that names nothing, and a
 # unittest line that is a tool's output, not a check.
-LOG = '''== 2026-11-06 from #w: b T-1
+LOG = '''== 2026-12-24 from #w: b T-1
 [go_unit]   FAIL go race: exit 1
 [go_unit]     --- FAIL: TestCoreRace (0.10s)
 [go_unit]     FAIL\tgithub.com/parf/ai-agent-bus/internal/core\t1.0s
@@ -55,15 +55,15 @@ class Tree:
         self.root = Path(self.dir.name)
         (self.root/'src/agents').mkdir(parents=True)
         (self.root/'src/internal/core').mkdir(parents=True)
-        (self.root/'Plans/issues/2026-11').mkdir(parents=True)
-        (self.root/'Plans/issues/done/2026-11').mkdir(parents=True)
+        (self.root/'Plans/issues/2026-12').mkdir(parents=True)
+        (self.root/'Plans/issues/done/2026-12').mkdir(parents=True)
         for f in ('src/smoke-select.py', 'src/go.mod', 'Plans/subsystems.md'):
             shutil.copy(ROOT/f, self.root/f)
         (self.root/'src/smoke.sh').write_text(SMOKE)
         (self.root/'src/agents/smoke.sh').write_text('')
         (self.root/'src/internal/core/core_test.go').write_text(GO_TEST)
-        (self.root/'Plans/issues/2026-11/2026-11-06.md').write_text(ISSUES)
-        (self.root/'Plans/issues/done/2026-11/2026-11-05.md').write_text('- ⚪ J132 moved to done.\n')
+        (self.root/'Plans/issues/2026-12/2026-12-24.md').write_text(ISSUES)
+        (self.root/'Plans/issues/done/2026-12/2026-12-20.md').write_text('- ⚪ J132 moved to done.\n')
         self.map({})
 
     def map(self, quarantine):
@@ -140,7 +140,7 @@ class Apply(unittest.TestCase):
         self.log.write_text(LOG)
 
     def test_safe_tests_are_quarantined_and_the_rest_filed_open(self):
-        lines, paths = q.apply(self.t.root, self.log, 'ab-w1a/T-1', datetime.date(2026, 11, 6))
+        lines, paths = q.apply(self.t.root, self.log, 'ab-w1a/T-1', datetime.date(2026, 12, 24))
         self.assertEqual(lines[0], 'RERUN-GREEN go_unit, web_ts, agent_server_info, agent_slack: quarantined 2 with a J-item')
         # J ids follow the highest in Plans (J132), in item order.
         self.assertEqual(lines[1:], [
@@ -148,21 +148,21 @@ class Apply(unittest.TestCase):
             'OPEN J136: agent_server_info / an install title not quarantined (⚠️ NEEDS LEAD)',
             'OPEN J137: agent_slack not quarantined (UNNAMED)'])
         self.assertEqual(self.t.config()['quarantine'], {'go_unit': {'TestCLIRestart': 'J134'}, 'web_ts': {'a web title': 'J135'}})
-        issues = (self.t.root/'Plans/issues/2026-11/2026-11-06.md').read_text()
+        issues = (self.t.root/'Plans/issues/2026-12/2026-12-24.md').read_text()
         self.assertTrue(issues.startswith(ISSUES.rstrip('\n')+'\n\n## Gate quarantine\n\n- ⚪ J133 '))
         self.assertEqual([int(n) for n in __import__('re').findall(r'^- ⚪ J(\d+) ', issues, 8)], [130, 133, 134, 135, 136, 137])
         self.assertIn('NEEDS LEAD', issues.split('J133', 1)[1].split('- ⚪', 1)[0])
-        self.assertEqual(paths, ['src/smoke-map.json', 'Plans/issues/2026-11/2026-11-06.md'])
+        self.assertEqual(paths, ['src/smoke-map.json', 'Plans/issues/2026-12/2026-12-24.md'])
         # What the gate wrote is itself a valid quarantine.
         self.assertEqual(q.check(self.t.root), [])
 
     def test_nothing_safe_leaves_the_map_alone_and_says_so(self):
         self.log.write_text('[agent_slack] FAIL fast command agent_slack (x)\n== rerun after rc=1\n')
         before = (self.t.root/'src/smoke-map.json').read_text()
-        lines, _ = q.apply(self.t.root, self.log, 'b', datetime.date(2026, 11, 7))
+        lines, _ = q.apply(self.t.root, self.log, 'b', datetime.date(2026, 12, 25))
         self.assertEqual(lines, ['RERUN-GREEN agent_slack: nothing quarantined', 'OPEN J133: agent_slack not quarantined (UNNAMED)'])
         self.assertEqual((self.t.root/'src/smoke-map.json').read_text(), before)
-        self.assertTrue((self.t.root/'Plans/issues/2026-11/2026-11-07.md').read_text().startswith('# Issues — Nov 7, 2026\n\n## Gate quarantine\n\n- ⚪ J133 '))
+        self.assertTrue((self.t.root/'Plans/issues/2026-12/2026-12-25.md').read_text().startswith('# Issues — Dec 25, 2026\n\n## Gate quarantine\n\n- ⚪ J133 '))
 
 
 class Smoke(unittest.TestCase):
