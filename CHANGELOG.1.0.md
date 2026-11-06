@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.31 — 2026-11-06
+
+The file key directory matches a login line without regard to ASCII case, so an Alice line serves alice
+
 ## 1.0.30 — 2026-11-06
 
 #db masks secrets only inside text, not across the JSON answer, so a short account name no longer corrupts keys; passwords stay masked in errors and results

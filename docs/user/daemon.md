@@ -193,7 +193,7 @@ Replace the angle-bracket placeholders before running the command. `account list
 |---|---|
 | `--owner=user` | whose bus this is, realm optional. The owner is always an administrator |
 | `--user=account=user[@realm]` | first-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
-| `--directory=realm=github` | a realm and what vouches for enrolment; `realm=/path/to/keys` for a directory of key files. Public GitHub profile metadata does not need this flag |
+| `--directory=realm=github` | a realm and what vouches for enrolment; `realm=/path/to/keys` for a file of `login key-type key-blob [comment]` lines, the login matched without regard to ASCII case. Public GitHub profile metadata does not need this flag |
 | `--addr` · `--socket` | the network address, any interface, default `127.0.0.1:6767`, never taken from `AGENT_BUS_ADDR`; and the Unix socket path |
 | `--tls-dir=dir` | `cert.pem`, `key.pem` and optional `chain.pem`: the network port answers TLS beside plain HTTP ([setup § TLS](../administration.md#tls)) |
 | `--db=path` | the one SQLite database, by default `$XDG_STATE_HOME/agent-bus/agent-bus.db`, else `~/.local/state/agent-bus/agent-bus.db`. Held exclusively; a missing one refuses the start |
