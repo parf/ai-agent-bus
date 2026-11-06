@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.10 — 2026-11-05
+
+a runner reload that changes an agent process count restarts its pool at the new size
+
 ## 1.0.9 — 2026-11-05
 
 the Slack agent stops retrying its identity after a definitive refusal and still retries bus and Slack hiccups

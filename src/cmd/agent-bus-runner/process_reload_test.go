@@ -193,9 +193,27 @@ func TestProcessSpanChangeLetsAnInFlightOneShotAnswer(t *testing.T) {
 	})
 	<-reloading
 	// The FIFO open cannot hang if a broken stop killed its reader.
-	release, err := os.OpenFile(hold, os.O_WRONLY|syscall.O_NONBLOCK, 0600)
-	if err != nil {
-		t.Fatalf("old one-shot no longer waiting for release: %v", err)
+	var release *os.File
+	var err error
+	deadline := time.NewTimer(time.Second)
+	defer deadline.Stop()
+	retry := time.NewTicker(5 * time.Millisecond)
+	defer retry.Stop()
+	for {
+		release, err = os.OpenFile(hold, os.O_WRONLY|syscall.O_NONBLOCK, 0600)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, syscall.ENXIO) {
+			t.Fatalf("open old one-shot release: %v", err)
+		}
+		// The ready write precedes opening the FIFO's read end. ENXIO during
+		// that gap is not evidence that the old run died.
+		select {
+		case <-deadline.C:
+			t.Fatalf("old one-shot did not open its release FIFO within 1s: %v", err)
+		case <-retry.C:
+		}
 	}
 	_, err = release.WriteString("go\n")
 	release.Close()
