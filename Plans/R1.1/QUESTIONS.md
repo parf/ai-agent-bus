@@ -203,18 +203,9 @@ The T-49 setup gives mdhouse its own stack on the user-account runner ([№Q353]
   - ( ) A remote store mdhouse names, with its key
   > 💡👾 The existing server: nothing new to run on the dev node; the proxy is the boundary, since the server's key reaches every collection.
 
-- ❓ Q377 Which Voyage key `#voyage/mdhouse` uses
-  - Context: embeddings are paid per token; about 194 Markdown files today. `#voyage@parf.us` is not visible to parf today
-  - ( ) A new key on the same Voyage account, so mdhouse's spend shows apart 🌟
-  - ( ) The current Voyage key, shared ⭐
-  - ( ) A key from mdhouse's own account
-  > 💡👾 A new key on the same account: no new billing, and it can be revoked alone.
+- ✅ Q377 → [№Q377](resolved.md#Q377)
 
-- ❓ Q378 Which OpenRouter key `#ai/mdhouse` uses
-  - Context: the production `#ai` key …9e4f is never used ([shared rules](../Team.v2/roles/common.md#light-on-the-host)). The working realmo keys share one account
-  - ( ) A new key with a spend limit, made by the owner 🌟
-  - ( ) An unused realmo key such as …5f45 ⭐
-  > 💡👾 A new key with a limit: mdhouse's classification calls cannot drain the site's account.
+- ✅ Q378 → [№Q378](resolved.md#Q378)
 
 ## Owner items from 2026-11-06
 

@@ -385,3 +385,26 @@
   > 💬 👤parf (in chat to #ab-ceo, 2026-11-06 ~13:50): as Q353, mdhouse controls it with Maintainer grants
   >
   > 💬👾 → root `/home/parf/src/mdhouse` for `#filescan/mdhouse`, include `*.md`, dotfiles and `node_modules/**` excluded, namespace `mdhouse`, table `docs`. `/home/parf` is 0700, so it runs on parf's user-account runner. No subscription or ingestion until mdhouse starts it.
+
+<a id="Q377"></a>
+
+- ✅ Q377 Which Voyage key `#voyage/mdhouse` uses
+  - Context: embeddings are paid per token; about 194 Markdown files today. `#voyage@parf.us` is not visible to parf today
+  - ( ) A new key on the same Voyage account, so mdhouse's spend shows apart 🌟
+  - ( ) The current Voyage key, shared ⭐
+  - ( ) A key from mdhouse's own account
+  > 💡👾 A new key on the same account: no new billing, and it can be revoked alone.
+  > 💬 👤parf (in chat to #ab-ceo, 2026-11-06 ~13:55): "we give them access to voyae and ai"; "add them to acl"
+  >
+  > 💬👾 → No `#voyage/mdhouse` or `#ai/mdhouse`: `#rag/mdhouse@parf.us` is on the allow lists of `#voyage@parf.us` and `#ai@parf.us` (done 13:56), so it uses the shared keys; `#ai` runs on the production key …9e4f.
+
+<a id="Q378"></a>
+
+- ✅ Q378 Which OpenRouter key `#ai/mdhouse` uses
+  - Context: the production `#ai` key …9e4f is never used ([shared rules](../Team.v2/roles/common.md#light-on-the-host)). The working realmo keys share one account
+  - ( ) A new key with a spend limit, made by the owner 🌟
+  - ( ) An unused realmo key such as …5f45 ⭐
+  > 💡👾 A new key with a limit: mdhouse's classification calls cannot drain the site's account.
+  > 💬 👤parf (in chat to #ab-ceo, 2026-11-06 ~13:55): "we give them access to voyae and ai"; "add them to acl"
+  >
+  > 💬👾 → No `#voyage/mdhouse` or `#ai/mdhouse`: `#rag/mdhouse@parf.us` is on the allow lists of `#voyage@parf.us` and `#ai@parf.us` (done 13:56), so it uses the shared keys; `#ai` runs on the production key …9e4f.

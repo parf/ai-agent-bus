@@ -8,6 +8,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 |---|---|---|
 | Q353 mdhouse gets its own `#rag/mdhouse@parf.us` on its runner (here the user-account runner), owned and used by mdhouse as an external user would; on this one-account node parf stays Owner and mdhouse is Maintainer | [resolved](resolved.md#Q353) | Owner, 2026-11-06 |
 | Q355 FileScan's first root is `/home/parf/src/mdhouse` for `#filescan/mdhouse` on the user-account runner, controlled by mdhouse as Maintainer | [resolved](resolved.md#Q355) | Owner, 2026-11-06 |
+| Q377, Q378 mdhouse's `#rag/mdhouse` uses the shared `#voyage` and `#ai`, admitted on their allow lists; no own keys | [resolved](resolved.md#Q377) | Owner, 2026-11-06 |
 | Q5 moved to R1.3 | [R1.3 decisions](../R1.3/DECISIONS.md#recorded-decisions) | |
 | Q339 `#imap` keeps the per-delivery subscription check; only `#eventlog` and `#logwatch` check at creation | [resolved](resolved.md#Q339) | Owner, 2026-11-06 |
 | Q336 The root runner (RT19) replaces the standalone starter; a default policy that protects other agents' data is wanted for it and for a user's runner | [resolved](resolved.md#Q336), [root runner](root-runner.md#what-the-starter-is-today) | Owner, 2026-11-06: "replaced it" |
