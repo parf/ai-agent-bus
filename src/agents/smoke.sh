@@ -20,6 +20,9 @@ agent_pack() {
   out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_envfile.py -v 2>&1); rc=$?
   ok_exit "the shared env-file reader keeps its rules" "$rc"
   [ "$rc" = 0 ] || echo "$out"
+  out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p protocol_test.py -v 2>&1); rc=$?
+  ok_exit "the pack's protocol declaration equals every bundled client's, covers the daemon and ships in every package" "$rc"
+  [ "$rc" = 0 ] || echo "$out"
   # The agent shards' own Bun wrappers keep a failure's diff and location.
   out=$(python3 -B smoke_bun_test.py 2>&1); rc=$?
   ok_exit "the agent shards' Bun failures retain their diff and source location" "$rc"

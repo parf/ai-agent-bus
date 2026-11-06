@@ -11,4 +11,5 @@ install -d -m 0755 "$dest/licenses"
 install -m 0644 "$here/../../../licenses/NOTICE.md" "$dest/licenses/NOTICE.md"
 install -m 0644 "$here/../shared/metadata.py" "$dest/support/agents/shared/"
 install -m 0644 "$here/../VERSION" "$dest/support/agents/VERSION"
+install -m 0644 "$here/../protocol.json" "$dest/support/agents/protocol.json"
 package_commit

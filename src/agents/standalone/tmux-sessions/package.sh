@@ -11,6 +11,7 @@ install -m 0755 "$here/sessions.py" "$dest/sessions.py"
 install -m 0644 "$here/agent.json" "$here/config.json.dist" "$dest/"
 install -m 0644 "$here/../../shared/metadata.py" "$here/../../shared/envfile.py" "$dest/support/agents/shared/"
 install -m 0644 "$here/../../VERSION" "$dest/support/agents/VERSION"
+install -m 0644 "$here/../../protocol.json" "$dest/support/agents/protocol.json"
 # Licenses sit in agents/ of a release and at the root of a checkout.
 for legal in "$here/../.." "$here/../../../.."; do [ -f "$legal/LICENSE.md" ] && break; done
 install -m 0644 "$legal/LICENSE.md" "$dest/"

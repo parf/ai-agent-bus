@@ -36,7 +36,7 @@ validate_release() { # current build layout only, before changing any installed 
     for p in agent-bus-web mcp/server.js launchers/launcher.js; do
         [ ! -e "$1/$p" ] && [ ! -L "$1/$p" ] || { echo "unsupported release layout: obsolete $p" >&2; return 1; }
     done
-    [ -f "$1/internal/version/VERSION" ] && [ -f "$1/agents/VERSION" ] && [ -f "$1/web/agent-bus-web.service" ] || { echo "unsupported release layout: incomplete metadata" >&2; return 1; }
+    [ -f "$1/internal/version/VERSION" ] && [ -f "$1/agents/VERSION" ] && [ -f "$1/agents/protocol.json" ] && [ -f "$1/web/agent-bus-web.service" ] || { echo "unsupported release layout: incomplete metadata" >&2; return 1; }
 }
 
 switch() { # release-dir

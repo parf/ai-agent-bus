@@ -17,4 +17,5 @@ install -m 0644 "$here/../../clients/python/agent_bus/"*.py "$dest/support/clien
 install -m 0644 "$here/../../clients/LICENSE.md" "$dest/support/clients/LICENSE.md"
 install -m 0644 "$here/../../internal/version/VERSION" "$dest/support/internal/version/"
 install -m 0644 "$here/../VERSION" "$dest/support/agents/VERSION"
+install -m 0644 "$here/../protocol.json" "$dest/support/agents/protocol.json"
 package_commit

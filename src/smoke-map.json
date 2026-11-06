@@ -648,6 +648,20 @@
           "test_envfile.py",
           "-v"
         ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents",
+          "-p",
+          "protocol_test.py",
+          "-v"
+        ]
       }
     ],
     "mcp_rpc": [
