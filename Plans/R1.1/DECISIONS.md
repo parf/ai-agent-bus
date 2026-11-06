@@ -35,20 +35,8 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Discord uses the gateway with the message-content intent on, and has no `users` or `user` methods (RD172, settles Q241, Q242 and Q243) | [plan](../R1.2/discord.md#decided) | #ab-dir, 2026-10-30 |
 | Additional storage backends assigned to R1.1 | [storage](storage.md#backends) | 2026-09-20 owner instruction; implement SQLite first in 0.7 |
 | The MCP latest-only switch (K.37) postponed to R1.1, waiting for Codex and OpenCode | [K.37](TODO.md#mcp-latest-revision) | 2026-10-16 owner instruction |
-| Sigils | [definition](../R2.0-Future/identity.md#sigils) | D6, D7, D27, D28, D29, D30 |
-| Enrolment policy | [definition](../R2.0-Future/access.md#enrolment-policy) | D18 |
-| Delegation | [definition](../R2.0-Future/identity.md#delegation) | D37 |
-| Ownership | [definition](../R2.0-Future/identity.md#ownership) | D38, D40, D133, D134, D135 |
-| Sealed private config | [definition](../R2.0-Future/identity.md#sealed-private-config) | D41 |
-| Token scope | [definition](../R2.0-Future/access.md#token-scope) | D46 |
-| Key modes | [definition](../R2.0-Future/access.md#key-modes) | D58; lifecycle revised 2026-09-13 |
-| Encrypted sessions | [definition](../R2.0-Future/access.md#encrypted-sessions) | D59, D60 |
-| Key confirmation | [definition](../R2.0-Future/access.md#key-confirmation) | D63 |
 | Scope | [definition](README.md#scope) | D69 |
 | Registry sync | [definition](registry.md#registry-sync) | D79 |
-| Where it runs | [definition](../R2.0-Future/auth.md#where-it-runs) | D103, D105 |
-| Topology | [definition](../R2.0-Future/auth.md#topology) | D104 |
-| Ssh admin | [definition](../R2.0-Future/auth.md#ssh-admin) | D106 |
 | Dashboard extensions | [definition](discovery.md#dashboard-extensions) | D243 |
 | Filescan: file contents go inline, bigfile only as the fallback | [what a message carries](filescan.md#what-a-message-carries) | Owner, 2026-11-01 |
 | Filescan: state is one atomically written file in the work directory | [state](filescan.md#state) | Owner, 2026-11-01 |
@@ -61,12 +49,6 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 
 Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
-## Credential lifecycle revision
-
-| Date | Decision | Why | Substance |
-|---|---|---|---|
-| 2026-09-13 | Credential lifecycle across releases | Preserve the material needed for unprocessed encrypted messages; owner instruction | [token lifetime](../../docs/02-access.md#token-lifetime), [R1.1 key modes](../R2.0-Future/access.md#key-modes) |
-
 ## Dashboard scope revision
 
 | Date | Decision | Why | Substance |
@@ -78,8 +60,6 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 | Earlier design | Replacement |
 |---|---|
 | Basic groups, maintainers and activity graphs deferred to R1 | [MVP groups](../../docs/01-identity-and-authority.md#groups), [required dashboard](../../docs/05-discovery.md#required-tabs) |
-| Clock-based derived-key lifecycle and its overlap window | [Credential lifetime policy](../../docs/02-access.md#token-lifetime); key sources remain in [key modes](../R2.0-Future/access.md#key-modes) |
-| Epoch-bound authorization freshness | [AUTH consistency](../R2.0-Future/auth.md#consistency-window); replacement propagation rules remain open |
 
 ## History
 
