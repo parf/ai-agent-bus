@@ -82,16 +82,24 @@ var ErrProgram = errors.New("the program path holds whitespace, so the line coul
 var Programs = []string{"agent-bus-token", "agent-bus-admin"}
 
 // ErrProgramName is a forced-command program Whose would not read back as ours.
-var ErrProgramName = errors.New("the forced-command program must be named agent-bus-token or agent-bus-admin, so the line can be read back to revoke it")
+var ErrProgramName = errors.New("the forced-command program must be an absolute path named agent-bus-token or agent-bus-admin, so the line can be read back to revoke it")
+
+// CheckProgram is nil for a forced-command program Line may write and Whose reads back.
+func CheckProgram(program string) error {
+	if strings.IndexFunc(program, unicode.IsSpace) >= 0 {
+		return fmt.Errorf("%w: %q", ErrProgram, program)
+	}
+	if !filepath.IsAbs(program) || !slices.Contains(Programs, filepath.Base(program)) {
+		return fmt.Errorf("%w: %q", ErrProgramName, program)
+	}
+	return nil
+}
 
 // Line refuses any key that could add a second authorized_keys entry, and a program path that
 // Whose could not take apart again.
 func Line(program, name, key string) (string, error) {
-	if strings.IndexFunc(program, unicode.IsSpace) >= 0 {
-		return "", fmt.Errorf("%w: %q", ErrProgram, program)
-	}
-	if !slices.Contains(Programs, filepath.Base(program)) {
-		return "", fmt.Errorf("%w: %q", ErrProgramName, program)
+	if err := CheckProgram(program); err != nil {
+		return "", err
 	}
 	key, err := SingleKey(key)
 	if err != nil {
@@ -100,11 +108,10 @@ func Line(program, name, key string) (string, error) {
 	return fmt.Sprintf("restrict,command=%q %s", program+" "+name, key), nil
 }
 
-// Whose reads a line back: the name it is for, and the program it reaches. The command is the
-// program and then the name, which is its last field, so a hand-written program path with a space
-// still reads back (Line itself refuses to write one). A command of another shape is not ours and has
-// no owner: a program that is not one of Programs, a program with arguments (a field after the first that begins with "-"), a spaced
-// program that is not an absolute path, or a name that is a path or an option.
+// Whose reads a line back: the name it is for, and the program it reaches. A line of ours is exactly
+// `<absolute program> <name>`: the program is one of Programs and the name is canonical. Any other
+// command (more fields, a relative or foreign program, a path or option as the name) has no owner. A
+// line written under a program path with whitespace before Line refused one reads as anonymous.
 func Whose(line string) (name, program string) {
 	i := strings.Index(line, `command="`)
 	if i < 0 {
@@ -116,32 +123,13 @@ func Whose(line string) (name, program string) {
 		return "", ""
 	}
 	fields := strings.Fields(rest[:j])
-	if len(fields) < 2 {
+	if len(fields) != 2 || !filepath.IsAbs(fields[0]) || !slices.Contains(Programs, filepath.Base(fields[0])) {
 		return "", ""
 	}
-	name = fields[len(fields)-1]
-	if strings.HasPrefix(name, "-") || strings.Contains(name, "/") {
+	if parsed, err := protocol.ParseName(fields[1]); err != nil || parsed.String() != fields[1] {
 		return "", ""
 	}
-	program = strings.Join(fields[:len(fields)-1], " ")
-	if len(fields) > 2 {
-		if !strings.HasPrefix(program, "/") {
-			return "", ""
-		}
-		for _, f := range fields[1 : len(fields)-1] {
-			if strings.HasPrefix(f, "-") {
-				return "", ""
-			}
-		}
-	}
-	if !slices.Contains(Programs, filepath.Base(program)) {
-		return "", ""
-	}
-	// Only a canonical bus name is an owner.
-	if parsed, err := protocol.ParseName(name); err != nil || parsed.String() != name {
-		return "", ""
-	}
-	return name, filepath.Base(program)
+	return fields[1], filepath.Base(fields[0])
 }
 
 // Without is lines minus name's.

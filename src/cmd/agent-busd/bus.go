@@ -23,6 +23,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
+	"github.com/parf/ai-agent-bus/internal/authkeys"
 	"github.com/parf/ai-agent-bus/internal/backup"
 	"github.com/parf/ai-agent-bus/internal/callstats"
 	"github.com/parf/ai-agent-bus/internal/core"
@@ -147,9 +148,9 @@ func runBus(c config) {
 	face.Dashboard(c.dash)
 	face.Calls(callHistory.Snapshot)
 	if c.sshKeys != "" {
-		program := c.sshToken
-		if program == "" {
-			program = filepath.Join(filepath.Dir(os.Args[0]), "agent-bus-token")
+		program, err := sshTokenProgram(c.sshToken, os.Args[0])
+		if err != nil {
+			fatal("--ssh-token: %v", err)
 		}
 		face.SSHKeys(c.sshKeys, program)
 	}
@@ -416,4 +417,20 @@ func countCalls(calls *atomic.Uint64, h http.Handler) http.Handler {
 		calls.Add(1)
 		h.ServeHTTP(w, r)
 	})
+}
+
+// sshTokenProgram is the forced command of a key added through the API: the given program, or the
+// credential wrapper beside the daemon. One no key line could be read back for is a configuration
+// error at start, not a failure when the first key is added.
+func sshTokenProgram(given, self string) (string, error) {
+	program := given
+	if program == "" {
+		program = filepath.Join(filepath.Dir(self), "agent-bus-token")
+	}
+	if !filepath.IsAbs(program) {
+		if abs, err := filepath.Abs(program); err == nil && given == "" {
+			program = abs
+		}
+	}
+	return program, authkeys.CheckProgram(program)
 }

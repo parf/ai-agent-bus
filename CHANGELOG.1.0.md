@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.19 — 2026-11-05
+
+only exact agent-bus-token or agent-bus-admin key lines name an owner, so user remove never deletes a foreign key; a bad --ssh-token refuses the daemon start
+
 ## 1.0.18 — 2026-11-05
 
 a restore no longer refuses the start over another User's legal ACL edit; restored group terms must still name an existing group

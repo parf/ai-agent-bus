@@ -134,30 +134,30 @@ func TestLineRefusesAProgramPathWithWhitespace(t *testing.T) {
 	}
 }
 
-// Whose takes the name as the last field, so a hand-written spaced path still revokes; a command
-// of another shape is not ours and has no owner.
-func TestWhoseTakesTheLastFieldAndIgnoresForeignCommands(t *testing.T) {
+// A line of ours is exactly `<absolute program> <name>`; any other command has no owner and is not
+// revoked as if it were ours.
+func TestWhoseReadsOnlyTheTwoFieldFormWeWrite(t *testing.T) {
 	key := Key(t)
 	line := func(cmd string) string { return `restrict,command="` + cmd + `" ` + key }
-	if who, program := Whose(line("/opt/my tools/agent-bus-token alice@h")); who != "alice@h" || program != "agent-bus-token" {
-		t.Errorf("spaced path read back as %q %q", who, program)
+	if who, program := Whose(line("/usr/local/bin/agent-bus-token alice@h")); who != "alice@h" || program != "agent-bus-token" {
+		t.Errorf("our own line read back as %q %q", who, program)
 	}
-	lines := []string{line("/opt/my tools/agent-bus-token alice@h"), line("/opt/other/agent-bus-token bob@h")}
-	if got := Without(lines, "alice@h"); len(got) != 1 || got[0] != lines[1] {
-		t.Errorf("revoking a spaced-path line left %v", got)
+	if who, program := Whose(line("/p/agent-bus-admin alice@h")); who != "alice@h" || program != "agent-bus-admin" {
+		t.Errorf("the admin line read back as %q %q", who, program)
 	}
 	for name, cmd := range map[string]string{
-		"a program with arguments": "/usr/bin/rsync --server -vlogDtpr . alice@h",
-		"a shell command":          "/bin/sh -c alice@h",
-		"a relative spaced path":   "my tools/agent-bus-token alice@h",
-		"a path as the name":       "/bin/cat /etc/passwd",
-		"an option as the name":    "/bin/ls -l",
-		"no name":                  "/bin/sh",
-		"a python hook":            "/usr/bin/python3 /opt/hook.py alice@h",
-		"printf with arguments":    "/usr/bin/printf hello alice@h",
-		"a non-canonical name":     "/usr/local/bin/agent-bus-token Alice@H",
-		"a two-field foreign one":  "/usr/bin/foo alice@h",
-		"a foreign spaced path":    "/opt/my tools/other-program alice@h",
+		"a program with arguments":   "/usr/bin/rsync --server -vlogDtpr . alice@h",
+		"a shell command":            "/bin/sh -c alice@h",
+		"a hand-written spaced path": "/opt/my tools/agent-bus-token alice@h",
+		"a relative path":            "agent-bus-token alice@h",
+		"a path as the name":         "/bin/cat /etc/passwd",
+		"an option as the name":      "/bin/ls -l",
+		"no name":                    "/bin/sh",
+		"a python hook":              "/usr/bin/python3 /opt/hook.py alice@h",
+		"printf with arguments":      "/usr/bin/printf hello alice@h",
+		"echo naming our program":    "/bin/echo /opt/agent-bus-token alice@h",
+		"a non-canonical name":       "/usr/local/bin/agent-bus-token Alice@H",
+		"two-field foreign":          "/usr/bin/foo alice@h",
 	} {
 		if who, program := Whose(line(cmd)); who != "" || program != "" {
 			t.Errorf("%s: attributed to %q %q", name, who, program)
@@ -173,6 +173,9 @@ func TestWhoseTakesTheLastFieldAndIgnoresForeignCommands(t *testing.T) {
 
 // Whatever Line writes, Whose reads back: only the allowed programs are written.
 func TestLineWritesOnlyWhatWhoseReadsBack(t *testing.T) {
+	if l, err := Line("agent-bus-token", "alice@h", Key(t)); !errors.Is(err, ErrProgramName) || l != "" {
+		t.Fatalf("a relative program: line %q err %v", l, err)
+	}
 	if l, err := Line("/opt/x/mytoken", "alice@h", Key(t)); !errors.Is(err, ErrProgramName) || l != "" {
 		t.Fatalf("a program with another name: line %q err %v", l, err)
 	} else if !strings.Contains(err.Error(), "agent-bus-token") || !strings.Contains(err.Error(), "agent-bus-admin") {
