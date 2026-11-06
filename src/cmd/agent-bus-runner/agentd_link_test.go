@@ -376,3 +376,48 @@ func TestAFailedInstallClosesItsLease(t *testing.T) {
 		t.Fatalf("%d descriptors left open by 5 failed installs", after-before)
 	}
 }
+
+// A lease that cannot be opened is left alone, not taken for abandoned.
+func TestSweepLeavesAnUnreadableLease(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root opens any file")
+	}
+	r, _, _ := configurationFixture(t, "", "printf old")
+	b := &runner{name: "#runner2@h", agents: r.agents, host: r.host, say: &bytes.Buffer{}}
+	dir := filepath.Join(r.agents, ".install-locked")
+	writeFile(t, filepath.Join(dir, ".lease"), "")
+	writeFile(t, filepath.Join(dir, "newagent", "agent.json"), "{}")
+	if err := os.Chmod(filepath.Join(dir, ".lease"), 0); err != nil {
+		t.Fatal(err)
+	}
+	b.sweepStaging()
+	if _, err := os.Lstat(filepath.Join(dir, "newagent", "agent.json")); err != nil {
+		t.Fatalf("a sweep removed a directory whose lease it could not open: %v", err)
+	}
+}
+
+// A claim swept by another runner before its creator locks it is claimed again, once.
+func TestClaimDirClaimsAgainWhenItsClaimIsSweptAway(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf old")
+	swept := 0
+	afterClaimLock = func(claim string) {
+		if swept == 0 {
+			swept++
+			os.RemoveAll(claim)
+		}
+	}
+	defer func() { afterClaimLock = nil }()
+	dir, lease, err := claimDir(r.agents, ".install-")
+	if err != nil {
+		t.Fatalf("a swept claim was not claimed again: %v", err)
+	}
+	defer lease.Close()
+	if _, err := os.Lstat(dir); err != nil || swept != 1 {
+		t.Fatalf("claimed %s after %d sweeps: %v", dir, swept, err)
+	}
+	// Swept twice in a row: the install fails with an error instead of looping.
+	afterClaimLock = func(claim string) { os.RemoveAll(claim) }
+	if _, _, err := claimDir(r.agents, ".install-"); err == nil {
+		t.Fatal("a claim swept away on every attempt succeeded")
+	}
+}

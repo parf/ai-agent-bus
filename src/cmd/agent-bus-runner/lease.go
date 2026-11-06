@@ -31,6 +31,23 @@ func holdLease(dir string) (*os.File, error) {
 // owner has not locked it yet, and needs no age test. The claim name itself is swept when unlocked;
 // a creator paused before its lock then fails at the rename and reports an error, losing nothing.
 func claimDir(parent, prefix string) (string, *os.File, error) {
+	var err error
+	// A runner starting elsewhere can sweep the claim before its creator locks it; the creator then
+	// finds it gone at the rename and claims again, once.
+	for attempt := 0; attempt < 2; attempt++ {
+		var dir string
+		var f *os.File
+		if dir, f, err = claimOnce(parent, prefix); err == nil || !errors.Is(err, os.ErrNotExist) {
+			return dir, f, err
+		}
+	}
+	return "", nil, err
+}
+
+// afterClaimLock is a test hook between locking the claim and renaming it.
+var afterClaimLock func(claim string)
+
+func claimOnce(parent, prefix string) (string, *os.File, error) {
 	claim, err := os.MkdirTemp(parent, claimPrefix)
 	if err != nil {
 		return "", nil, err
@@ -39,6 +56,9 @@ func claimDir(parent, prefix string) (string, *os.File, error) {
 	if err != nil {
 		os.RemoveAll(claim)
 		return "", nil, err
+	}
+	if afterClaimLock != nil {
+		afterClaimLock(claim)
 	}
 	final := filepath.Join(parent, prefix+strings.TrimPrefix(filepath.Base(claim), claimPrefix))
 	if err := os.Rename(claim, final); err != nil {
@@ -51,12 +71,13 @@ func claimDir(parent, prefix string) (string, *os.File, error) {
 
 const claimPrefix = ".claim-"
 
-// leased says whether someone is still working in dir: its lease is held by a live process. A
-// directory with no lease, or with one nobody holds, is abandoned.
+// leased says whether someone is still working in dir: its lease is held by a live process, or
+// cannot be looked at (left alone). A directory with no lease, or with one nobody holds, is abandoned.
 func leased(dir string) bool {
 	f, err := os.OpenFile(filepath.Join(dir, leaseFile), os.O_RDWR, 0)
 	if err != nil {
-		return false
+		// Only a lease that is not there is unheld; one that cannot be opened may well be held.
+		return !errors.Is(err, os.ErrNotExist)
 	}
 	defer f.Close()
 	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
