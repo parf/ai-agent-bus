@@ -81,6 +81,7 @@ def check(root):
     metadata = json.loads(output)
     assert_methods('dbsync', {'help'}, metadata['methods'])
     assert metadata['secrets'] == [] and metadata['docs'].endswith('/dbsync.md')
+    assert metadata['version'] == version, 'dbsync reports the bus version, not the pack version'
     for shared in ('change_sync.py', 'subscriptions.py', 'subscription_filters.py'):
         assert (dbsync / 'support/agents/shared' / shared).read_bytes() == (root / 'agents/shared' / shared).read_bytes(), 'dbsync engine copy'
     print('dbsync: offline metadata and shared core copies loaded')
@@ -93,6 +94,7 @@ def check(root):
     metadata = json.loads(output)
     assert_methods('filescan', {'help'}, metadata['methods'])
     assert metadata['secrets'] == [] and metadata['docs'].endswith('/filescan.md')
+    assert metadata['version'] == version, 'filescan reports the bus version, not the pack version'
     assert json.loads((filescan / 'config.json.dist').read_text())['mode'] == 'both'
     for shared in ('change_sync.py', 'subscriptions.py', 'subscription_filters.py'):
         assert (filescan / 'support/agents/shared' / shared).read_bytes() == (root / 'agents/shared' / shared).read_bytes(), 'filescan engine copy'
