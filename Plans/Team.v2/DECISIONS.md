@@ -22,3 +22,7 @@
   - Why: the owner confirms that most of the 0.9 development was carried out with this team; it is decided, not an unapproved proposal
   - Responsibilities: consolidate standing CEO/DIR handoff instructions; omit temporary capacity, queue and deployment state
   - Home: [status](README.md#status), [roles](README.md#roles), [operations](README.md#operations-and-authority)
+- ✅ TD5 Shared team rules adopted from the mdhouse team, and the role prompts move into the repository
+  - Date: 2026-11-05
+  - Why: owner, after comparing the two teams: "yes, apply this rules to us too". Both Claude workers ran out of quota mid-release with nobody tracking it, and a stale-worktree commit nearly reverted a reviewed fix
+  - Home: [shared rules](roles/common.md#team-v2--shared-rules)

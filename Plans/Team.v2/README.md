@@ -6,9 +6,9 @@
 
 Team v2 began operating with two teams on 2026-10-30. The owner confirmed on 2026-11-03 that it is decided and was used for most of the 0.9 development ([decision](DECISIONS.md#recorded-decisions)). Specific open operational questions remain in [questions](QUESTIONS.md#open-questions); they do not make the team structure a proposal.
 
-The responsibilities below incorporate the standing instructions in node-local `local/ceo/handoff.md` and `local/dir/handoff.md`, with `local/ceo.md`, `local/dir.md`, `local/lead1.md`, `local/worker1.md` and `local/qa1.md` as supporting role prompts. The later standing handoff instructions supersede conflicting earlier prompt text.
+The role prompts live in [roles/](roles/common.md#team-v2--shared-rules): one file per role, plus [shared rules](roles/common.md#team-v2--shared-rules) every role follows: the task lifecycle, a review bound to one commit, the hand-off checklist, usage and workload control, simple tasks done directly, area affinity and change-type review triggers (adopted from the mdhouse team, owner, 2026-11-05).
 
-The role prompts, `start-ceo.sh`, `gate.sh`, launcher configuration and per-window notes live under `local/`, outside Git. The managed tmux session is `AB-DVP`, reached through `#tmux-sessions/ab-dvp@parf.us`.
+`start-ceo.sh`, `start-team`, `gate.sh`, the launcher configuration and per-window notes stay node-local under `local/`, outside Git. The managed tmux session is `AB-DVP`, reached through `#tmux-sessions/ab-dvp@parf.us`; `local/start-team --run` starts missing windows through it and opens one Kitty tab per window, and `--roles` tells every live window to re-read its role.
 
 ## Shape
 
