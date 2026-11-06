@@ -255,7 +255,7 @@ class FileScan:
                     chain.extend(o for o in more if o not in chain and o!=key)
                     if isinstance(before,list):break
                     cur=before
-                record['from']=chain[0] if len(chain)==1 else chain;moved.update(chain)
+                record['from']=chain[0] if len(chain)==1 else chain;moved.add(chain[0])   # the older origins are held for subscribers only: a name reused since is a real delete
         for key in plan['deletes']:self.hints.pop(key,None)
         plan['renamed']=moved&set(plan['deletes'])
 

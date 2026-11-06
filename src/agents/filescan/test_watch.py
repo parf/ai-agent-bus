@@ -369,6 +369,16 @@ class RenameWatchTests(AgentWatchTests):
         for i in range(10):os.unlink(Path(self.root)/f'old/f{i}.md');self.put(f'new/f{i}.md','v2 '+str(i),mtime=time.time()+9)
         self.agent.tick();self.assertIsNotNone(self.agent.status()['paused'],'ten real deletes of 32 tracked hold the guard')
 
+    def test_a_reused_older_origin_deleted_in_the_same_pass_still_counts_toward_the_guard(self):
+        for i in range(12):self.put(f'fill{i}.md',str(i))
+        self.put('a.md','one');self.put('c.md','two');self.agent=self.make({'mode':'poll','batch':500});self.add();self.agent.tick();self.bus.sent.clear()
+        data=self.agent.state.load();data['items']['c.md']['from']='a.md';self.agent.state.save(data)   # c came from a once; a is a different file now
+        os.rename(Path(self.root)/'c.md',Path(self.root)/'d.md');self.agent.hints['d.md']=('c.md',self.agent.clock())
+        os.unlink(Path(self.root)/'a.md')
+        for i in range(2):os.unlink(Path(self.root)/f'fill{i}.md')
+        self.agent.tick()
+        self.assertIsNotNone(self.agent.status()['paused'],'3 real deletes (a and two fillers) of 14 tracked are over 20 %; only c was moved')
+
     def test_an_origin_is_kept_while_a_subscriber_may_still_hold_it(self):
         self.start({'a.md':'x'});self.r('a.md','b.md');self.settle(1)
         data=self.agent.state.load();sub_id=next(iter(data['subs']));data['items']['b.md']['from']='a.md';data['maybe'][sub_id]['a.md']='?';self.agent.state.save(data)
