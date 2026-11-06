@@ -239,7 +239,7 @@ class RagTests(Base):
 
     def test_a_deleted_file_needs_no_source_and_a_path_rag_cannot_take_is_skipped(self):
         self.put('d/ok.md','a');self.put('e/'+'/'.join(['z'*200]*11)+'.md','b');self.put('e/nfd-e\u0301.md','c')
-        self.rag();self.call('scan');ids=[c['id'] for c in self.calls()]
+        self.rag();self.call('scan');ids=[c['id'] for c in self.calls() if c['method']=='upsert']
         self.assertEqual(ids,['d/ok.md'],'a 2048+ character path and a non-NFC path cannot be RAG sources')
         names=next(iter(self.call('status')['skipped_for_rag'].values()))
         self.assertTrue(any('source' in why for why in names.values()),names)
@@ -259,7 +259,7 @@ class RagTests(Base):
     def test_a_file_over_rags_limit_or_not_text_is_skipped_for_rag_and_named_in_status(self):
         self.put('big.md','x'*(fs.RAG_TEXT+1));Path(self.root,'bin.dat').write_bytes(b'\xff\xfe\x01');self.put('ok.md','fine')
         self.agent=self.make({'max_file_size':'1MiB'});self.rag();self.call('scan')
-        self.assertEqual([c['id'] for c in self.calls()],['ok.md'])
+        self.assertEqual([c['id'] for c in self.calls() if c['method']=='upsert'],['ok.md']);self.assertEqual(sorted(c['id'] for c in self.calls() if c['method']=='delete'),['big.md','bin.dat'])
         skipped=self.call('status')['skipped_for_rag'];names=set(next(iter(skipped.values())))
         self.assertEqual(names,{'big.md','bin.dat'});self.assertEqual(self.call('status')['subscribers'][0]['pending'],0)
 
@@ -267,7 +267,7 @@ class RagTests(Base):
         self.agent=self.make({'max_file_size':'1MiB'});self.put('a.md','small');self.rag();self.call('scan');self.bus.calls.clear()
         self.put('a.md','x'*(fs.RAG_TEXT+1),mtime=time.time()+5);self.call('scan')
         self.assertEqual(self.calls(),[{'method':'delete','namespace':'vault','tableName':'notes','id':'a.md'}])
-        self.assertIn('earlier text was deleted',next(iter(self.call('status')['skipped_for_rag'].values()))['a.md'])
+        self.assertIn('was deleted from RAG',next(iter(self.call('status')['skipped_for_rag'].values()))['a.md'])
         self.bus.calls.clear();self.call('scan');self.assertEqual(self.bus.calls,[],'done, not repeated')
 
     def test_rag_counts_bytes_so_a_wide_character_path_is_judged_as_rag_judges_it(self):

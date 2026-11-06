@@ -108,19 +108,20 @@ def selector(value):
 
 
 RAG_TEXT=32*1024
-RAG_SOURCE=2048   # RAG's own limit on `source`
+RAG_SOURCE=2048   # RAG's own limit on `source`, in UTF-8 bytes
 
 
 def rag_id(path):
     """(id, key1): the path itself as the id when RAG takes it, else a hash with the path kept in key1."""
-    if len(path)<=128 and path.isprintable() and unicodedata.normalize('NFC',path)==path and not path.startswith('sha256:'):return path,None
+    # RAG counts UTF-8 bytes, not characters: 128 bytes for an id.
+    if len(path.encode())<=128 and path.isprintable() and unicodedata.normalize('NFC',path)==path and not path.startswith('sha256:'):return path,None
     # A distinct form: no plain path can equal it, so a file named like a hash never collides with a hashed one.
     return 'sha256:'+hashlib.sha256(path.encode()).hexdigest(),path[:256]
 
 
 def rag_source_ok(path):
-    """Whether RAG accepts this path as a `source`: at most RAG_SOURCE characters, printable, already in NFC."""
-    return 0<len(path)<=RAG_SOURCE and path.isprintable() and unicodedata.normalize('NFC',path)==path
+    """Whether RAG accepts this path as a `source`: not blank, at most RAG_SOURCE UTF-8 bytes (RAG counts bytes), printable, already in NFC."""
+    return bool(path.strip()) and len(path.encode())<=RAG_SOURCE and path.isprintable() and unicodedata.normalize('NFC',path)==path
 
 
 def rag_mime(path):
@@ -153,7 +154,7 @@ class FileScan:
         self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,clock=clock)
         self.lock=threading.Lock()
         self.matched={};self.skipped={}
-        self.watcher=None;self.fallback=None
+        self.watcher=None;self.fallback=None;self._sent_delete=False
         try:self.state.clean_temporaries()
         except core.SyncError:pass
 
@@ -234,7 +235,14 @@ class FileScan:
     def deliver(self):
         def matches(row,key):return self._wanted(row,key)
         def body(row,key,action,record):return self._body(row,key,action,record)
-        return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub))
+        return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub),ok=self._confirm)
+
+    def _confirm(self,result):
+        """The target's reply counts as confirmed: ok, or, for a RAG delete, RAG's `not_found` refusal (it does not hold that id,
+        so the delete's job is done). The same refusal to an upsert is not a confirmation."""
+        if core.reply_ok(result):return True
+        text=getattr(getattr(result,'message',None),'body','')
+        return self._sent_delete and isinstance(text,str) and text.startswith('error: not_found:')
 
     def _wanted(self,row,key):
         pattern=row['selector'].get('pattern')
@@ -262,11 +270,14 @@ class FileScan:
             return None
         ident,key1=rag_id(key)
         if action=='delete':
+            self._sent_delete=True
             return dumps({'method':'delete','namespace':namespace,'tableName':table,'id':ident})
         def refused(why):
-            # A file RAG cannot take: nothing to upsert. If RAG held an earlier version, that text is stale, so delete it.
-            self._skip(row['id'],key,why+('; its earlier text was deleted from RAG' if action=='change' else ''))
-            return dumps({'method':'delete','namespace':namespace,'tableName':table,'id':ident}) if action=='change' else None
+            # A file RAG cannot take: nothing to upsert. RAG may still hold an earlier version (a change, or a replay after a
+            # reset), and that text is stale, so delete it. RAG refuses to delete an id it does not hold, which `_confirm` settles.
+            self._skip(row['id'],key,why+'; any earlier text of it was deleted from RAG')
+            self._sent_delete=True
+            return dumps({'method':'delete','namespace':namespace,'tableName':table,'id':ident})
         if record['size']>RAG_TEXT:return refused(f"{record['size']} bytes is over RAG's {RAG_TEXT} byte text limit")
         try:sha,size,text=scanning.digest(self.root,key,RAG_TEXT)
         except OSError:return refused('unreadable')
@@ -284,6 +295,7 @@ class FileScan:
         if len(found)<50 or key in found:found[key]=why
 
     def _body(self,row,key,action,record):
+        self._sent_delete=False
         if row['selector'].get('rag'):return self._rag_body(row,key,action,record)
         change={'create':'created','change':'changed','delete':'deleted'}[action]
         message={'change':change,'path':key,'warning':WARNING}
