@@ -11,7 +11,7 @@ import { Opencode } from "../mcp/opencode.ts";
 import { Opencode1 } from "../mcp/opencode1.ts";
 import { superviseDelivery as superviseDeliveryOf, sleep, RENAME_READER_RETRY_MS, type Push } from "../mcp/push.ts";
 import { pushBinders } from "./push-binding.ts";
-import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
+import { absence, faceEvent, faceMarks, type Absence } from "../mcp/face-mark.ts";
 import { version, versionOutput, COPYRIGHT } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeStart, claudeTitle, sameBase, type Session } from "./sessions.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
@@ -558,10 +558,22 @@ ${COPYRIGHT}`);
   // message would be consumed with nothing to answer it. So a lost face stops
   // delivery, is reported, and is brought back where the runtime allows it
   // (docs/06-launchers.md#runtime-isolation-and-recovery).
+  // Claude can also never start the face, or let it go without a trace (J105), so
+  // for Claude the live count itself is watched: none for 20 s raises the alarm.
   let faceLost = 0, faceStuck = false, faceResume: (() => void) | undefined;
+  const faceAbsent: Absence = { since: Date.now(), alarmed: false };
   const watchFaces = async () => {
     if (stopping || waitingToRestart) return; // faces end with the session; that is no loss
-    const event = faceEvent(!!faceLost, faceMarks(runDir!));
+    const marks = faceMarks(runDir!);
+    const event = faceEvent(!!faceLost, marks);
+    const absent = runtime === "claude" ? absence(faceAbsent, marks.live, Date.now()) : "none";
+    if (absent === "alarm") {
+      terminal?.setDeaf(true);
+      if (!faceLost) warn(`NO BUS: the agent-bus MCP server of this session is not running, so ${name} receives no bus messages and has no bus tools; type /mcp and connect agent-bus, or ${resumeHint()}`);
+    } else if (absent === "clear") {
+      terminal?.setDeaf(false);
+      if (!faceLost) note(`the agent-bus MCP server is running; bus delivery is open for ${name}`);
+    }
     if (event === "lost") {
       const wasPushing = !!push?.running();
       push?.stop();

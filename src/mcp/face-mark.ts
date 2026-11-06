@@ -38,6 +38,26 @@ export function faceEvent(down: boolean, marks: { live: number; lost: number }):
   return "none";
 }
 
+/** How long a session may run with no live face before the launcher raises the alarm (J105). */
+export const FACE_ABSENT_MS = 20_000;
+export type Absence = { since: number; alarmed: boolean };
+
+/** A face that never started, or one its runtime let go while the session lives, leaves no lost mark: Claude
+ *  can skip or stop a plugin server on its own and never start it again. So the live count is watched too:
+ *  none for FACE_ABSENT_MS, from the start or since one was last seen, is an alarm, said once; a face that
+ *  comes back clears it. */
+export function absence(state: Absence, live: number, now: number, limit = FACE_ABSENT_MS): "alarm" | "clear" | "none" {
+  if (live > 0) {
+    state.since = now;
+    if (!state.alarmed) return "none";
+    state.alarmed = false;
+    return "clear";
+  }
+  if (state.alarmed || now - state.since < limit) return "none";
+  state.alarmed = true;
+  return "alarm";
+}
+
 /** Faces still running, and faces that died without being let go. Lost marks
  *  are removed, so each loss is reported once. */
 export function faceMarks(runDir: string): { live: number; lost: number } {

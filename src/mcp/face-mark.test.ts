@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { alive, faceEvent, faceMarks, markFace, holders, evict, startTime } from "./face-mark.ts";
+import { absence, alive, faceEvent, faceMarks, markFace, holders, evict, startTime, FACE_ABSENT_MS, type Absence } from "./face-mark.ts";
 
 const scratch = () => mkdtempSync(join(resolve(import.meta.dir, "../../tmp"), "face-mark-"));
 
@@ -111,3 +111,31 @@ function markFaceAs(file: string, pid: number) {
   writeFileSync(join(dirname(file), `face-${pid}`), startTime(pid));
 }
 function await_(p: { kill: () => void }) { p.kill(); }
+
+test("a session whose face never starts, or is let go without a trace, raises one alarm; a face that comes back clears it", () => {
+  const s: Absence = { since: 1000, alarmed: false };
+  // Never started: silent until the limit, then one alarm, never repeated.
+  expect(absence(s, 0, 1000 + FACE_ABSENT_MS - 1)).toBe("none");
+  expect(absence(s, 0, 1000 + FACE_ABSENT_MS)).toBe("alarm");
+  expect(absence(s, 0, 1000 + 5 * FACE_ABSENT_MS)).toBe("none");
+  // It starts after all: cleared once.
+  expect(absence(s, 1, 200_000)).toBe("clear");
+  expect(absence(s, 1, 201_000)).toBe("none");
+  // Let go cleanly later (no lost mark): the clock runs from when one was last seen.
+  expect(absence(s, 0, 210_000)).toBe("none");
+  expect(absence(s, 0, 201_000 + FACE_ABSENT_MS - 1)).toBe("none");
+  expect(absence(s, 0, 201_000 + FACE_ABSENT_MS)).toBe("alarm");
+});
+
+test("a face that was let go cleanly is silent to faceEvent, which is why absence watches the live count", () => {
+  const dir = scratch();
+  try {
+    const unmark = markFace(join(dir, "bus-env.json"));
+    const s: Absence = { since: 0, alarmed: false };
+    expect(absence(s, faceMarks(dir).live, 1)).toBe("none");
+    unmark();
+    const marks = faceMarks(dir);
+    expect(faceEvent(false, marks)).toBe("none");
+    expect(absence(s, marks.live, 1 + FACE_ABSENT_MS)).toBe("alarm");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

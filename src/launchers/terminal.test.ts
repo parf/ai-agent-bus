@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, openSync, closeSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { accountOf, busLabel, cleanLabel, glyph, terminalTitle } from "./terminal.ts";
+import { accountOf, busLabel, cleanLabel, DEAF, glyph, terminalTitle } from "./terminal.ts";
 
 // An outer launcher marks its window as owned; these checks own their own.
 delete process.env.AGENT_BUS_TITLE_OWNER;
@@ -221,3 +221,9 @@ ${restore ? "t.restore();" : ""}`;
     rmSync(dir, { recursive: true, force: true });
   }
 }, 20000);
+
+test("a session with no bus face shows the deaf marker, over any turn state", () => {
+  expect(terminalTitle("claude", "W1A", 1, "", true)).toBe(`✴️ ${DEAF} W1A`);
+  expect(terminalTitle("claude", "W1A", 1, "ask", true)).toBe(`✴️ ${DEAF} W1A`);
+  expect(terminalTitle("claude", "W1A", 1, "stop", false)).toBe("✴️ 🟥 W1A");
+});

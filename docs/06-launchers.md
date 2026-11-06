@@ -83,6 +83,7 @@ Launchers set terminal titles and colors when the terminal supports them.
 | Label text | Every label, the launch directory included: control characters (C0, C1, ESC, BEL) and bidi overrides are removed and whitespace collapsed; at most 24 whole graphemes and 96 UTF-16 units |
 | State | `<glyph> ❓ <label>` while the session waits on the operator (a permission, an approval, an elicitation or a form); `<glyph> 🟥 <label>` when its last answer ends with `🟥🟥🟥`. Both clear on new input, a new turn or a tool call; there is no busy marker. The tmux window name carries the same marker |
 | State: Claude | HTTP hooks (`Notification`, `Stop`, `UserPromptSubmit`, `PreToolUse`) post to the launcher's control endpoint under its bearer token, with a one-second timeout and an always-empty answer. They join the user's own `--settings` (an unreadable one fails the start); loopback is added to `NO_PROXY` when a proxy is set. `Stop` uses its last message, else reads only the last 64 KiB of a transcript under the account's `projects/` |
+| No bus | `<glyph> 🔇 <label>` while a Claude session has had no running agent-bus MCP server for 20 s; it outranks ❓ and 🟥 and clears when the server runs ([recovery](#runtime-isolation-and-recovery)) |
 | State: Codex | App Server notifications of the bound thread: thread status flags for ❓, the turn's last agent message for 🟥 |
 | State: OpenCode | Its server's event stream: permission and form requests for ❓. No 🟥: no turn-end event was observable without a model turn. The launcher runs OpenCode with permission `allow`, so ❓ comes from forms. A reconnect starts clear. `ab-opencode1` has neither marker |
 | tmux | The window is renamed `<name> <glyph>`; its name before the launcher is saved on the window and put back on exit. After a crash, the next launcher in that window starts from the saved name. A `#` is passed literally, never as a tmux format |
@@ -360,6 +361,7 @@ The launcher reports recovery or the action needed to reconnect:
 | Graceful daemon restart; bus-child crash | Stays open and resumes by itself, under the same name and runtime session: push keeps asking after a short backoff, each tool call is its own request, and names and credentials are durable |
 | MCP face dies under Codex or OpenCode | The launcher reports the bus tools inactive and stops push, so new messages stay queued; it restarts the face through the runtime and reports delivery resumed |
 | MCP face dies under Claude | The launcher reports tools and channel inactive and says to type `/mcp`, select agent-bus and choose Reconnect; Claude owns its MCP servers |
+| Claude never starts the face, or lets it go and does not start it again | After 20 s with no running face, the launcher prints `NO BUS` with the `/mcp` and resume steps and marks the tab 🔇; both clear when a face runs |
 | Face still down after 20 s; push inactive | The launcher prints the resume command for the same session |
 | Codex App Server or OpenCode server dies | The session ends; the launcher prints `ab-codex resume <id>` or `ab-opencode --session <id>`, which reopens the same session under the same name |
 
@@ -368,6 +370,7 @@ The launcher reports recovery or the action needed to reconnect:
 
 - The face runs under the runtime, not the launcher, and no runtime reports its death or restarts it unasked.
 - Each face leaves a mark in the launcher's private run directory and clears it when its runtime lets it go; a mark whose process is gone is a face that died.
+- A face Claude never starts, or lets go and never restarts, leaves no dead mark, so for Claude the launcher also counts running faces: none for 20 s, from start or since one last ran, is the alarm.
 - Codex restarts it on `config/mcpServer/reload`, OpenCode on an MCP disconnect and connect.
 
 </details>
