@@ -467,3 +467,38 @@ func TestOverlayPublicationFallsBackOnlyWhenExchangeIsUnsupported(t *testing.T) 
 		})
 	}
 }
+
+// F5: the merge keeps every number as written: an integer above 2^53 in the shipped file or in an
+// override comes out unchanged, and a value after the first still refuses the file.
+func TestOverlayKeepsIntegersAbove2To53(t *testing.T) {
+	agents, runner := t.TempDir(), t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(filepath.Join(agents, "hello", "settings.json"), `{"shipped": 9007199254740993, "keep": 1.50, "nested": {"id": 18446744073709551615}}`)
+	write(filepath.Join(runner, "hello", "settings.json"), `{"override": 9007199254740995, "nested": {"other": -9007199254740993}}`)
+	_, _, files, err := shippedOverlays(runner, agents, "hello", "hello")
+	if err != nil || len(files) != 1 {
+		t.Fatalf("overlay: %v %v", files, err)
+	}
+	for _, want := range []string{`"shipped": 9007199254740993`, `"override": 9007199254740995`, `"id": 18446744073709551615`, `"other": -9007199254740993`, `"keep": 1.50`} {
+		if !strings.Contains(string(files[0].body), want) {
+			t.Errorf("the merged file lost %s:\n%s", want, files[0].body)
+		}
+	}
+	write(filepath.Join(agents, "hello", "settings.json"), `{"a": 1} {"b": 2}`)
+	if _, _, _, err := shippedOverlays(runner, agents, "hello", "hello"); err == nil || !strings.Contains(err.Error(), "not JSON") {
+		t.Fatalf("data after the shipped file's value was accepted: %v", err)
+	}
+	write(filepath.Join(agents, "hello", "settings.json"), `{"a": 1}`)
+	write(filepath.Join(runner, "hello", "settings.json"), `{"b": 2} x`)
+	if _, _, _, err := shippedOverlays(runner, agents, "hello", "hello"); err == nil {
+		t.Fatal("data after an override's value was accepted")
+	}
+}

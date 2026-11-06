@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -66,8 +68,8 @@ func shippedOverlays(runnerDir, agentDir, dir, key string) ([]ports.Overlay, str
 		if err != nil {
 			return nil, "", nil, err
 		}
-		var doc any
-		if err := json.Unmarshal(b, &doc); err != nil {
+		doc, err := decodeJSON(b)
+		if err != nil {
 			return nil, "", nil, fmt.Errorf("agent.d/%s/%s is not JSON, so it is not overridden: %w", dir, n, err)
 		}
 		for _, layer := range layers {
@@ -79,8 +81,8 @@ func shippedOverlays(runnerDir, agentDir, dir, key string) ([]ports.Overlay, str
 			if err != nil {
 				return nil, "", nil, err
 			}
-			var patch any
-			if err := json.Unmarshal(pb, &patch); err != nil {
+			patch, err := decodeJSON(pb)
+			if err != nil {
 				return nil, "", nil, fmt.Errorf("runner/%s: %w", name, err)
 			}
 			doc = mergePatch(doc, patch)
@@ -244,6 +246,21 @@ func publishOverlayTree(target string, files []overlayFile, exchange, rename fun
 
 // mergePatch is RFC 7386: an object patch merges into an object, a null
 // removes the key, anything else replaces whole.
+// decodeJSON reads one JSON value and nothing after it, keeping every number as its own text: an
+// integer above 2^53 must come out of the merge as it went in, not rounded through float64.
+func decodeJSON(b []byte) (any, error) {
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.UseNumber()
+	var v any
+	if err := dec.Decode(&v); err != nil {
+		return nil, err
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, errors.New("unexpected data after the top-level value")
+	}
+	return v, nil
+}
+
 func mergePatch(target, patch any) any {
 	p, ok := patch.(map[string]any)
 	if !ok {
