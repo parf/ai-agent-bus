@@ -90,7 +90,8 @@ export function AgentDescription({ help, name = "#agent@node.example", filter = 
   return <>
     <Card title="About this agent" icon="info"><p class="agent-description">{text(d.description)}</p>
       <dl class="agent-about-facts">
-        <div><dt>Version</dt><dd class="no-wrap">{text(d.version) || "—"}</dd></div>
+        {text(d.version) ? <div><dt>Version</dt><dd class="no-wrap">{text(d.version)}</dd></div> : null}
+        {text(d.released) ? <div><dt>Released</dt><dd class="no-wrap">{text(d.released)}</dd></div> : null}
         <div><dt>License</dt><dd class="no-wrap">{text(d.license) || "—"}</dd></div>
         <div><dt>Author</dt><dd class="no-wrap">{text(d.author) || "—"}</dd></div>
         <div><dt>Homepage</dt><dd class="no-wrap">{/^https?:\/\//i.test(homepage) ? <a href={homepage} rel="noreferrer">{homepage}</a> : homepage || "—"}</dd></div>

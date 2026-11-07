@@ -193,3 +193,20 @@ test("a key name breaks only after an underscore, in the secret and configuratio
   expect(secrets).toContain("<dt><code>TOKEN</code>");
   expect(render(ConfigurationHelp({ help }))).toContain("<dt><code>allow_<wbr>plaintext</code>");
 });
+
+test("the About card shows the agent's own version and release day, and a row only when the agent declares it", async () => {
+  const card = async (fields: Record<string, string>) => {
+    const ctx = { call: async () => ({ kind: "answer", body: JSON.stringify({ description: "fixture", methods: {}, ...fields }) }) } as unknown as Ctx;
+    const help = await agentHelp(ctx, { kind: "agent", name: "#v@h", owner: "owner", readers: 1, at: JSON.stringify(fields) } as Rec);
+    return render(AgentDescription({ help }));
+  };
+  const both = await card({ version: "1.2.3", released: "2026-11-07" });
+  expect(both).toContain("<dt>Version</dt><dd class=\"no-wrap\">1.2.3</dd>");
+  expect(both).toContain("<dt>Released</dt><dd class=\"no-wrap\">2026-11-07</dd>");
+  const none = await card({});
+  expect(none).not.toContain("<dt>Version</dt>");
+  expect(none).not.toContain("<dt>Released</dt>");
+  const versionOnly = await card({ version: "1.2.3" });
+  expect(versionOnly).toContain("<dt>Version</dt>");
+  expect(versionOnly).not.toContain("<dt>Released</dt>");
+});
