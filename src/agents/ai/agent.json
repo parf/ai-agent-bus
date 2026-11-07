@@ -44,7 +44,7 @@
     },
     "models": {
       "text": "models [--images] [--json] [<word>]",
-      "help": "List the provider's models as a table: context length, USD per million input and output tokens, input kinds; the configured default is marked. With --images, image models and their price per image or megapixel, with image_model marked.",
+      "help": "List the provider's models as a table: context length, USD per million input and output tokens, input kinds; the configured default is marked. With --images, image models and their input kinds, with image_model marked; the image listing has no prices, so see model <id>.",
       "args": [
         {
           "name": "images",
@@ -62,7 +62,7 @@
           "name": "filter",
           "type": "string",
           "optional": true,
-          "help": "Keep models whose ID or name contains this word; free keeps free models"
+          "help": "Keep models whose ID or name contains this word; free keeps free models, and is refused with images"
         }
       ]
     },

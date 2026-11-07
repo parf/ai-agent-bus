@@ -483,11 +483,11 @@ class Proxy(unittest.TestCase):
                          [['fixture/tiny', '-', '0', '0', '-'], ['fixture/odd', '-', '-', '-', '-'],
                           ['fixture/line\\x0abreak', 'a\\x0db', '-', '-', 'te\\x0axt']])
         self.assertEqual(self.call('models free')[0].split('\n')[1:-1], [])
-        self.route('/images/models', {'data': [{'id': 'fixture/both', 'pricing': [{'unit': 'megapixel', 'cost_usd': 0.001},
-                                                                                {'unit': 'image', 'cost_usd': 0.05}, {'unit': 'image', 'cost_usd': 0.04}]},
-                                               {'id': 'fixture/mp', 'pricing': [{'unit': 'megapixel', 'cost_usd': 0.02}, {'unit': 'megapixel', 'cost_usd': 'inf'}]}]})
-        self.assertEqual([line.split()[:2] for line in self.call('models --images')[0].split('\n')[1:-1]],
-                         [['fixture/both', '0.04/image'], ['fixture/mp', '0.02/megapixel']])
+        # The image listing carries no prices (J127), so free cannot be told there and is refused before any provider call.
+        asked = len(self.server.requests)
+        for body in ['models --images free', '{"method":"models","images":true,"filter":"Free"}']:
+            self.assertEqual(self.call(body)[0], 'error: the image listing carries no prices, so free cannot be told; see model <id>')
+        self.assertEqual(len(self.server.requests), asked)
 
     def test_model_keeps_each_endpoints_own_context_and_prices(self):
         self.route('/models/openai/gpt-4/endpoints', self.ENDPOINTS)
@@ -717,11 +717,30 @@ class Proxy(unittest.TestCase):
             answer, _, log = self.call(body, roles=('owner',))
             self.assertNotIn(KEY, answer + log, body)
         self.assertNotIn('label', self.call('key', roles=('owner',))[0])
-    IMAGE_MODELS = {'data': [{'id': 'bytedance-seed/seedream-4.5', 'name': 'Seedream 4.5', 'architecture': {'input_modalities': ['text', 'image'], 'output_modalities': ['image']},
-                              'supported_parameters': {'resolution': {'type': 'enum', 'values': ['1K', '2K', '4K']}, 'seed': {'type': 'boolean'}},
-                              'pricing': [{'billable': 'output_image', 'unit': 'image', 'cost_usd': 0.06}, {'billable': 'output_image', 'unit': 'image', 'cost_usd': 0.03}],
-                              'endpoints': '/api/v1/images/models/bytedance-seed/seedream-4.5/endpoints'},
-                             {'id': 'openai/gpt-image-2', 'name': 'GPT Image 2'}]}
+    # Trimmed from the live Image API listing (2026-11-07): no row carries pricing; prices are per endpoint in model <id>.
+    IMAGE_MODELS = {'data': [{'id': 'openai/gpt-image-2.6-flare', 'name': 'OpenAI: GPT Image 2.6 Flare',
+                              'architecture': {'input_modalities': ['text', 'image'], 'output_modalities': ['image']},
+                              'endpoints': '/api/v1/images/models/openai/gpt-image-2.6-flare/endpoints', 'supports_streaming': True,
+                              'supported_parameters': {'output_format': {'type': 'enum', 'values': ['png', 'jpeg', 'webp', 'gif']}}},
+                             {'id': 'black-forest-labs/flux-3-image', 'name': 'Black Forest Labs: FLUX 3 Image',
+                              'architecture': {'input_modalities': ['text', 'image'], 'output_modalities': ['image']},
+                              'endpoints': '/api/v1/images/models/black-forest-labs/flux-3-image/endpoints', 'supports_streaming': False,
+                              'supported_parameters': {'resolution': {'type': 'enum', 'values': ['768', '1K', '1.5K', '2K', '4K']}}},
+                             {'id': 'google/gemini-3.1-flash-image', 'name': 'Google: Nano Banana 2 (Gemini 3.1 Flash Image)',
+                              'architecture': {'input_modalities': ['image', 'text'], 'output_modalities': ['image', 'text']},
+                              'endpoints': '/api/v1/images/models/google/gemini-3.1-flash-image/endpoints', 'supports_streaming': False,
+                              'supported_parameters': {'resolution': {'type': 'enum', 'values': ['512', '1K', '2K', '4K']}}}]}
+    # Trimmed from the live chat catalogue endpoints of two image models: pricing is a dict of USD per token.
+    IMAGE_MODEL_ENDPOINTS = {
+        'google/gemini-3.1-flash-image': {'data': {'id': 'google/gemini-3.1-flash-image', 'name': 'Google: Nano Banana 2 (Gemini 3.1 Flash Image)',
+            'architecture': {'input_modalities': ['image', 'text']},
+            'endpoints': [{'provider_name': 'Google AI Studio', 'name': 'Google AI Studio | google/gemini-3.1-flash-image-20260528', 'context_length': 65536,
+                           'max_completion_tokens': 58982, 'pricing': {'prompt': '0.0000005', 'completion': '0.000003', 'image_output': '0.00006', 'web_search': '0.014', 'discount': 0}}]}},
+        'black-forest-labs/flux-3-image': {'data': {'id': 'black-forest-labs/flux-3-image', 'name': 'Black Forest Labs: FLUX 3 Image',
+            'architecture': {'input_modalities': ['text', 'image']},
+            'endpoints': [{'provider_name': 'Black Forest Labs', 'name': 'Black Forest Labs | black-forest-labs/flux-3-image-20261001', 'context_length': 46864,
+                           'max_completion_tokens': 42177, 'pricing': {'prompt': '0', 'completion': '0', 'image_token': '0.00000982035928143713',
+                                                                       'image_output': '0.00000982035928143713', 'discount': 0}}]}}}
     IMAGE_ENDPOINTS = {'data': {'id': 'bytedance-seed/seedream-4.5', 'name': 'Seedream 4.5', 'architecture': {'input_modalities': ['text', 'image']},
                                 'supported_parameters': {'resolution': {'type': 'enum', 'values': ['1K', '2K', '4K']}},
                                 'endpoints': [{'provider_name': 'BytePlus', 'name': 'BytePlus: Seedream 4.5',
@@ -733,16 +752,28 @@ class Proxy(unittest.TestCase):
 
     def test_models_images_lists_the_image_catalogue_with_its_default_marked(self):
         self.route('/images/models', self.IMAGE_MODELS)
-        self.config['image_model'] = 'openai/gpt-image-2'
+        self.config['image_model'] = 'google/gemini-3.1-flash-image'
         for body in ['models --images', '{"method":"models","images":true}']:
-            self.assertEqual(self.call(body)[0].split('\n'), ['  id                           price USD   input',
-                                                               '  bytedance-seed/seedream-4.5  0.03/image  text,image',
-                                                               '* openai/gpt-image-2           -           -',
-                                                               'default: openai/gpt-image-2'])
+            # J127: the listing has no price to show, so the table has no price column.
+            self.assertEqual(self.call(body)[0].split('\n'), ['  id                              input',
+                                                               '  openai/gpt-image-2.6-flare      text,image',
+                                                               '  black-forest-labs/flux-3-image  text,image',
+                                                               '* google/gemini-3.1-flash-image   image,text',
+                                                               'default: google/gemini-3.1-flash-image'])
             self.assertEqual(self.server.requests[-1], ('/v1/images/models', 'Bearer ' + KEY, None))
-        self.assertEqual(json.loads(self.call('models --images --json seedream')[0]), self.IMAGE_MODELS['data'][:1])
+        self.assertEqual(json.loads(self.call('models --images --json flux')[0]), self.IMAGE_MODELS['data'][1:2])
         for bad in ['{"method":"models","images":1}', '{"method":"models","images":true,"x":1}']:
             self.assertTrue(self.call(bad)[0].startswith('error:'), bad)
+
+    def test_model_shows_an_image_models_per_token_image_output_price_unchanged(self):
+        # J127: an image model's price is each endpoint's pricing.image_output, USD per image-output token, never converted.
+        for model, fixture in self.IMAGE_MODEL_ENDPOINTS.items():
+            self.route(f'/models/{model}/endpoints', fixture)
+            value = json.loads(self.call(f'model {model}')[0])
+            given = fixture['data']['endpoints'][0]
+            self.assertEqual(value['endpoints'], [{'provider': given['provider_name'], 'name': given['name'], 'context_length': given['context_length'],
+                                                  'max_completion_tokens': given['max_completion_tokens'], 'pricing': given['pricing']}], model)
+        self.assertEqual([value['endpoints'][0]['pricing'][k] for k in ('image_token', 'image_output')], ['0.00000982035928143713'] * 2)
 
     def test_model_folds_in_image_endpoint_parameters_and_prices(self):
         self.route('/models/bytedance-seed/seedream-4.5/endpoints', {'error': {'message': 'Not Found'}}, 404)

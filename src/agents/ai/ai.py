@@ -128,17 +128,6 @@ def per_million(value):
     return f"{number * 1e6:.4f}".rstrip("0").rstrip(".")
 
 
-def image_price(row):
-    """The cheapest price within one unit, per image if the listing gives one, else per megapixel, or -."""
-    for unit in ("image", "megapixel"):
-        costs = [price(p.get("cost_usd")) for p in row.get("pricing") or [] if isinstance(p, dict)
-                 and p.get("unit") == unit and not isinstance(p.get("cost_usd"), bool)]
-        costs = [cost for cost in costs if cost is not None]
-        if costs:
-            return f"{min(costs):g}/{unit}"
-    return "-"
-
-
 def is_free(row):
     """A :free variant, or a model whose prompt and completion prices are both exactly zero."""
     pricing = row.get("pricing") or {}
@@ -167,15 +156,16 @@ def models_answer(rows, options, default):
     marked = default_row(rows, default)
     word = (options["filter"] or "").lower()
     if word == "free":
-        rows = [row for row in rows if (image_price(row).startswith("0/") if options["images"] else is_free(row))]
+        rows = [row for row in rows if is_free(row)]
     elif word:
         rows = [row for row in rows if word in row["id"].lower() or word in str(row.get("name", "")).lower()]
     if options["json"]:
         # Compact and unescaped, the records never outgrow the provider answer, which is read up to 1 MiB.
         return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
     if options["images"]:
-        table = [("id", "price USD", "input")]
-        table += [(cell(row["id"]), image_price(row), cell(",".join((row.get("architecture") or {}).get("input_modalities") or []) or "-")) for row in rows]
+        # The image listing carries no prices: each endpoint's price is in model <id> (J127).
+        table = [("id", "input")]
+        table += [(cell(row["id"]), cell(",".join((row.get("architecture") or {}).get("input_modalities") or []) or "-")) for row in rows]
     else:
         table = [("id", "context", "$/M in", "$/M out", "input")]
         for row in rows:
@@ -538,6 +528,8 @@ def provider_method(name, argument, envelope, config, key, roles, work, base, st
         if len(items) > max_items(model, dims, envelope):
             return f"error: {len(items)} items × {dims} dims > max {max_items(model, dims, envelope)}", status
         return json.dumps({"model": model, "vectors": vectors}, ensure_ascii=False, separators=(",", ":")), status
+    if name == "models" and argument["images"] and (argument["filter"] or "").lower() == "free":
+        raise ProxyError("the image listing carries no prices, so free cannot be told; see model <id>")
     path = {"models": "/images/models" if name == "models" and argument["images"] else "/models", "balance": "/credits", "key": "/key"}.get(name)
     if name == "model":
         path = "/models/" + urllib.parse.quote(argument, safe="/:@+~._-") + "/endpoints"
