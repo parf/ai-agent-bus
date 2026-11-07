@@ -27,6 +27,8 @@ Owner decisions, 2026-11-06: every agent has its own SemVer; agents gain a `rele
 
 The `agent_pack` check is red until every agent has both fields, so the first per-agent bump seeds `version` (1.0.0, [№Q393](resolved.md#Q393)) and `released` (that deploy's UTC date) in **every** `agent.json` at once, changed or not. It is one `#ab-ceo` deploy step: `deploy-bump.sh` run in its seeding form writes all agents, in the same commit and deploy window as the code change that adds the check. Later bumps touch only changed agents.
 
+Done at 1.0.54 (2026-11-07): the seeding landed in the AV.1 branch, so the deploy needed no seeding bump. Two copies were not refreshed by `git-install.sh` and were fixed by hand: the standalone units `agent-bus-server-info` and `agent-bus-systemd-web` had to be restarted (server-info still answered 0.9.303), and the user runner's `tmux-sessions` package copy in `~/.local/share/agent-bus/agent.d/` (from 2026-10-29, with no `version`) had to be repackaged with its `package.sh`. The gap is J128.
+
 The Go (`agentmeta`) and web change is a later code task, after the owner's OK on the plan; [№Q393](resolved.md#Q393) and [№Q394](resolved.md#Q394) are settled.
 
 ## Every reader of the pack version
