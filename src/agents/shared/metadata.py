@@ -6,8 +6,6 @@ import shlex
 from pathlib import Path
 
 ASKS = ['help', 'help-config', 'help-secret', 'help-json']
-# The agent pack's own SemVer, not the bus version (CLAUDE.md § versioning).
-VERSION = (Path(__file__).resolve().parents[1] / 'VERSION').read_text().strip()
 
 
 def secrets(source):
@@ -68,7 +66,7 @@ def data(directory, ask='help', *, allowed=None, roles=None):
                if (allowed is None or name in allowed or name == 'help') and
                granted(m, roles)}
     return {**{key: manifest[key] for key in ('description','license','author','homepage','docs') if key in manifest},
-            'version': manifest.get('version', VERSION), 'methods': methods, 'asks': ASKS}
+            'version': manifest['version'], 'methods': methods, 'asks': ASKS}
 
 
 def answer(directory, ask='help', *, allowed=None, roles=None, as_json=False):

@@ -1,8 +1,8 @@
 """Pin authored help text and JSON; each agent owns its own reviewed fixture.
 
 Add help.golden.json beside a manifest to include it in this check. Fixtures
-contain the owner-visible help, with only the release version and caller name
-made independent of the machine running the check.
+contain the owner-visible help, with only the agent's own version and caller name
+made independent of the machine running the check and of each deploy's bump.
 """
 from pathlib import Path
 import json
@@ -16,11 +16,18 @@ AGENTS = Path(__file__).resolve().parents[1]
 
 
 def rendered(directory):
-    with patch.dict(os.environ, {}, clear=True), patch.object(metadata, 'VERSION', '<version>'):
-        return {
-            'text': metadata.answer(directory, roles=['owner']),
-            'json': json.loads(metadata.answer(directory, 'help-json', roles=['owner'])),
-        }
+    """The help as reviewed: the agent's own version, which each deploy may bump, is the placeholder `<version>`."""
+    own = json.loads((directory / 'agent.json').read_text())['version']
+    with patch.dict(os.environ, {}, clear=True):
+        text = metadata.answer(directory, roles=['owner'])
+        value = json.loads(metadata.answer(directory, 'help-json', roles=['owner']))
+    assert value['version'] == own, 'help reports the version of its own agent.json'
+    value['version'] = '<version>'
+    footer = [i for i, line in enumerate(text.split('\n')) if line == 'v' + own or line.startswith('v' + own + ' · ')]
+    assert len(footer) == 1, 'the footer names the version once'
+    lines = text.split('\n')
+    lines[footer[0]] = lines[footer[0]].replace('v' + own, 'v<version>', 1)
+    return {'text': '\n'.join(lines), 'json': value}
 
 
 class GoldenHelp(unittest.TestCase):

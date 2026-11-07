@@ -135,24 +135,12 @@ func TestMachineHelpIncludesWholeDescriptionWithoutValues(t *testing.T) {
 }
 
 func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
-	raw := `{"description":"Route conversations","license":"LicenseRef-PolyForm-Strict-1.0.0","author":"Full author","homepage":"https://example.test/repo","docs":"https://example.test/docs/agents/chat.md","arguments":{"channel":{"help":"Channel name","type":"string"}},"methods":{"post":{"help":"Post a message","args":[{"name":"channel"},{"name":"thread","help":"Thread ID","json_only":true},{"name":"text","help":"Message","rest":true}],"example":"agent-bus call '#chat@t' 'post #general Hello'"},"add":{"text":"sub add <channel> <target>","help":"Forward messages","args":[{"name":"channel"},{"name":"target","help":"Destination"}],"destructive":true},"help":{"help":"Help"}}}`
+	raw := `{"description":"Route conversations","version":"1.2.3","license":"LicenseRef-PolyForm-Strict-1.0.0","author":"Full author","homepage":"https://example.test/repo","docs":"https://example.test/docs/agents/chat.md","arguments":{"channel":{"help":"Channel name","type":"string"}},"methods":{"post":{"help":"Post a message","args":[{"name":"channel"},{"name":"thread","help":"Thread ID","json_only":true},{"name":"text","help":"Message","rest":true}],"example":"agent-bus call '#chat@t' 'post #general Hello'"},"add":{"text":"sub add <channel> <target>","help":"Forward messages","args":[{"name":"channel"},{"name":"target","help":"Destination"}],"destructive":true},"help":{"help":"Help"}}}`
 	m, err := Decode([]byte(raw))
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A bundled agent's help carries the pack version, as its Python helper's does.
-	bundled := filepath.Join(t.TempDir(), "support", "agents")
-	if err := os.MkdirAll(bundled, 0700); err != nil {
-		t.Fatal(err)
-	}
-	pack, err := os.ReadFile("../../agents/VERSION")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(bundled, "VERSION"), pack, 0600); err != nil {
-		t.Fatal(err)
-	}
-	body, err := m.Answer(filepath.Dir(filepath.Dir(bundled)), "help", nil, false, "#chat/work@t")
+	body, err := m.Answer(t.TempDir(), "help", nil, false, "#chat/work@t")
 	if err != nil {
 		t.Fatal(err)
 	}
