@@ -222,7 +222,6 @@
         "src/agents/shared/subscription-port.ts",
         "src/agents/shared/subscriptions.test.ts",
         "src/agents/shared/test-network.ts",
-        "src/agents/shared/version.ts",
         "src/testdata/subscriptions.json"
       ]
     },
@@ -239,8 +238,7 @@
         "src/agents/shared/subscriptions.ts",
         "src/agents/shared/subscription-port.ts",
         "src/agents/shared/subscriptions.test.ts",
-        "src/agents/shared/test-network.ts",
-        "src/agents/shared/version.ts"
+        "src/agents/shared/test-network.ts"
       ]
     },
     "agent_server_info": {
@@ -456,7 +454,6 @@
         "src/agents/shared/subscriptions.ts",
         "src/agents/shared/subscription-port.ts",
         "src/agents/shared/subscriptions.test.ts",
-        "src/agents/shared/version.ts",
         "src/agents/slack/daemon.ts",
         "src/testdata/subscriptions.json"
       ]

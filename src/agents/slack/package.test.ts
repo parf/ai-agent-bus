@@ -25,6 +25,12 @@ test("the package is self-contained and names its bundle", () => {
     // Nor reads a file of the checkout's: the version is written in.
     expect(bundle).not.toContain("internal/version/VERSION");
     expect(bundle).not.toContain("../VERSION");
+    // The bundle carries this agent's own pair, exactly as its agent.json has it, never the pack's or the bus's.
+    const own = JSON.parse(readFileSync(join(dest, "agent.json"), "utf8"));
+    expect(own.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(own.released).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(bundle).toContain(`version: ${JSON.stringify(own.version)},`);
+    expect(bundle).toContain(`released: ${JSON.stringify(own.released)},`);
     expect(bundle).toContain("class Subscriptions");
     expect(bundle).toContain("admission_refused");
     expect(bundle).toContain("filter_invalid");

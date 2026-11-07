@@ -22,7 +22,8 @@ test("manifest help matches the parser and every handler", () => {
   const generated = JSON.parse(describe(true, "help", true));
   expect(Object.keys(generated.methods).sort()).toEqual(methods);
   expect(generated.asks).toEqual(["help", "help-config", "help-secret", "help-json"]);
-  expect(manifest).not.toHaveProperty("version");
+  expect(generated.version).toBe(manifest.version);
+  expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
   expect(manifest.license).toBe("LicenseRef-PolyForm-Strict-1.0.0");
 });
 

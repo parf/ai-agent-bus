@@ -1,10 +1,9 @@
 // Bare/self-serving fallback for the runner's manifest-generated help contract.
 // This reads authored declarations only, never runtime Secret/env values.
-import { VERSION } from "./version.ts";
 type Field = { help: string; type?: string | string[]; example?: unknown; default?: unknown };
 type Arg = Partial<Field> & { name: string; optional?: boolean; rest?: boolean; json_only?: boolean };
 type Method = Field & { args?: Arg[]; returns?: string; role?: string | string[]; destructive?: boolean; text?: string; example?: string };
-export type Manifest = { body_formats?: string[]; description: string; version?: string; license?: string; author?: string; homepage?: string; docs?: string; methods?: Record<string, Method>; arguments?: Record<string, Field>; config?: Record<string, Field> };
+export type Manifest = { body_formats?: string[]; description: string; version: string; license?: string; author?: string; homepage?: string; docs?: string; methods?: Record<string, Method>; arguments?: Record<string, Field>; config?: Record<string, Field> };
 import { asks, type HelpAsk } from "./asks.ts";
 export { asks, dispatchAsk, type HelpAsk } from "./asks.ts";
 const typed = <T extends Partial<Field>>(value: T): T => ({ ...value, type: value.type ?? "string" });
@@ -42,7 +41,7 @@ export function helpData(manifest: Manifest, ask: HelpAsk, envDist: string, role
   if (ask === "help-config") return { config: Object.fromEntries(Object.entries(manifest.config ?? {}).map(([name, field]) => [name, typed(field)])) };
   const methods = Object.fromEntries(Object.entries(manifest.methods ?? {}).filter(([, method]) => !method.role || roles.some(r => (Array.isArray(method.role) ? method.role.includes(r) : r === method.role) || r === "owner" || r === "maintainer"))
     .map(([name, method]) => [name, { ...typed(method), args: (method.args ?? []).map(a => typed({ ...(!a.help ? manifest.arguments?.[a.name] : {}), ...a })) }]));
-  const result = { description: manifest.description, version: manifest.version ?? VERSION,
+  const result = { description: manifest.description, version: manifest.version,
     ...(manifest.license ? { license: manifest.license } : {}), ...(manifest.author ? { author: manifest.author } : {}),
     ...(manifest.homepage ? { homepage: manifest.homepage } : {}), ...(manifest.docs ? { docs: manifest.docs } : {}), methods, asks: [...asks] };
   if (ask === "help-json") {
