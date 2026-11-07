@@ -10,13 +10,21 @@
 # Root never opens a path under a home: the person lists their packages' hashes.
 # Exits 1, after trying everything, if a restart failed or a package is stale.
 #
-# Test seams (environment): AB_UNIT_DIR, AB_SYSTEMCTL, AB_PASSWD (a passwd-format
-# file instead of `getent passwd`), AB_AS_PERSON=direct (run the person's listing
-# as the caller with that HOME, instead of through setpriv).
+# Test seams, honoured only with AB_TEST=1, which a deploy never sets: AB_UNIT_DIR,
+# AB_SYSTEMCTL, AB_PASSWD (a passwd-format file instead of `getent passwd`),
+# AB_AS_PERSON=direct (list as the caller with the person's HOME, not through setpriv),
+# AB_LIST_CAP (bytes). Root with AB_TEST=1 against the real unit directory is refused.
 set -u
 src=$(cd "$(dirname "$0")" && pwd -P)
-unit_dir=${AB_UNIT_DIR:-/etc/systemd/system}
-systemctl=${AB_SYSTEMCTL:-systemctl}
+unit_dir=/etc/systemd/system systemctl=systemctl passwd='' as_person='' cap=$((4 * 1024 * 1024))
+if [ "${AB_TEST:-}" = 1 ]; then
+    unit_dir=${AB_UNIT_DIR:-$unit_dir} systemctl=${AB_SYSTEMCTL:-$systemctl} passwd=${AB_PASSWD:-}
+    as_person=${AB_AS_PERSON:-} cap=${AB_LIST_CAP:-$cap}
+    if [ "$(id -u)" = 0 ] && [ "$unit_dir" = /etc/systemd/system ]; then
+        echo "refused: AB_TEST=1 is for tests; root against /etc/systemd/system never takes it" >&2
+        exit 2
+    fi
+fi
 marker='# agent-bus standalone: '
 userpkgs=.local/share/agent-bus/agent.d
 failed=0
@@ -27,7 +35,7 @@ for file in "$unit_dir"/*.service; do
     IFS= read -r first <"$file" || [ -n "$first" ] || continue
     [[ $first == "$marker"* ]] || continue
     unit=${file##*/}
-    if "$systemctl" try-restart "$unit"; then
+    if "$systemctl" try-restart -- "$unit"; then
         echo "$unit restarted if it was running"
     else
         echo "warning: standalone $unit did not restart; run: systemctl try-restart $unit" >&2
@@ -37,6 +45,7 @@ done
 
 # One line per file of each pack package: "<package> <sha256> <relative path>".
 # Runs as the person, in their home; prints nothing when there is no agent.d.
+# `*/` never matches a dot name, so ".", ".." and hidden directories are never packages.
 # shellcheck disable=SC2016
 list='cd "$HOME/'"$userpkgs"'" 2>/dev/null || exit 0
 for p in */; do
@@ -55,22 +64,33 @@ checkout_agent() { # name -> the checkout agent directory that packages it
 
 work=$(mktemp -d "$src/../tmp/git-install-agents.XXXXXX" 2>/dev/null || mktemp -d)
 trap 'rm -rf "$work"' EXIT
-accounts=$(if [ -n "${AB_PASSWD:-}" ]; then cat "$AB_PASSWD"; else getent passwd; fi)
+accounts=$(if [ -n "$passwd" ]; then cat "$passwd"; else getent passwd; fi)
 while IFS=: read -r person _ uid gid _ home shell; do
     [ "$uid" -ge 1000 ] 2>/dev/null && [ "$uid" -lt 60000 ] && [ -d "$home" ] || continue
     case $shell in */nologin|*/false) continue ;; esac
-    if [ "${AB_AS_PERSON:-}" = direct ]; then
-        have=$(HOME=$home sh -c "$list") || continue
+    # Bounded: a huge agent.d or a hung home must not stall the deploy.
+    if [ "$as_person" = direct ]; then
+        HOME=$home timeout 60 sh -c "$list" </dev/null | head -c $((cap + 1)) >"$work/list"
     else
-        have=$(setpriv --reuid="$uid" --regid="$gid" --init-groups env -i HOME="$home" PATH=/usr/bin:/bin sh -c "$list") || {
-            echo "warning: could not list $person's user-runner packages" >&2; failed=1; continue; }
+        timeout 60 setpriv --reuid="$uid" --regid="$gid" --init-groups env -i HOME="$home" PATH=/usr/bin:/bin sh -c "$list" </dev/null |
+            head -c $((cap + 1)) >"$work/list"
     fi
+    rc=${PIPESTATUS[0]}
+    if [ "$(stat -c %s "$work/list")" -gt "$cap" ]; then
+        echo "warning: $person's user-runner package listing is over $cap bytes; not compared" >&2; failed=1; continue
+    elif [ "$rc" = 124 ]; then
+        echo "warning: listing $person's user-runner packages timed out; not compared" >&2; failed=1; continue
+    elif [ "$rc" != 0 ]; then
+        echo "warning: could not list $person's user-runner packages; not compared" >&2; failed=1; continue
+    fi
+    have=$(cat "$work/list")
     [ -n "$have" ] || continue
-    for name in $(cut -d' ' -f1 <<<"$have" | sort -u); do
+    while IFS= read -r name; do
+        [[ $name =~ ^[a-z0-9][a-z0-9._-]*$ ]] || continue
         dir=$(checkout_agent "$name") || continue
         built=$work/$name
         if [ ! -d "$built" ]; then
-            "$dir/package.sh" "$built" >/dev/null 2>&1 || { echo "warning: could not build $name to compare $person's copy" >&2; failed=1; continue; }
+            "$dir/package.sh" "$built" </dev/null >/dev/null 2>&1 || { echo "warning: could not build $name to compare $person's copy" >&2; failed=1; continue; }
         fi
         want=$(cd "$built" && find . -type f ! -path '*/__pycache__/*' -print0 | sort -z | xargs -0r sha256sum)
         mine=$(awk -v n="$name" '$1 == n { sub(/^[^ ]+ /, ""); print }' <<<"$have")
@@ -79,6 +99,6 @@ while IFS=: read -r person _ uid gid _ home shell; do
             echo "warning: $person's user-runner package $name differs from this checkout's build; as $person run: $dir/package.sh ~/$userpkgs/$name" >&2
             failed=1
         fi
-    done
+    done < <(cut -d' ' -f1 <<<"$have" | sort -u)
 done <<<"$accounts"
 exit "$failed"
