@@ -282,3 +282,12 @@ The T-49 setup gives mdhouse its own stack on the user-account runner ([№Q353]
 - ✅ Q356 → [№Q356](resolved.md#Q356)
 
 - ✅ Q359 → [№Q359](resolved.md#Q359)
+
+## Deploy refresh
+
+- ❓ Q402 Should `git-install.sh` refresh the bundled agents a person's user runner runs (J128)
+  - Context: a deploy restarts each person's user runner, but its package copies in `~/.local/share/agent-bus/agent.d` stay as installed, so `tmux-sessions` ran the 2026-10-29 code after the 1.0.54 deploy ([J128](../issues/2026-11/2026-11-07.md#deploy)). Refreshing them writes code into another account's home
+  - ( ) Re-install only the pack packages it can identify (they carry `support/agents/VERSION`), from the same build, as that person through `setpriv` like the runner refresh, with an opt-out flag; a person's own agents are never touched 🌟
+  - ( ) Warn only: name each stale pack package and print the command that refreshes it ⭐
+  > 💡👾 Re-install the pack packages: the runner is already restarted on new code, so a pack agent left on old code is the worse surprise.
+
