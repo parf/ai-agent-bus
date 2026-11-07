@@ -35,14 +35,16 @@ printf 'alice:x:%s:%s::%s:/bin/bash\nsvc:x:990:990::%s:/sbin/nologin\n' "$(id -u
 export AB_UNIT_DIR=$d/units AB_SYSTEMCTL=$d/bin/systemctl AB_PASSWD=$d/passwd AB_AS_PERSON=direct CALLS=$d/calls STATE=$d/state FAIL_UNIT=""
 : >"$CALLS"
 rc=0; out=$(bash ./git-install-agents.sh 2>&1) || rc=$?
-# Standalone units: exactly the two marked ones, each once, by try-restart.
+# Standalone units: the running marked one restarted, the stopped one still stopped, the unmarked one untouched.
+[ -f "$d/state/agent-bus-up.service.restarts" ] || { echo "the running standalone unit was not restarted"; exit 1; }
+[ "$(cat "$d/state/agent-bus-down.service")" = inactive ] && [ ! -f "$d/state/agent-bus-down.service.restarts" ] || { echo "the stopped standalone unit was started"; exit 1; }
+[ ! -f "$d/state/other.service.restarts" ] || { echo "an unmarked unit was restarted"; exit 1; }
+# And exactly the two marked ones, each once, by try-restart.
 [ "$(grep -c . "$CALLS")" = 2 ] || { echo "want 2 systemctl calls, got: $(cat "$CALLS")"; exit 1; }
 for u in up down; do
   [ "$(grep -cx "try-restart agent-bus-$u.service" "$CALLS")" = 1 ] || { echo "agent-bus-$u.service did not get exactly one try-restart: $(cat "$CALLS")"; exit 1; }
 done
 ! grep -q other.service "$CALLS" || { echo "an unmarked unit was touched: $(cat "$CALLS")"; exit 1; }
-[ -f "$d/state/agent-bus-up.service.restarts" ] || { echo "the running standalone unit was not restarted"; exit 1; }
-[ "$(cat "$d/state/agent-bus-down.service")" = inactive ] && [ ! -f "$d/state/agent-bus-down.service.restarts" ] || { echo "the stopped standalone unit was started"; exit 1; }
 # User-runner packages: exactly one warning, naming the stale pack package and its refresh.
 warnings=$(grep -c '^warning: ' <<<"$out" || true)
 [ "$warnings" = 1 ] || { echo "want exactly 1 warning, got $warnings: $out"; exit 1; }
