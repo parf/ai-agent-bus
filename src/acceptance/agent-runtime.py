@@ -57,8 +57,9 @@ def check(root):
             raise ValueError('missing runtime artifact: ' + relative)
     env = {k: v for k, v in os.environ.items() if not k.startswith(('AGENT_BUS_', 'AB_ROLE_', 'PYTHON'))}
     env.update(PYTHONDONTWRITEBYTECODE='1', AB_ROLE_OWNER='1')
-    # Agents report the agent pack's own version, never the bus's.
-    version = (root / 'agents/VERSION').read_text().strip()
+    # Each agent reports the version of its own agent.json, never the pack's or the bus's.
+    def own(directory):
+        return json.loads((directory / 'agent.json').read_text())['version']
     assert 'PolyForm Strict License 1.0.0' in (root / 'agents/LICENSE.md').read_text()
     assert 'MIT License' in (root / 'clients/LICENSE.md').read_text()
     assert (root / 'agents/licenses/NOTICE.md').is_file()
@@ -93,7 +94,7 @@ def check(root):
     metadata = json.loads(output)
     assert_manifest_methods('dbsync', dbsync, metadata)
     assert metadata['secrets'] == [] and metadata['docs'].endswith('/dbsync.md')
-    assert metadata['version'] == version, 'dbsync reports the bus version, not the pack version'
+    assert metadata['version'] == own(dbsync), 'dbsync reports its own agent.json version'
     for shared in ('change_sync.py', 'subscriptions.py', 'subscription_filters.py'):
         assert (dbsync / 'support/agents/shared' / shared).read_bytes() == (root / 'agents/shared' / shared).read_bytes(), 'dbsync engine copy'
     print('dbsync: offline metadata and shared core copies loaded')
@@ -106,7 +107,7 @@ def check(root):
     metadata = json.loads(output)
     assert_manifest_methods('filescan', filescan, metadata)
     assert metadata['secrets'] == [] and metadata['docs'].endswith('/filescan.md')
-    assert metadata['version'] == version, 'filescan reports the bus version, not the pack version'
+    assert metadata['version'] == own(filescan), 'filescan reports its own agent.json version'
     assert json.loads((filescan / 'config.json.dist').read_text())['mode'] == 'both'
     for shared in ('change_sync.py', 'subscriptions.py', 'subscription_filters.py'):
         assert (filescan / 'support/agents/shared' / shared).read_bytes() == (root / 'agents/shared' / shared).read_bytes(), 'filescan engine copy'
@@ -129,7 +130,7 @@ def check(root):
             output, _ = run(['python3', str(script)], directory, extra)
         data = json.loads(output)
         assert_manifest_methods(agent, directory, data)
-        assert data['version'] == version, agent + ' wrong version'
+        assert data['version'] == own(directory), agent + ' wrong version'
         assert 'config' in data and 'secrets' in data, agent + ' incomplete help'
         installer = directory / ('install.sh' if agent == 'server-info' else 'install.py')
         run([str(installer), '--help'], root)
@@ -163,7 +164,7 @@ def check(root):
     output, _ = run(['python3', str(fetch / 'fetch.py')], root, {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
     metadata = json.loads(output)
     assert_manifest_methods('fetch', fetch, metadata)
-    assert metadata['version'] == version
+    assert metadata['version'] == own(fetch), 'fetch reports its own agent.json version'
     assert metadata['docs'].endswith('/fetch.md')
     assert set(metadata['config']) == {'allow'} and metadata['config']['allow']['type'] == 'list' and metadata['secrets'] == []
     print('fetch: stateless get/curl package and allowlist metadata loaded without any network call')
@@ -173,7 +174,7 @@ def check(root):
     metadata = json.loads(output)
     assert_manifest_methods('webhook', webhook, metadata)
     assert metadata['config']['(root)']['type'] == 'list'
-    assert metadata['version'] == version
+    assert metadata['version'] == own(webhook), 'webhook reports its own agent.json version'
     assert json.loads((webhook / 'agent.json').read_text())['serves'] == 'itself'
     print('webhook: kept route-list package and shared client/envfile load without opening a listener')
 
@@ -228,7 +229,7 @@ def check(root):
     code = "import runpy,sys,types; m=runpy.run_path(sys.argv[1],run_name='runtime_check'); print(m['handle'](None,types.SimpleNamespace(ask='help-json',roles=[])))"
     output, _ = run(['python3', '-c', code, str(root / 'agents/debug/debug.py')], root)
     data = json.loads(output)
-    assert 'selftest' in data['methods'] and data['version'] == version, 'debug packaged handler/helper/version missing'
+    assert 'selftest' in data['methods'] and data['version'] == own(root / 'agents/debug'), 'debug packaged handler/helper/version missing'
     for agent in ('slack', 'telegram'):
         directory = root / 'agents' / agent
         manifest = json.loads((directory / 'agent.json').read_text())

@@ -22,8 +22,8 @@ func TestBundledAgentsRunOutsideCheckout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The pack and the bus both start at 1.0.0, so give the pack a version of
-	// its own: an agent reporting the bus version must now fail the check.
+	// Give the pack a version no agent has: an agent that reports the pack's
+	// (or the bus's) instead of its own agent.json version must fail the check.
 	packs := 0
 	if err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && d.Name() == "VERSION" && filepath.Base(filepath.Dir(path)) == "agents" {
