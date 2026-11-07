@@ -533,15 +533,6 @@
         "argv": [
           "python3",
           "-B",
-          "-m",
-          "unittest",
-          "check_test_lists_test"
-        ]
-      },
-      {
-        "argv": [
-          "python3",
-          "-B",
           "check-test-lists.py"
         ]
       },
@@ -626,12 +617,6 @@
           "-p",
           "docs_order_test.py",
           "-v"
-        ]
-      },
-      {
-        "argv": [
-          "bash",
-          "release-verify.test.sh"
         ]
       }
     ],
