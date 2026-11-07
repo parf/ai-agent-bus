@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes to the bundled agents in `src/agents/`, newest first.
 The pack has its own SemVer in `src/agents/VERSION`, separate from the bus version.
 
+## 1.0.6 — 2026-11-07
+
+Each bundled agent now carries its own version (1.0.0; rag 0.4.2) and released date in agent.json and its own CHANGELOG.md; the shared metadata no longer falls back to the pack version (AV.1)
+
 ## 1.0.5 — 2026-11-07
 
 ai: models --images shows no price column; ai.md and help give the image_output unit via model <id>; free refused before any provider call (J127)

@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.54 — 2026-11-07
+
+Agents get their own versions: every bundled agent reports its own version (1.0.0; #rag 0.4.2) and released date in --help, --help-json and the web agent page (Released row); an outside agent without them shows none (AV.1, T-51)
+
 ## 1.0.53 — 2026-11-07
 
 Agents only: #ai models --images drops the price column the listing never had and points to model <id> for the image price; free is refused by name before any provider call (J127)
