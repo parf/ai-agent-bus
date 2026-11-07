@@ -148,7 +148,7 @@ Bundled packages are already installed under `/usr/local/lib/agent-bus/current/a
 
 ### Helper version
 
-The bundled helpers are one agent pack with a version of its own, separate from the bus version. A helper's help shows it, for example `v1.0.0`.
+Every helper has a version of its own and the day it was released, separate from the bus version and from every other helper. Its help shows both, for example `v1.0.0 · released 2026-11-07`; a helper that declares neither shows neither.
 
 ### Which daemon the helpers work with
 

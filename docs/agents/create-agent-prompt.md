@@ -58,8 +58,8 @@ manifest omits `command`: the starter receives the executable through `--script`
 Follow the [authoring checklist](authoring.md#checklist-writing-an-agents-description-and-help),
 including its recommendations. Author `agent.json`, executable, tests and README.
 Use SPDX `license`, `author`, `homepage`, `tags`, ordered `methods`, shared
-`arguments` and `config`. Set `version` for an independent package; bundled agents
-omit it and use the agent pack's version. Method arguments support types/enum arrays,
+`arguments` and `config`. Set `version` and `released` (a UTC `YYYY-MM-DD` day) for
+an independent package; a bundled agent sets both. Method arguments support types/enum arrays,
 `optional`, final `rest`, `json_only` and defaults; methods support text usage,
 roles, destructive marks and real examples. Configuration keys need help/examples.
 
