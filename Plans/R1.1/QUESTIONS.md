@@ -204,11 +204,7 @@ The recommendations below are retained parked proposals.
 
 ## Agent versions
 
-- ❓ Q393 Which version does each bundled agent start with when it gets its own
-  - Context: today every bundled agent but `#rag` (0.4.2) reports the pack's 1.0.4; each `agent.json` gains `version` ([plan](agent-versions.md#rules))
-  - ( ) The pack's current version, 1.0.4; `#rag` keeps 0.4.x; nothing goes backwards 🌟
-  - ( ) 1.0.0 for each, with a note in its changelog ⭐
-  > 💡👾 Start at 1.0.4: a user who saw 1.0.4 never sees a lower number.
+- ✅ Q393 → [№Q393](resolved.md#Q393)
 
 - ❓ Q394 What does an external agent with no `version` report
   - Context: an agent that is not bundled and omits `version`; today it shows the bus version, which is not the agent's ([plan](agent-versions.md#rules))

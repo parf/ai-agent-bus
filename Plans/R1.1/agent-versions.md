@@ -12,7 +12,7 @@ Owner decisions, 2026-11-06: every agent has its own SemVer; agents gain a `rele
 | Rule | Value |
 |---|---|
 | Where | `version` and `released` in the agent's `agent.json`, next to `description`, `license`, `author`, `homepage`, `docs` |
-| Start | every bundled agent starts at the pack's current version (1.0.4) so nothing goes backwards; `#rag` keeps 0.4.x ([Q393](QUESTIONS.md#agent-versions)) |
+| Start | every bundled agent starts at 1.0.0, with a note in its changelog; the pack was never deployed to a user, so the step back is safe; `#rag` keeps its app line, 0.4.x ([№Q393](resolved.md#Q393)) |
 | Changelog | `CHANGELOG.md` beside each `agent.json`, newest first; `#ab-ceo` writes the entry at deploy (`#rag` has one already) |
 | PATCH | rises once per deploy, by `#ab-ceo` through `deploy-bump.sh`, when anything the agent ships changed since its own last bump commit; MINOR and MAJOR follow the usual rules |
 | Last bump | the newest commit in `git log` of that `agent.json` that changed `version`; no state file |
@@ -25,7 +25,7 @@ Owner decisions, 2026-11-06: every agent has its own SemVer; agents gain a `rele
 
 ## First bump
 
-The `agent_pack` check is red until every agent has both fields, so the first per-agent bump seeds `version` (the pack's version, [Q393](QUESTIONS.md#agent-versions)) and `released` (that deploy's UTC date) in **every** `agent.json` at once, changed or not. It is one `#ab-ceo` deploy step: `deploy-bump.sh` run in its seeding form writes all agents, in the same commit and deploy window as the code change that adds the check. Later bumps touch only changed agents.
+The `agent_pack` check is red until every agent has both fields, so the first per-agent bump seeds `version` (1.0.0, [№Q393](resolved.md#Q393)) and `released` (that deploy's UTC date) in **every** `agent.json` at once, changed or not. It is one `#ab-ceo` deploy step: `deploy-bump.sh` run in its seeding form writes all agents, in the same commit and deploy window as the code change that adds the check. Later bumps touch only changed agents.
 
 The Go (`agentmeta`) and web change is a later code task, after the owner's OK on [Q393, Q394](QUESTIONS.md#agent-versions).
 

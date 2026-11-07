@@ -521,3 +521,16 @@
   > 💬 👤parf (in chat to #ab-ceo, 2026-11-06 ~15:00): "yes, feel free to delete all backups - we dont need them atp"
   >
   > 💬👾 → `#ai` runs on the owner's key …9e4f; the backups holding the old keys (…85e6, …e0b9) were deleted at 15:01. The dead `realmo.com/config.yaml` key …730c is the realty team's to replace.
+
+
+<a id="Q393"></a>
+
+- ✅ Q393 Which version does each bundled agent start with when it gets its own
+  - Context: today every bundled agent but `#rag` (0.4.2) reports the pack's 1.0.4; each `agent.json` gains `version` ([plan](agent-versions.md#rules))
+  - ( ) The pack's current version, 1.0.4; `#rag` keeps 0.4.x; nothing goes backwards 🌟
+  - (x) 1.0.0 for each, with a note in its changelog ⭐
+  > 💡👾 Start at 1.0.4: a user who saw 1.0.4 never sees a lower number.
+  >
+  > 💬 👤parf (in chat to #ab-ceo, 2026-11-07 ~13:25): "Q393 - 1.0.0 (we never deployed our packs, so can do rollback)"
+  >
+  > 💬👾 → every bundled agent starts at 1.0.0 with a changelog note; `#rag` keeps its own app line (0.4.x, [versioning](../../CLAUDE.md#versioning)).
