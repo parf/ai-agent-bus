@@ -8,6 +8,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -122,6 +123,7 @@ type Manifest struct {
 	Description string              `json:"description"`
 	License     string              `json:"license,omitempty"`
 	Version     string              `json:"version,omitempty"`
+	Released    string              `json:"released,omitempty"`
 	Author      string              `json:"author,omitempty"`
 	Homepage    string              `json:"homepage,omitempty"`
 	Docs        string              `json:"docs,omitempty"`
@@ -197,6 +199,12 @@ func (m Manifest) Check() error {
 
 	if strings.TrimSpace(m.Description) == "" {
 		return fmt.Errorf("agent.json: description is required")
+	}
+	// Validity only: a bundled agent's presence of released is the pack check's.
+	if m.Released != "" {
+		if _, err := time.Parse("2006-01-02", m.Released); err != nil {
+			return fmt.Errorf("agent.json: released must be a YYYY-MM-DD date, not %q", m.Released)
+		}
 	}
 	for name, argument := range m.Arguments {
 		if strings.TrimSpace(name) == "" {
