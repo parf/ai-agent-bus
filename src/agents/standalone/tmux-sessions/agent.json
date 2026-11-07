@@ -1,5 +1,7 @@
 {
   "description": "Organize long-running work in named terminal windows. Inspect configured windows and start, stop or restart them together or separately. Start with list; each window runs its configured command in one tmux session.",
+  "version": "1.0.0",
+  "released": "2026-11-07",
   "command": "./sessions.py",
   "form": "args",
   "tags": [],

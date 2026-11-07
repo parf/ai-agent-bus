@@ -1,5 +1,7 @@
 {
   "description": "Deliver a reminder or follow-up without staying connected. Schedule one message and review its outcome. Start with in for a delay or at for a time; delivery uses this agent's identity and needs the destination's permission.",
+  "version": "1.0.0",
+  "released": "2026-11-07",
   "command": "./at.py",
   "form": "args",
   "serves": "itself",

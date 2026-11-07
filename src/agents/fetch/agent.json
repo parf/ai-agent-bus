@@ -1,5 +1,7 @@
 {
   "description": "Read web pages and call allowed web services without a browser. Get readable text or make one bounded HTTP request. Start with get and a URL; every destination must satisfy this instance's access rules.",
+  "version": "1.0.0",
+  "released": "2026-11-07",
   "command": "./fetch.py",
   "form": "json",
   "processes": "0..3",

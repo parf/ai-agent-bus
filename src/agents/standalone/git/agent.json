@@ -1,5 +1,7 @@
 {
   "description": "Understand a shared checkout before updating or deploying it. Inspect changes and history, then synchronize or publish within configured access. Start with list and status; changes use this server's Git identity and each repository's access limit.",
+  "version": "1.0.0",
+  "released": "2026-11-07",
   "tags": [],
   "roles": [
     "deploy",

@@ -1,5 +1,7 @@
 {
   "description": "Put your AI in your Telegram chats. Post and read messages, and route replies to the right session. Start with whoami, then post.",
+  "version": "1.0.0",
+  "released": "2026-11-07",
   "command": "./telegram.ts",
   "form": "args",
   "serves": "itself",

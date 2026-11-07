@@ -1,5 +1,7 @@
 {
   "description": "Turn text into embeddings without giving callers the Voyage key. Embed text, or pass one JSON request to a Voyage endpoint. Start with embed and your text.",
+  "version": "1.0.0",
+  "released": "2026-11-07",
   "command": "./voyage.py",
   "form": "json",
   "processes": "0..3",
