@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.53 — 2026-11-07
+
+Agents only: #ai models --images drops the price column the listing never had and points to model <id> for the image price; free is refused by name before any provider call (J127)
+
 ## 1.0.52 — 2026-11-06
 
 Agents and clients: FileScan include patterns match the whole path (a directory named x.md no longer widens a scan) and **/ matches the folder root; the Python, Go, Rust, Java, PHP and TypeScript clients route late serve answers to an optional reply callback (J122–J125)

@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes to the bundled agents in `src/agents/`, newest first.
 The pack has its own SemVer in `src/agents/VERSION`, separate from the bus version.
 
+## 1.0.5 — 2026-11-07
+
+ai: models --images shows no price column; ai.md and help give the image_output unit via model <id>; free refused before any provider call (J127)
+
 ## 1.0.4 — 2026-11-06
 
 FileScan: include matches the whole relative path, a bare-directory include is warned in status, **/ matches zero directories (J124, J125); bundled Python client: serve(on_reply) and call() refuses wait (J122)
