@@ -56,3 +56,13 @@ test("machine help reports only hidden counts and needed roles, with supported b
   expect(parseCall(body).method).toBe(method);
  }
 });
+
+test("a manifest that declares no version shows none, in text and in JSON", () => {
+  const bare = { description: "No version", license: "LicenseRef-PolyForm-Strict-1.0.0", methods: {} } as Manifest;
+  expect(helpData(bare, "help-json", "", []).version).toBeUndefined();
+  expect(JSON.parse(helpAnswer(bare, "help-json", "", [])).version).toBeUndefined();
+  const text = helpAnswer(bare, "help", "", []);
+  expect(text).not.toMatch(/(^|\n)v\d/);
+  expect(text).toContain("\nPolyForm Strict\n");
+  expect(helpAnswer({ ...bare, version: "2.3.4" }, "help", "", [])).toContain("\nv2.3.4 · PolyForm Strict\n");
+});

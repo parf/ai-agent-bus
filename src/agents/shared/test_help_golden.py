@@ -7,6 +7,7 @@ made independent of the machine running the check and of each deploy's bump.
 from pathlib import Path
 import json
 import os
+import re
 import unittest
 from unittest.mock import patch
 
@@ -38,6 +39,17 @@ class GoldenHelp(unittest.TestCase):
             with self.subTest(agent=str(fixture.parent.relative_to(AGENTS))):
                 self.assertEqual(json.loads(fixture.read_text()), rendered(fixture.parent),
                                  'help changed without its reviewed golden fixture: ' + str(fixture))
+
+    def test_a_manifest_without_version_shows_none(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=True):
+            Path(tmp, 'agent.json').write_text(json.dumps({'description': 'No version', 'license': 'LicenseRef-PolyForm-Strict-1.0.0', 'methods': {}}))
+            self.assertNotIn('version', json.loads(metadata.answer(tmp, 'help-json', roles=['owner'])))
+            text = metadata.answer(tmp, roles=['owner'])
+            self.assertIsNone(re.search(r'(^|\n)v\d', text), text)
+            self.assertIn('\nPolyForm Strict\n', text)
+            Path(tmp, 'agent.json').write_text(json.dumps({'description': 'x', 'version': '2.3.4', 'license': 'LicenseRef-PolyForm-Strict-1.0.0', 'methods': {}}))
+            self.assertIn('\nv2.3.4 · PolyForm Strict\n', metadata.answer(tmp, roles=['owner']))
 
 
 if __name__ == '__main__':
