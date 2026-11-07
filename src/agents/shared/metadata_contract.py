@@ -114,7 +114,9 @@ def check(test, directory, agent, name):
             test.assertNotIn('Docs:', text)
         with patch.dict(os.environ, {'AGENT_BUS_NAME': '#fixture/instance@t'}):
             test.assertIn("More: agent-bus help '#fixture/instance@t' config | secret | json", answer(directory))
-        test.assertNotIn('version', manifest)
+        test.assertRegex(manifest['version'], r'\d+\.\d+\.\d+')
+        test.assertRegex(manifest['released'], r'\d{4}-\d{2}-\d{2}')
+        test.assertEqual(rendered['version'], manifest['version'])
         test.assertEqual(manifest['license'], 'LicenseRef-PolyForm-Strict-1.0.0')
         for key in ('description','author','homepage'): test.assertTrue(manifest[key])
         for method in actual - {'help'}:

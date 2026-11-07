@@ -201,7 +201,8 @@ class Doctor(unittest.TestCase):
     def test_doctor_groups_failed_units_and_keeps_summary_short(self):
         report = agent.answer('doctor', AUTH, bus=self.summary_bus())
         self.assertIn('⚠ 25 failed units: drkonqi-coredump-processor ×25 (grouped by template)',report)
-        self.assertIn('✅ versions agree ('+agent.VERSION+')',report)
+        self.assertIn('versions: debug='+agent.VERSION,report)
+        self.assertNotIn('versions agree',report);self.assertNotIn('disagree',report)
         self.assertNotIn('RAW-UNIT-SENTINEL',report)
         self.assertNotIn('"status"',report)
         self.assertLess(len(report),2000)

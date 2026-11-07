@@ -14,12 +14,14 @@ import threading
 import time
 
 HERE = Path(__file__).resolve().parent
+# Each agent has its own version, so debug's is the one in its own agent.json.
+VERSION = json.loads((HERE / 'agent.json').read_text())['version']
 SUPPORT = HERE / 'support' if (HERE / 'support').is_dir() else HERE.parents[1]
 sys.path.insert(0, str(SUPPORT / 'clients/python'))
 sys.path.insert(0, str(SUPPORT / 'agents/shared'))
 from agent_bus import Bus
 from agent_bus.errors import BusError
-from metadata import answer as metadata_answer, ASKS, VERSION, dispatch, normalize_tags
+from metadata import answer as metadata_answer, ASKS, dispatch, normalize_tags
 
 MAX_BODY = 16384
 MAX_SLEEP = 30
@@ -273,10 +275,8 @@ def doctor(bus, budget, mode=None):
                 else: results.append('unavailable: ' + target + ' (' + kind + ')')
             except TimeoutError: results.append('unavailable: ' + target + ' (deadline)')
     if mode != 'disks':
-        if len(set(versions.values())) == 1:
-            results.append('✅ versions agree (' + VERSION + ')')
-        else:
-            results.append('❌ versions disagree: ' + '; '.join(name + '=' + value for name, value in versions.items()))
+        # Every agent has its own version, so they differ by design: list them, never judge them.
+        results.append('versions: ' + '; '.join(name + '=' + value for name, value in versions.items()))
     return '\n'.join(results)
 
 
