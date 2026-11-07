@@ -89,3 +89,16 @@ test("help prints the docs link only when the manifest has one", () => {
   const { docs: _, ...plain } = fixture;
   expect(helpAnswer(plain, "help", "", [], false, "#f@t")).not.toContain("Docs:");
 });
+
+test("the shared help prints an agent's own release day in its JSON and footer, and nothing when it declares none", () => {
+  const base: Manifest = { description: "fixture", methods: {} };
+  const footer = (m: Manifest) => helpAnswer(m, "help", "", [], false, "#v@t").split("\n").at(-2)!;
+  const json = (m: Manifest) => JSON.parse(helpAnswer(m, "help", "", [], true, "#v@t"));
+  const both = { ...base, version: "1.2.3", released: "2026-11-07", license: "MIT" };
+  expect(json(both)).toMatchObject({ version: "1.2.3", released: "2026-11-07" });
+  expect(footer(both)).toBe("v1.2.3 · released 2026-11-07 · MIT");
+  const versionOnly = { ...base, version: "1.2.3", license: "MIT" };
+  expect(json(versionOnly)).not.toHaveProperty("released");
+  expect(footer(versionOnly)).toBe("v1.2.3 · MIT");
+  expect(json(base)).not.toHaveProperty("released");
+});
