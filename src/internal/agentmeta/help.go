@@ -215,7 +215,10 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 		if len(target) > 0 && target[0] != "" {
 			name = "'" + strings.ReplaceAll(target[0], "'", "'\"'\"'") + "'"
 		}
-		b.WriteString("\n" + strings.Join(footer, " · ") + "\n")
+		b.WriteString("\n")
+		if len(footer) > 0 { // nothing declared: no empty footer line
+			b.WriteString(strings.Join(footer, " · ") + "\n")
+		}
 		if m.Docs != "" {
 			b.WriteString("Docs: " + m.Docs + "\n")
 		}

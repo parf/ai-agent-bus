@@ -327,6 +327,9 @@ func TestHelpReportsOnlyTheAgentsOwnVersionAndReleaseDay(t *testing.T) {
 				t.Errorf("%s: %q in the text help should be present=%v: %s", c.name, want.token, want.shown != "", text)
 			}
 		}
+		if c.version == "" && c.released == "" && strings.Contains(text, "\n\n\n") {
+			t.Errorf("%s: an empty footer line is written: %q", c.name, text)
+		}
 		if c.version == "" && c.released == "" && (strings.Contains(last, "v1.") || strings.Contains(last, "v0.") || strings.Contains(last, version.String)) {
 			t.Errorf("%s: the footer names a version nobody declared: %q", c.name, last)
 		}
