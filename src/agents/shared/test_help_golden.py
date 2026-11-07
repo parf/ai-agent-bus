@@ -1,8 +1,8 @@
 """Pin authored help text and JSON; each agent owns its own reviewed fixture.
 
 Add help.golden.json beside a manifest to include it in this check. Fixtures
-contain the owner-visible help, with only the agent's own version and caller name
-made independent of the machine running the check and of each deploy's bump.
+contain the owner-visible help, with only the agent's own version and release day and
+the caller name made independent of the machine running the check and of each deploy's bump.
 """
 from pathlib import Path
 import json
@@ -17,17 +17,23 @@ AGENTS = Path(__file__).resolve().parents[1]
 
 
 def rendered(directory):
-    """The help as reviewed: the agent's own version, which each deploy may bump, is the placeholder `<version>`."""
-    own = json.loads((directory / 'agent.json').read_text())['version']
+    """The help as reviewed: the agent's own version and release day, which each deploy may bump, are the placeholders `<version>` and `<released>`."""
+    manifest = json.loads((directory / 'agent.json').read_text())
+    own, released = manifest['version'], manifest.get('released')
     with patch.dict(os.environ, {}, clear=True):
         text = metadata.answer(directory, roles=['owner'])
         value = json.loads(metadata.answer(directory, 'help-json', roles=['owner']))
     assert value['version'] == own, 'help reports the version of its own agent.json'
     value['version'] = '<version>'
+    assert value.get('released') == released, 'help reports the release day of its own agent.json'
+    if released: value['released'] = '<released>'
     footer = [i for i, line in enumerate(text.split('\n')) if line == 'v' + own or line.startswith('v' + own + ' · ')]
     assert len(footer) == 1, 'the footer names the version once'
     lines = text.split('\n')
     lines[footer[0]] = lines[footer[0]].replace('v' + own, 'v<version>', 1)
+    if released:
+        assert lines[footer[0]].count(' · released ' + released) == 1, 'the footer names the release day once, after the version'
+        lines[footer[0]] = lines[footer[0]].replace(' · released ' + released, ' · released <released>', 1)
     return {'text': '\n'.join(lines), 'json': value}
 
 

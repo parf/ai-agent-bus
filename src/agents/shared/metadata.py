@@ -67,7 +67,8 @@ def data(directory, ask='help', *, allowed=None, roles=None):
                granted(m, roles)}
     # An agent that declares no version shows none: presence for a bundled agent is the pack check's.
     return {**{key: manifest[key] for key in ('description','license','author','homepage','docs') if key in manifest},
-            **({'version': manifest['version']} if 'version' in manifest else {}), 'methods': methods, 'asks': ASKS}
+            **({'version': manifest['version']} if 'version' in manifest else {}), **({'released': manifest['released']} if manifest.get('released') else {}),
+            'methods': methods, 'asks': ASKS}
 
 
 def answer(directory, ask='help', *, allowed=None, roles=None, as_json=False):
@@ -97,7 +98,7 @@ def answer(directory, ask='help', *, allowed=None, roles=None, as_json=False):
         if method.get('example'): examples.append(method['example'])
     if shared: lines += ['', 'Arguments'] + [argument(shared[name]) for name in sorted(shared)]
     if examples: lines += ['', 'Examples'] + examples
-    footer = ['v' + value['version']] if 'version' in value else []
+    footer = (['v' + value['version']] if 'version' in value else []) + (['released ' + value['released']] if value.get('released') else [])
     if value.get('license'): footer.append(value['license'].replace('LicenseRef-PolyForm-Strict-1.0.0', 'PolyForm Strict'))
     if value.get('homepage'): footer.append(value['homepage'].removeprefix('https://').removeprefix('http://'))
     if value.get('author'): footer.append('© ' + value['author'])

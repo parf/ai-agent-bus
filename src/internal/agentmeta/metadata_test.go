@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const fixture = `{"description":"Fixture agent","license":"MIT","methods":{"read":{"help":"Read facts","args":[{"name":"format","help":"Output form","type":["text","json"],"optional":true}],"returns":"facts"},"destroy":{"help":"Remove it","role":"admin","destructive":true}},"config":{"format":{"help":"Output format","type":["text","json"],"example":"other"}}}`
+const fixture = `{"description":"Fixture agent","license":"MIT","version":"1.2.3","released":"2026-11-07","methods":{"read":{"help":"Read facts","args":[{"name":"format","help":"Output form","type":["text","json"],"optional":true}],"returns":"facts"},"destroy":{"help":"Remove it","role":"admin","destructive":true}},"config":{"format":{"help":"Output format","type":["text","json"],"example":"other"}}}`
 
 func TestStrictMetadataAndGeneratedHelp(t *testing.T) {
 	m, err := Decode([]byte(fixture))
@@ -36,7 +36,7 @@ func TestStrictMetadataAndGeneratedHelp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, word := range []string{"Fixture agent", " · MIT", "More: agent-bus help <name> config | secret | json", "read [format]", "text|json"} {
+	for _, word := range []string{"Fixture agent", "v1.2.3 · released 2026-11-07 · MIT", "More: agent-bus help <name> config | secret | json", "read [format]", "text|json"} {
 		if !strings.Contains(help, word) {
 			t.Fatalf("help missing %q: %s", word, help)
 		}
@@ -135,7 +135,7 @@ func TestMachineHelpIncludesWholeDescriptionWithoutValues(t *testing.T) {
 }
 
 func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
-	raw := `{"description":"Route conversations","version":"1.2.3","license":"LicenseRef-PolyForm-Strict-1.0.0","author":"Full author","homepage":"https://example.test/repo","docs":"https://example.test/docs/agents/chat.md","arguments":{"channel":{"help":"Channel name","type":"string"}},"methods":{"post":{"help":"Post a message","args":[{"name":"channel"},{"name":"thread","help":"Thread ID","json_only":true},{"name":"text","help":"Message","rest":true}],"example":"agent-bus call '#chat@t' 'post #general Hello'"},"add":{"text":"sub add <channel> <target>","help":"Forward messages","args":[{"name":"channel"},{"name":"target","help":"Destination"}],"destructive":true},"help":{"help":"Help"}}}`
+	raw := `{"description":"Route conversations","version":"1.2.3","released":"2026-11-07","license":"LicenseRef-PolyForm-Strict-1.0.0","author":"Full author","homepage":"https://example.test/repo","docs":"https://example.test/docs/agents/chat.md","arguments":{"channel":{"help":"Channel name","type":"string"}},"methods":{"post":{"help":"Post a message","args":[{"name":"channel"},{"name":"thread","help":"Thread ID","json_only":true},{"name":"text","help":"Message","rest":true}],"example":"agent-bus call '#chat@t' 'post #general Hello'"},"add":{"text":"sub add <channel> <target>","help":"Forward messages","args":[{"name":"channel"},{"name":"target","help":"Destination"}],"destructive":true},"help":{"help":"Help"}}}`
 	m, err := Decode([]byte(raw))
 	if err != nil {
 		t.Fatal(err)
@@ -144,7 +144,7 @@ func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"post <channel> <text...>:", "[destructive] sub add <channel> <target>:", "Arguments\nchannel (string): Channel name", "Examples\nagent-bus call", "PolyForm Strict · example.test/repo · © Full author\nDocs: https://example.test/docs/agents/chat.md\nMore: agent-bus help '#chat/work@t' config | secret | json"} {
+	for _, want := range []string{"post <channel> <text...>:", "[destructive] sub add <channel> <target>:", "Arguments\nchannel (string): Channel name", "Examples\nagent-bus call", "v1.2.3 · released 2026-11-07 · PolyForm Strict · example.test/repo · © Full author\nDocs: https://example.test/docs/agents/chat.md\nMore: agent-bus help '#chat/work@t' config | secret | json"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("missing %q: %s", want, body)
 		}
@@ -271,7 +271,7 @@ func TestRejectUnsupportedManifestInputs(t *testing.T) {
 	}
 }
 
-func TestHelpVersionIsThePackVersionOnlyForABundledAgent(t *testing.T) {
+func TestHelpReportsOnlyTheAgentsOwnVersionAndReleaseDay(t *testing.T) {
 	write := func(path, text string) {
 		t.Helper()
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -281,6 +281,7 @@ func TestHelpVersionIsThePackVersionOnlyForABundledAgent(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// A package that carries the pack's VERSION and a source tree with the pack's tree VERSION: neither is the agent's.
 	packaged := t.TempDir()
 	write(filepath.Join(packaged, "support/agents/VERSION"), "9.8.7\n")
 	tree := t.TempDir()
@@ -288,31 +289,46 @@ func TestHelpVersionIsThePackVersionOnlyForABundledAgent(t *testing.T) {
 	write(filepath.Join(tree, "shared/metadata.py"), "")
 	source := filepath.Join(tree, "chat")
 	write(filepath.Join(source, "agent.json"), "{}")
-	plain := t.TempDir()
-	write(filepath.Join(filepath.Dir(plain), "VERSION"), "9.8.5\n") // a VERSION beside a non-pack agent is not the pack's
-	linked := t.TempDir()
-	write(filepath.Join(t.TempDir(), "elsewhere"), "9.8.4\n")
-	if err := os.MkdirAll(filepath.Join(linked, "support/agents"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(filepath.Join(packaged, "support/agents/VERSION"), filepath.Join(linked, "support/agents/VERSION")); err != nil {
-		t.Fatal(err)
-	}
 	for _, c := range []struct {
-		name, dir, manifest, want string
+		name, dir, version, released string
 	}{
-		{"package", packaged, "", "9.8.7"},
-		{"source tree", source, "", "9.8.6"},
-		{"plain agent", plain, "", version.String},
-		{"linked VERSION", linked, "", version.String},
-		{"manifest wins", packaged, "2.0.0", "2.0.0"},
+		{"package with a pack VERSION, no fields", packaged, "", ""},
+		{"source tree with a pack VERSION, no fields", source, "", ""},
+		{"a plain directory, no fields", t.TempDir(), "", ""},
+		{"both fields", packaged, "2.0.1", "2026-11-07"},
+		{"version only", source, "2.0.1", ""},
+		{"released only", source, "", "2026-11-07"},
 	} {
-		body, err := (Manifest{Description: "fixture", Version: c.manifest}).Answer(c.dir, "help-json", nil, false)
+		manifest := Manifest{Description: "fixture", Version: c.version, Released: c.released}
+		body, err := manifest.Answer(c.dir, "help-json", nil, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(body, `"version":"`+c.want+`"`) {
-			t.Errorf("%s: want version %s: %s", c.name, c.want, body)
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(body), &got); err != nil {
+			t.Fatal(err)
+		}
+		for field, want := range map[string]string{"version": c.version, "released": c.released} {
+			raw, present := got[field]
+			if want == "" && present {
+				t.Errorf("%s: %s must be absent, got %s: %s", c.name, field, raw, body)
+			}
+			if want != "" && string(raw) != `"`+want+`"` {
+				t.Errorf("%s: %s want %q, got %s", c.name, field, want, raw)
+			}
+		}
+		text, err := manifest.Answer(c.dir, "help", nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		last := text[strings.LastIndex(text, "\n")+1:]
+		for _, want := range []struct{ shown, token string }{{c.version, "v" + c.version}, {c.released, "released " + c.released}} {
+			if (want.shown != "") != strings.Contains(text, want.token) {
+				t.Errorf("%s: %q in the text help should be present=%v: %s", c.name, want.token, want.shown != "", text)
+			}
+		}
+		if c.version == "" && c.released == "" && (strings.Contains(last, "v1.") || strings.Contains(last, "v0.") || strings.Contains(last, version.String)) {
+			t.Errorf("%s: the footer names a version nobody declared: %q", c.name, last)
 		}
 	}
 }

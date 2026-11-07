@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/parf/ai-agent-bus/internal/envfile"
-	"github.com/parf/ai-agent-bus/internal/version"
 )
 
 func IsAsk(ask string) bool {
@@ -122,23 +121,17 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 				methods[name] = method
 			}
 		}
-		v := m.Version
-		if v == "" {
-			v = packVersion(dir)
-		}
-		if v == "" {
-			v = version.String
-		}
 		data = struct {
 			Description string   `json:"description"`
 			License     string   `json:"license,omitempty"`
-			Version     string   `json:"version"`
+			Version     string   `json:"version,omitempty"`
+			Released    string   `json:"released,omitempty"`
 			Author      string   `json:"author,omitempty"`
 			Homepage    string   `json:"homepage,omitempty"`
 			Docs        string   `json:"docs,omitempty"`
 			Methods     Methods  `json:"methods"`
 			Asks        []string `json:"asks"`
-		}{m.Description, m.License, v, m.Author, m.Homepage, m.Docs, methods, []string{"help", "help-config", "help-secret", "help-json"}}
+		}{m.Description, m.License, m.Version, m.Released, m.Author, m.Homepage, m.Docs, methods, []string{"help", "help-config", "help-secret", "help-json"}}
 		b.WriteString(m.Description + "\n")
 		shared := map[string]Argument{}
 		examples := []string{}
@@ -201,7 +194,14 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 			b.WriteString("\nExamples\n" + strings.Join(examples, "\n") + "\n")
 		}
 		license := strings.ReplaceAll(m.License, "LicenseRef-PolyForm-Strict-1.0.0", "PolyForm Strict")
-		footer := []string{"v" + v}
+		// The agent's own version and release day, from its agent.json only: an agent without them shows neither.
+		footer := []string{}
+		if m.Version != "" {
+			footer = append(footer, "v"+m.Version)
+		}
+		if m.Released != "" {
+			footer = append(footer, "released "+m.Released)
+		}
 		if license != "" {
 			footer = append(footer, license)
 		}
@@ -281,27 +281,4 @@ func writeArgument(b *strings.Builder, prefix, name string, a Argument) {
 		fmt.Fprintf(b, "; default: %s", a.Default)
 	}
 	b.WriteByte('\n')
-}
-
-// packVersion is the agent pack's version for a bundled agent, as its own
-// shared/metadata.py reports it: support/agents/VERSION in a package, or the
-// pack tree's VERSION beside shared/ for an agent run from src/agents/<name>.
-// Any other agent has none and reports the bus version.
-func packVersion(dir string) string {
-	if dir == "" {
-		return ""
-	}
-	path := filepath.Join(dir, "support", "agents", "VERSION")
-	if _, err := os.Lstat(path); err != nil {
-		pack := filepath.Dir(filepath.Clean(dir))
-		if _, err := os.Lstat(filepath.Join(pack, "shared", "metadata.py")); err != nil {
-			return ""
-		}
-		path = filepath.Join(pack, "VERSION")
-	}
-	b, err := ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(b))
 }
