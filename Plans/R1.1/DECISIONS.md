@@ -32,7 +32,8 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Kept-process deployment | [host and sandbox](filescan.md#host-and-sandbox), [DBSync decisions](dbsync.md#decisions) | Owner, 2026-11-05 |
 | DBSync credential boundary | [DBSync decisions](dbsync.md#decisions), [who may use it](dbsync.md#who-may-use-it) | Owner, 2026-11-05 |
 | Q281–Q284, Q286, Q287 IMAP large transfer: chunked calls, bounded staging, caller-built mail, optional hash, base64 windows | [resolved](resolved.md#Q281) | Owner, 2026-11-05 |
-| Q331 The agent pack keeps its own SemVer inside this one repository; Q332 an `agent.d` package may be a link to its checkout | [resolved](resolved.md#Q331) | Owner, 2026-11-05: "we have one monorepo, we just use diff semvers for daemon and agent-pack" |
+| Q332 An `agent.d` package may be a link to its checkout | [resolved](resolved.md#Q332) | Owner, 2026-11-05: "i place symlink; i do git pull there" |
+| Every agent has its own SemVer and a `released` in its `agent.json`; the pack version is only deploy bookkeeping (revises Q331) | [agent versions](agent-versions.md#rules), [AV.1](TODO.md#agent-versions) | Owner, 2026-11-06 |
 | Q333 AI agent images: only `#ai`'s Owner and Maintainers may generate them, stored in `#ai`'s own bigfile record with a 24-hour expiry; reference images by URL or inline | [T-36](TODO.md#ai-agent-methods) | Owner, 2026-11-05: "OK for #ai bigfile" |
 | T-34 backing session: `agent-bus cli` and the Web Face chat use one runner-started `ab-*` tmux session (Codex, Claude Code or OpenCode) in the user-account runner, seeded with bus knowledge and the configured skills | [The backing session](ai-setup.md#the-backing-session) | Owner, 2026-11-03 19:31–19:42 |
 | A calendar agent (CAL.1: add, edit, delete, subscribe, smart queries from a cache) is an R1.1 placeholder; no plan or code until the owner approves one | [CAL.1](TODO.md#calendar) | Owner, 2026-11-03 11:04 |

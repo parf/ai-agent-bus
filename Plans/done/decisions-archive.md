@@ -208,3 +208,9 @@ Superseded by the owner on 2026-11-01 13:58: the [acceptance keeps the role acco
 ## Decision register before documentation cleanup
 
 The [archived register](decisions-register-before-doc-cleanup.md#settled) retains the dated names and rationale from the former public index. Current behavior remains in docs/.
+
+## Agent versions
+
+| Decision topic | Substance | Why |
+|---|---|---|
+| The agent pack keeps its own SemVer inside this one repository (Q331); revised 2026-11-06 | [agent versions](../R1.1/agent-versions.md#rules) | Owner, 2026-11-05: "we have one monorepo, we just use diff semvers for daemon and agent-pack" |

@@ -195,11 +195,27 @@ The recommendations below are retained parked proposals.
 ## Container image tags
 
 - ❓ Q341 Which image tag after a change to the agent pack only (T-39)
-  - Context: the agent pack gets its own version (№Q331). The standing image-push OK names "that commit's VERSION and `latest`"; a change to the agents alone does not change the bus VERSION
+  - Context: the agent pack's version is internal deploy bookkeeping ([№Q331](resolved.md#Q331), revised by [agent versions](agent-versions.md#rules)). The standing image-push OK names "that commit's VERSION and `latest`"; a change to the agents alone does not change the bus VERSION
   - ( ) Keep today's tags: push only when the bus VERSION changes, so agent fixes ship with the next bus bump (several a day) 🌟
   - ( ) Tag `<bus>-agents.<pack>` plus `latest`; never re-push an existing tag ⭐
   - ( ) Re-push the bus tag with the new agents; a tag then no longer names one image
   > 💡👾 Keep today's tags: no new scheme, no change to the standing push OK.
+
+
+## Agent versions
+
+- ❓ Q393 Which version does each bundled agent start with when it gets its own
+  - Context: today every bundled agent but `#rag` (0.4.2) reports the pack's 1.0.4; each `agent.json` gains `version` ([plan](agent-versions.md#rules))
+  - ( ) The pack's current version, 1.0.4; `#rag` keeps 0.4.x; nothing goes backwards 🌟
+  - ( ) 1.0.0 for each, with a note in its changelog ⭐
+  > 💡👾 Start at 1.0.4: a user who saw 1.0.4 never sees a lower number.
+
+- ❓ Q394 What does an external agent with no `version` report
+  - Context: an agent that is not bundled and omits `version`; today it shows the bus version, which is not the agent's ([plan](agent-versions.md#rules))
+  - ( ) Nothing: the field is absent from help and the web page 🌟
+  - ( ) The word `unversioned` ⭐
+  - ( ) The bus version, as today
+  > 💡👾 Report nothing: the bus version describes the daemon, and a made-up value is a false claim.
 
 
 ## Face tool approval

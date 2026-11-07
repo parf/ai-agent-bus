@@ -221,18 +221,25 @@ Owner, 2026-11-02; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [dbsy
   - Depends: an owner plan for approval first (methods, Configuration, which account); alexacli talks to Amazon through an unofficial API, so the Amazon session is the record's Secret and the agent must say when Amazon breaks it
   - Risks to settle in the plan: device commands act in the physical home, so every acting method is `[destructive]` and the allow list stays owner-only by default; credentials and refresh; Linux packaging of the binary (Homebrew on macOS)
 
+## Agent versions
+
+- ⏳ AV.1 Every agent has its own version and release date (owner, 2026-11-06); plan: [agent versions](agent-versions.md#rules). Waits for the owner's answers to [Q393, Q394](QUESTIONS.md#agent-versions)
+  - Builds: `version` and `released` in every bundled `agent.json`; a `CHANGELOG.md` per agent; `deploy-bump.sh` bumps each changed agent once per deploy and writes the pair; `--help`, `--help-json` and the web page show both; the pack fallback and `AGENT_BUS_BUILD_AGENTS_VERSION` go; [the doc edits](agent-versions.md#doc-edits).
+  - Seeding: the first per-agent bump writes `version` and `released` into every `agent.json` at once, in one `#ab-ceo` deploy step, in the same deploy window as the code that adds the check ([first bump](agent-versions.md#first-bump)).
+  - Acceptance: (a) `agent_pack` fails when any agent under `src/agents` lacks `version` or `released`: two mutants, one deleting `version` from one `agent.json` and one deleting `released`, each failing the assertion that names its field; (b) `deploy-bump.sh` sets `released` to the bump's UTC date for every agent it bumps and leaves an unbumped agent's pair alone; (c) the trigger, with two agents A and B: a change only to a `src/agents/shared` file that A declares in `src/smoke-map.json` bumps A and not B; a shared file neither declares bumps neither; a change to the bundled Python client bumps exactly the agents that bundle it; mutant: drop the shared-path lookup, and (c) fails on an assertion; (d) an agent whose `released` is not `YYYY-MM-DD` fails; `--help-json` of two bundled agents reports different versions after a deploy that changed one; an outside agent without them reports neither; a repackage leaves the pair unchanged; the Bun package tests assert the bundle's own pair; `grep -r "support/agents/VERSION"` finds only the pack-marker readers listed in the plan.
+
 ## Agents split
 
 - ⏳ AS.1 Split the daemon and the bundled agents: the bundled agents pack moves to its own repository with its own SemVer (owner, 2026-11-02: "split Daemon and Agents - separate repo & semver for bundled agents pack")
   - Before: one shared version for every program and agent ([versioning](../../CLAUDE.md#versioning)); agents live under `src/agents/` and ship with the daemon
-  - State: the repository question is settled by [Q331](resolved.md#Q331): one repository, separate SemVers for the daemon and the agent pack. Built:
+  - State: the repository question is settled by [Q331](resolved.md#Q331): one repository. The version part of Q331 is revised by [AV.1](#agent-versions): each agent has its own SemVer, the pack's is bookkeeping. Built:
     - The pack's own `src/agents/VERSION` from 1.0.0 and `src/agents/CHANGELOG.md` (`ee19a656`).
     - Agent-only selection: a change only under `src/agents/` runs that agent's checks and the pack contract (`aeef6364`). The gate gives such a landing an agents-only receipt (J117, in the untracked `local/gate.sh`).
     - The pack's PATCH is raised once at deploy by `#ab-ceo` through `deploy-bump.sh --agents-summary`, never by a landing (T-39 `abc512b3`, usage `d45471cd`). Readers: `#ab-w1b`; earlier deltas `#ab-w1b` and `#ab-qa1`.
   - Remaining:
     - ✅ The pack declares the daemon protocols it supports in `src/agents/protocol.json` (the two identity fields, equal to what the bundled clients speak), shipped in every package and the release layout; the runner refuses a pack agent the daemon cannot serve when it loads and reloads, by name, and never checks an agent of the user's own. Each client library's own check at connect remains the second line.
     - Whether a pack-only change gets its own image tag ([Q341](QUESTIONS.md#container-image-tags)).
-  - Superseded by Q331: "its own repository" in the row and in its acceptance.
+  - Superseded by Q331: "its own repository" in the row and in its acceptance. Superseded by AV.1: "its own SemVer" for the pack, and the built pack version above, is deploy bookkeeping only.
   - Depends: an owner-approved plan first: what stays in this repository (daemon, runner, CLI, MCP, clients), which protocol versions the pack declares it works with ([client contract](../../docs/09-daemon-api.md#the-client-contract)), and how install, packaging and the smoke gate change
   - Acceptance: the pack builds, tests and releases from its own repository at its own version; a daemon release with no agent change bumps no agent version; the pack refuses a daemon whose protocol it does not support
 

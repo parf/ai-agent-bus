@@ -264,6 +264,8 @@
   >  we just use diff semvers for daemon and agent-pack
   >
   > 💬👾 → Land the agent pack with its own SemVer inside this one repository: daemon and agent pack keep separate versions.
+  >
+  > 💬 2026-11-06, revised: every agent has its own SemVer and a `released` date; the pack's version stays only as deploy bookkeeping. See [agent versions](agent-versions.md#rules).
 
 <a id="Q332"></a>
 
