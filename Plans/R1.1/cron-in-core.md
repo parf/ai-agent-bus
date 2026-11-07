@@ -36,10 +36,10 @@ Read-only look at the live node, 2026-11-06 14:01 (`sub list`, `later list`, `li
 | 12 | The message is the rest of the line, up to 16384 bytes, unchanged | the same | |
 | 13 | Arrives from `#cron` or `#at`, topic `cron`, `later` or `at`, tag `by <creator>` | arrives from `#bus`, topic always `schedule`, the creator's tag, with `scheduled_by` and `schedule_id` stamped by the daemon; a reply goes to the creator | [№Q380](#q380); the three topics become one |
 | 14 | One attempt per firing; a claimed send is never repeated; an unconfirmed send is dropped as `send_unknown`; an access refusal `admission_refused`; a vanished target `target_gone`; any other refusal `send_refused`; nothing is retried | the same outcome names and warnings | |
-| 15 | The creator must be allowed to send to the target when the entry is added and before every send; lost access drops that copy and the subscription stays | the creator's may-send check, when added and before every firing; a refused firing is skipped, counted and noticed; after X refusals in a row the schedule is disabled | disable after X refusals is new |
+| 15 | The creator must be allowed to send to the target when the entry is added and before every send; lost access drops that copy and the subscription stays | the creator's may-send check, when added and before every firing; a refused firing is skipped, counted and warned; after X refusals in a row the schedule is disabled | disable after X refusals is new |
 | 16 | A new entry must name an existing queue or agent the sender can see | the same | |
 | 17 | Delete or cancel by the creator, or the agent's Owner and Maintainers; lists show your own entries with messages, staff see the others' without | the record's Owner, Maintainers and own Agent manage and see its schedules, as KV | [Q383](#q383) |
-| 18 | Limits: 100 recurring (20 per creator), 1000 pending one-shots (100 per creator) per instance | a node-wide limit of about 10 000 and a smaller per-creator or per-record cap | [Q384](#q384) |
+| 18 | Limits: 100 recurring (20 per creator), 1000 pending one-shots (100 per creator) per instance | per owning record: 100 recurring and 10 000 one-shots | [№Q384](#q384) |
 | 19 | A time to live on each send: to the next slot, at most 24 h; 24 h for a one-shot | the same | |
 | 20 | At most 200 creator-and-target may-send questions a minute, the rest `deferred` | one in-process check per firing, so no deferral rule is needed | the core asks itself, not the daemon over the network |
 | 21 | A slot missed while the instance was down is skipped and counted, a one-shot that fell due is sent once at start | a recipient down is no miss (the queue holds it); the daemon's own downtime follows [Q385](#q385) | |
@@ -54,15 +54,15 @@ The model is KV's ([key-value store](../../docs/03-records-kv.md#key-value-store
 
 | Topic | Idea |
 |---|---|
-| What it is | **One object, a schedule**, belonging to one record, that fires on a recurring expression or once; an *at* is a one-shot cron. **Crons** and **Ats** are two web views of the same object (recurring and one-shot). Every record kind that holds KV can hold schedules ([Q382](#q382)). This is decided (owner, "good idea") |
+| What it is | **One object, a schedule**, belonging to one record, that fires on a recurring expression or once; an *at* is a one-shot cron. **Crons** and **Ats** are two web views of the same object (recurring and one-shot). Agents, queues and pubsubs hold schedules, the kinds that receive messages ([№Q382](#q382)). This is decided (owner, "good idea") |
 | Who creates, sees, deletes | The record's Owner, Maintainers and own Agent, as for KV. An agent manages its own schedules at will, which is the owner's ask. Nobody else sees a schedule, and the daemon says who created it |
 | Who sends | The daemon delivers **from `#bus`**, topic always `schedule`, with `scheduled_by` and `schedule_id` stamped; a reply goes to the creator. A receiver keys on the topic and `scheduled_by`, never on `#bus` alone. Settled: [№Q380](#q380) |
-| Delivery path | A timer in the core claims each due firing in the same transaction that records it, then makes one ordinary send into the destination's queue or inbox, with the message's time to live. **The creator's may-send check runs before every firing and is required**, as in IMAP and FileScan: if the creator may no longer send to the target, that firing is skipped, counted and noticed, and after X refusals in a row the schedule is disabled. Same drop outcomes as today; a refused or unknown send is dropped, never retried |
+| Delivery path | A timer in the core claims each due firing in the same transaction that records it, then makes one ordinary send into the destination's queue or inbox, with the message's time to live. **The creator's may-send check runs before every firing and is required**, as in IMAP and FileScan: if the creator may no longer send to the target, that firing is skipped, counted and warned, and after X refusals in a row the schedule is disabled. Same drop outcomes as today; a refused or unknown send is dropped, never retried |
 | Persistence | Kept in the daemon's database, in backups and the restore gate. A restart repeats no claimed send; a send cut between claim and record is dropped as `send_unknown` as today. A record removed removes its schedules; a transfer keeps them; an inactive record's schedules do not fire and return with it, as for KV |
 | Missed runs | A firing is a queued message, so **a recipient that is down is not a miss**: the message waits in its queue or inbox, within its time to live. Only the daemon's own downtime needs a rule: what a schedule due while the daemon was stopped does at start ([Q385](#q385)). A one-shot that fell due is sent once at start in every case |
 | Rate | **At most one firing a second per schedule:** an interval can be as short as one second and no shorter. Today's five-field expressions keep meaning exactly what they mean now and fire at second 0; seconds are an addition ([Q388](#q388)). A faster need is not for a schedule: write it yourself |
 | Time zones | None: every time is stored and evaluated in UTC and converted only for display. Settled: [№Q386](#q386) |
-| Caps | A reasonable limit of entries, about 10 000 on the node, with a smaller cap for one creator so a single agent cannot fill it; who a cap counts against is [Q384](#q384). Over a cap is refused by name, never dropped silently |
+| Caps | Per owning record: 100 recurring schedules and 10 000 one-shots ([№Q384](#q384)). Over a cap is refused by name, never dropped silently |
 | Tags | Every schedule can be filtered and counted by tag in the web ([Q387](#q387)) |
 | CLI, MCP, clients | **One `schedule` set of calls**, not one for crons and one for ats: add (recurring on an expression, or once at a time or after a delay, with today's forms), list, get, enable, disable, run now, delete. The same words in the CLI, as MCP tools beside `ab_kv_*` and in all six client libraries next to their KV calls. `#cron` and `#at` are removed when the core schedule ships: decided, no proxy |
 | Never | A message to the owning record itself (today's rule), a firing faster than once a second, retries |
@@ -85,9 +85,9 @@ Subsystems from [the map](../subsystems.md). ⚠️ rows get a mutant per bounda
 
 | Step | Letter | What | Acceptance, fixtures only | AI time |
 |---|---|---|---|---|
-| 1 | C ⚠️ | The schedule store: tables, caps, backup, restore gate, removal with the record | a schedule survives restart and restore; a removed record takes its schedules; a transfer keeps them; the 101st over a cap is refused by name; a stored invalid row is set aside, never fired | 1.5 h |
+| 1 | C ⚠️ | The schedule store: tables, caps, backup, restore gate, removal with the record | a schedule survives restart and restore; a removed record takes its schedules; a transfer keeps them; the 101st recurring schedule on one record is refused by name; a stored invalid row is set aside, never fired | 1.5 h |
 | 2 | H | The expression parser in Go, matching `src/agents/shared/cronexpr.py` on every expression valid today, plus the seconds addition | one shared fixture table (expression, zone, start instant, next fire times, refusals) runs against both parsers and agrees on today's expressions; the seconds rows run on the Go parser only; a mutant that changes day-rule or DST handling fails a named row | 1.5 h |
-| 2b | A ⚠️ | The engine: timer, claim, delivery from `#bus`, the creator's required may-send check before every firing, disable after X refusals, the daemon-downtime rule, outcomes, the one-second floor | a firing is claimed once across a restart between claim and send; a creator that lost the right to send skips that firing with its notice, and X refusals in a row disable the schedule; unknown send is dropped and never repeated; a recipient down is not a miss (the message queues); a due one-shot is sent once at start; a one-second schedule fires once a second and never faster; times are UTC end to end | 2.5 h |
+| 2b | A ⚠️ | The engine: timer, claim, delivery from `#bus`, the creator's required may-send check before every firing, disable after X refusals, the daemon-downtime rule, outcomes, the one-second floor | a firing is claimed once across a restart between claim and send; a creator that lost the right to send skips that firing with its warning, and X refusals in a row disable the schedule; unknown send is dropped and never repeated; a recipient down is not a miss (the message queues); a due one-shot is sent once at start; a one-second schedule fires once a second and never faster; times are UTC end to end | 2.5 h |
 | 3 | E | The calls over HTTP with the KV authority rules | a stranger sees and changes nothing; Owner, Maintainer and own Agent do; every refusal of today's agents is the same word | 1 h |
 | 4 | H | CLI verbs and daemon wiring | each of today's `#cron` and `#at` calls maps to one `schedule` verb with the same time forms and the same answers | 1 h |
 | 5 | J | MCP tools beside `ab_kv_*` | the tool contract list matches the CLI; refusals pass through unchanged | 40 min |
@@ -102,7 +102,7 @@ About 15 h of agent wall-clock in all, in that order; steps 3 to 7 can run in pa
 
 - Targets: the creator's own inbox, or any queue or agent the creator may already send to; a schedule gives no new target (owner: "да конечно")
 - Body: required; an empty body is refused at creation (owner: "empty events - путь к ошибкам")
-- Refused firing: skipped, counted and noticed to the creator; after X consecutive refusals the schedule is **disabled** (owner: "после X событий выключал (disable) timer")
+- Refused firing: skipped, counted and warned to the creator; after X consecutive refusals the schedule is **disabled** (owner: "после X событий выключал (disable) timer")
 - Controls: enable (the default) and disable, which replaces pause; run now; firing history; `until` and `max_runs` (owner: "yes - and enable(default)/disable")
 - Max lateness: optional, off by default (owner: "да - good idea")
 - Docs: the schedule is described as core bus functionality, and a receiver keys on topic `schedule` plus `scheduled_by`, not on `#bus` alone (owner: "да - конечно")
@@ -114,12 +114,7 @@ Owner choices, in one place with the plan (the owner: "create separate doc, come
 
 <a id="q379"></a>
 
-- ❓ Q379 Which release builds this
-  - Context: it is internal re-structure of two shipped agents but touches storage and authority (⚠️) and every face; R1.1 has no open scope ([Q136](QUESTIONS.md))
-  - ( ) R1.2 🌟
-  - ( ) R1.1, as an exception ⭐
-  - ( ) R2.0
-  > 💡👾 R1.2: nothing here fixes a bug, the live node has no schedules to protect, and R1.1 is closed to new scope.
+- ✅ Q379 Which release builds this → R1.1, built now. Owner, 2026-11-06 19:20: "now"
 
 <a id="q380"></a>
 
@@ -127,11 +122,7 @@ Owner choices, in one place with the plan (the owner: "create separate doc, come
 
 <a id="q382"></a>
 
-- ❓ Q382 Which records can hold schedules
-  - Context: KV attaches to an agent, queue, pubsub, service, group or a user's own record
-  - ( ) Every record kind that holds KV 🌟
-  - ( ) Agents and users only ⭐
-  > 💡👾 The same set as KV: one rule to learn, and a queue or service can keep its own periodic messages.
+- ✅ Q382 Which records can hold schedules → agents, queues and pubsubs: only the kinds that receive messages. Owner, 2026-11-06 19:20: "actually - agent, queue, pubsub; only ones who can receive message"
 
 <a id="q383"></a>
 
@@ -139,12 +130,7 @@ Owner choices, in one place with the plan (the owner: "create separate doc, come
 
 <a id="q384"></a>
 
-- ❓ Q384 What the cap on entries counts against
-  - Context: the owner: "setup reasonable limit of entries, like 10k". Today 100 recurring (20 per creator) and 1000 one-shots (100 per creator) for one instance
-  - ( ) 10 000 schedules on the node in all, and 100 on any one owning record 🌟
-  - ( ) 10 000 on the node in all, and a smaller cap per creator (1000) so one agent cannot fill it ⭐ (#ab-dir)
-  - ( ) 10 000 on the node and nothing per record or creator
-  > 💡👾 Node and record: a runaway agent stops at its own record, and the owner's 10k stays the ceiling. The second option bounds a creator instead of a record, which matters when one agent creates schedules for many records.
+- ✅ Q384 What the cap on entries counts against → per owning record: 100 recurring schedules and 10 000 one-shots. Owner, 2026-11-06 19:20: "100 for cron / per record; 10k for AT / per record"
 
 <a id="q385"></a>
 
@@ -156,11 +142,7 @@ Owner choices, in one place with the plan (the owner: "create separate doc, come
 
 <a id="q387"></a>
 
-- ❓ Q387 What a tag means on a schedule, a store and a page
-  - Context: the owner asked for tag filtering and counting on KV, Crons and Ats; a KV store has no tags of its own, a record has
-  - ( ) The owning record's tags on all three pages, so one tag vocabulary; a schedule carries no tags of its own 🌟
-  - ( ) The record's tags plus free tags on each schedule, filtered together ⭐
-  > 💡👾 The record's tags: the same filter works on KV, which has nothing else to filter by, and nothing new has to be set on each schedule.
+- ✅ Q387 What a tag means on a schedule, a store and a page → the owning record's tags on KV, Crons and Ats, one vocabulary; a schedule carries no tags of its own. Owner, 2026-11-06 19:20
 
 <a id="q388"></a>
 
@@ -168,24 +150,24 @@ Owner choices, in one place with the plan (the owner: "create separate doc, come
 
 <a id="q389"></a>
 
-- ❓ Q389 What happens to a schedule whose owning name is short-lived
-  - Context: a schedule goes with its record ([№Q383](#q383)); a session or temporary name can be pruned when unused, and its schedules would vanish with it, perhaps unnoticed (#ab-dir)
-  - ( ) It goes with the name, by design; creating one on a temporary name answers with a warning 🌟
-  - ( ) It belongs to the person who owns the record and survives the name ⭐
-  > 💡👾 With the name: one rule, nothing orphaned, and the warning says so at the only moment it matters.
+- ✅ Q389 What happens to a schedule whose owning name is short-lived → it goes with the name, by design; creating one on a temporary name answers with a warning. Owner, 2026-11-06 19:20
 
 <a id="q390"></a>
 
 - ❓ Q390 Which alerts and warnings a schedule raises
-  - Context: the owner: "продумать alerts/warnings". Proposed on the agent events that already exist (T-29), nothing new:
-    - a refused firing: warning to the creator, in its log and as a `schedule` notice
-    - disabled after X refusals: alert to the creator and the record's Owner; red on the web
-    - a catch-up after daemon downtime (`missed`, `late_by`): notice to the creator
-    - skipped for max lateness: warning to the creator
-    - creation refused (cap, empty body, under 1 s): an error in the answer
-    - a record at 80 % of its cap: warning to the creator; the node at 80 % of 10 000: alert to the node owner
-    - deleted with its name; `until` or `max_runs` reached: notice to the record's Owner or the creator
-    - web: disabled by failure in red, disabled by hand in grey, a "has problems" filter on Crons and Ats, counts on the agent page
-  - ( ) This set 🌟
-  - ( ) This set, without the notices (warnings and alerts only) ⭐
-  > 💡👾 This set: every state change a creator would otherwise discover only by missing a message.
+  - Context: the owner: "продумать alerts/warnings", then warnings and alerts only, no notices, then "come with your ideas (checkboxes)". Each goes through the agent events and warning/alert logs that already exist (T-29, `#eventlog`); a warning goes to the creator, an alert also to the record's Owner, a node alert to the node owner
+  - [x] A refused firing (the creator lost may-send, the target is gone): warning to the creator 🌟
+  - [x] Disabled after X refusals in a row: alert to the creator and the record's Owner 🌟
+  - [ ] A send with an unknown outcome, dropped as `send_unknown`: warning to the creator 🌟
+  - [ ] Skipped for max lateness: warning to the creator 🌟
+  - [ ] A record at 80 % of a cap (100 recurring, 10 000 one-shots): warning to the creator 🌟
+  - [ ] An invalid stored schedule set aside at daemon start: alert to the node owner 🌟
+  - [ ] The engine itself running late (firings due more than a minute ago and not yet sent): alert to the node owner 🌟
+  - [ ] A catch-up after daemon downtime: one warning to the node owner per start, with the number of schedules and runs missed, not one per schedule
+  - [ ] A firing whose message expired unread in the target's queue: warning to the creator
+  - [ ] The same target refusing or not reading for N firings while the schedule stays enabled: warning to the creator
+  - [ ] A schedule removed with its short-lived name: warning to the creator, if the creator still exists
+  - [ ] Web: disabled by failure in red, disabled by hand in grey 🌟
+  - [ ] Web: a "has problems" filter on Crons and Ats 🌟
+  - [ ] Web: a problem count on the agent page's Schedules card 🌟
+  > 💡👾 The 🌟 rows: each is a state the creator or the node owner would otherwise find only by missing a message, and none fires on a normal run.
