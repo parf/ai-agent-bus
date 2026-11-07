@@ -124,7 +124,8 @@ class Selection(unittest.TestCase):
 
     def test_version_and_every_root_changelog_are_always_ignored(self):
         for paths in (['src/internal/version/VERSION'], ['CHANGELOG.0.9.md'], ['CHANGELOG.manual.md'],
-                      ['src/agents/VERSION'], ['src/agents/CHANGELOG.md']):
+                      ['src/agents/VERSION'], ['src/agents/CHANGELOG.md'],
+                      ['src/agents/telegram/CHANGELOG.md'], ['src/agents/standalone/git/CHANGELOG.md']):
             p = self.plan(paths)
             self.assertEqual(p['fallback'], 'nothing changed: all fast')
             self.assertEqual(set(p['modes'].values()), {'fast'})
@@ -132,6 +133,11 @@ class Selection(unittest.TestCase):
         p = self.plan(['CHANGELOG.0.9.md', 'src/agents/telegram/config.ts'])
         self.assertEqual(p['checks']['agent_slack'], 'skip')
         self.assertEqual(p['checks']['agent_telegram'], 'normal')
+        # An agent's own changelog is ignored only beside its agent.json, and never hides a real change next to it.
+        p = self.plan(['src/agents/telegram/CHANGELOG.md', 'src/agents/telegram/config.ts'])
+        self.assertEqual((p['checks']['agent_telegram'], p['checks']['agent_slack']), ('normal', 'skip'))
+        p = self.plan(['src/agents/telegram/docs/CHANGELOG.md'])
+        self.assertNotEqual(p['fallback'], 'nothing changed: all fast')
 
     def test_container_image_is_its_own_subsystem(self):
         # The image is release packaging; outside the release run a container

@@ -21,7 +21,8 @@ def prefixes(root):
 
 def ignored(path):
     return (path in ('src/internal/version/VERSION', 'src/agents/VERSION', 'src/agents/CHANGELOG.md')
-            or re.fullmatch(r'CHANGELOG\..*\.md', path) is not None)
+            or re.fullmatch(r'CHANGELOG\..*\.md', path) is not None
+            or re.fullmatch(r'src/agents/(standalone/)?[^/]+/CHANGELOG\.md', path) is not None)
 
 
 def changed(root):

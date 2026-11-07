@@ -23,8 +23,6 @@ PACKAGE.mkdir(parents=True)
 SHARED = ROOT / "agents" / "shared"
 SHARED.mkdir()
 (SHARED / "metadata.py").write_bytes((HERE.parents[1] / "shared" / "metadata.py").read_bytes())
-# metadata.py reports the agent pack's version, from agents/VERSION beside shared/.
-(ROOT / "agents" / "VERSION").write_bytes((HERE.parents[1] / "VERSION").read_bytes())
 SCRIPT = PACKAGE / "host facts.py"
 SCRIPT.write_bytes((HERE / "server-info.py").read_bytes())
 SCRIPT.chmod(0o700)
