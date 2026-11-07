@@ -30,7 +30,7 @@ func checkoutCronTree(t *testing.T) (string, string) {
 			t.Fatal(err)
 		}
 	}
-	// The agents read the pack's own version beside them (src/agents/VERSION).
+	// The pack's marker file sits beside the agents (src/agents/VERSION); each agent reports the version in its own agent.json.
 	if err := os.MkdirAll(filepath.Join(src, "agents"), 0o755); err != nil {
 		t.Fatal(err)
 	}
