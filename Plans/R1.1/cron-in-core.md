@@ -154,20 +154,8 @@ Owner choices, in one place with the plan (the owner: "create separate doc, come
 
 <a id="q390"></a>
 
-- ❓ Q390 Which alerts and warnings a schedule raises
-  - Context: the owner: "продумать alerts/warnings", then warnings and alerts only, no notices, then "come with your ideas (checkboxes)". Each goes through the agent events and warning/alert logs that already exist (T-29, `#eventlog`); a warning goes to the creator, an alert also to the record's Owner, a node alert to the node owner
-  - [x] A refused firing (the creator lost may-send, the target is gone): warning to the creator 🌟
-  - [x] Disabled after X refusals in a row: alert to the creator and the record's Owner 🌟
-  - [ ] A send with an unknown outcome, dropped as `send_unknown`: warning to the creator 🌟
-  - [ ] Skipped for max lateness: warning to the creator 🌟
-  - [ ] A record at 80 % of a cap (100 recurring, 10 000 one-shots): warning to the creator 🌟
-  - [ ] An invalid stored schedule set aside at daemon start: alert to the node owner 🌟
-  - [ ] The engine itself running late (firings due more than a minute ago and not yet sent): alert to the node owner 🌟
-  - [ ] A catch-up after daemon downtime: one warning to the node owner per start, with the number of schedules and runs missed, not one per schedule
-  - [ ] A firing whose message expired unread in the target's queue: warning to the creator
-  - [ ] The same target refusing or not reading for N firings while the schedule stays enabled: warning to the creator
-  - [ ] A schedule removed with its short-lived name: warning to the creator, if the creator still exists
-  - [ ] Web: disabled by failure in red, disabled by hand in grey 🌟
-  - [ ] Web: a "has problems" filter on Crons and Ats 🌟
-  - [ ] Web: a problem count on the agent page's Schedules card 🌟
-  > 💡👾 The 🌟 rows: each is a state the creator or the node owner would otherwise find only by missing a message, and none fires on a normal run.
+- ✅ Q390 Which alerts and warnings a schedule raises → all of the following, through the existing agent events and warning/alert logs (T-29, `#eventlog`); no notices. Owner, 2026-11-06 19:12: every item ticked and the 🌟 rows agreed, "agree"
+  - Warnings to the creator: a refused firing; a send dropped as `send_unknown`; skipped for max lateness; a record at 80 % of a cap; a message that expired unread in the target's queue; the same target refusing or not reading for N firings while the schedule stays enabled; a schedule removed with its short-lived name, if the creator still exists
+  - Alert to the creator and the record's Owner: disabled after X refusals in a row
+  - To the node owner: an invalid stored schedule set aside at daemon start (alert); the engine running late, firings due more than a minute ago and not yet sent (alert); one catch-up warning per daemon start with the number of schedules and runs missed
+  - Web: disabled by failure in red, disabled by hand in grey; a "has problems" filter on Crons and Ats; a problem count on the agent page's Schedules card
