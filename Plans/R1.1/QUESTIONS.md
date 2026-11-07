@@ -218,6 +218,48 @@ The recommendations below are retained parked proposals.
   > 💡👾 Report nothing: the bus version describes the daemon, and a made-up value is a false claim.
 
 
+## Agent images
+
+- ❓ Q395 Where does an agent's image live
+  - Context: a bigfile follows the record's visibility, so whoever sees the agent sees the image, but it expires and is put again by the agent ([lifetime](agent-images.md#rules)). The record's key-value store never expires but is read only by the Owner, Maintainers and the agent, so ordinary viewers would see no image
+  - ( ) The record's bigfile, put again under its lifetime rule 🌟
+  - ( ) The record's key-value store, no refresh, visible to its readers only ⭐
+  - ( ) The web's own cache; nothing on the record
+  > 💡👾 The bigfile keeps who may see it right; the key-value store is simpler but hides the picture from most users.
+
+- ❓ Q396 When does an agent's generated image get made
+  - Context: through `#ai`'s `agent-image` method and its image model (Gemini 3.1 Flash Image, [№Q354](resolved.md#Q354)), paid from the production key, at most 1 a minute and 50 a day ([cost](agent-images.md#cost-and-size))
+  - ( ) When an agent first appears with no image, plus a Regenerate button for the Owner and Maintainers 🌟
+  - ( ) Only when the Owner or a Maintainer presses Generate ⭐
+  > 💡👾 First appearance plus Regenerate gives every agent a picture; the button alone costs nothing unless someone asks.
+
+- ❓ Q397 Who may call `#ai`'s `agent-image`
+  - Context: the method is allowed by a label in `#ai`'s ACL, each picture is paid from the production key, at most 50 a day; the default list is `#ai`'s Owner and their agents, who generate automatically. An outside agent's owner can use Regenerate only if `#ai`'s Owner adds them ([spend gate](agent-images.md#identity-and-spend))
+  - ( ) `#ai`'s Owner and their agents 🌟
+  - ( ) Anyone, within the daily cap ⭐
+  - ( ) Nobody
+  > 💡👾 `#ai`'s Owner and their agents: no stranger spends the key by registering, and the Owner can add anyone later.
+
+- ❓ Q398 How are our own agents' pre-generated images shown
+  - Context: 24 images generated once in the house style, reviewed by you, committed into each agent's folder; nothing is generated until you OK the count and cost ([cost](agent-images.md#cost-and-size))
+  - ( ) Ordinary images, no mark 🌟
+  - ( ) Marked "AI" like generated ones ⭐
+  > 💡👾 Ordinary images: you reviewed them and they ship with the code, so the mark would say nothing true.
+
+- ❓ Q400 What style do generated images follow
+  - Context: the prompt is the agent's name and description; Q399 is not a question here: that number appears only in git history, so the set skips it
+  - ( ) One house style for every image, fixed in the prompt 🌟
+  - ( ) Free per prompt ⭐
+  > 💡👾 One style: the list looks like a set, and the same prompt reproduces an image.
+
+- ❓ Q401 What if the image model cannot return a 512×512 picture
+  - Context: nothing in the pack scales images and `#ai` returns only a picture within the caps, 256 KiB and 512×512; a picture the provider returns and `#ai` refuses is still paid; the repository does not show which sizes Gemini 3.1 Flash Image returns ([plan](agent-images.md#rules))
+  - ( ) `#ai` asks for the smallest size the model offers and returns nothing larger than the caps; the agent keeps the placeholder 🌟
+  - ( ) Raise the caps for generated images, for example to 1024×1024 within 256 KiB ⭐
+  - ( ) Let `#ai` scale with an image library, which needs [an approved dependency](../../src/MODULES.md#external-tools)
+  > 💡👾 Keep the caps and the placeholder: a picture that does not fit is no reason to add a dependency or loosen the rule.
+
+
 ## Face tool approval
 
 - ❓ Q342 Should OpenCode ask before the bigfile file tools, like Claude and Codex
