@@ -101,6 +101,23 @@ class Links(unittest.TestCase):
                                  '[one](#h) [two](#h-1)\n\n## H\n\n## H\n')
         self.assertEqual(self.problems(), [])
 
+    def test_a_commit_made_straight_on_main_is_invisible_to_main_but_not_to_an_explicit_base(self):
+        self.git('checkout', '-q', 'main')
+        self.write('Plans/b.md', '# B\n\nthe section is gone.\n')
+        self.git('commit', '-qam', 'cut b on main')   # the 19c1b446 shape: no branch, no gate
+        self.assertEqual(self.problems(), [])
+        self.assertEqual(self.problems(base='HEAD~1'), [('Plans/a.md', 'b.md#part', 'no such anchor')])
+
+    def test_an_anchor_renamed_inside_its_file_is_the_same_loss_as_a_removed_one(self):
+        self.write('Plans/b.md', '# B\n\n## Parts\n\ntext\n')
+        self.assertEqual(self.problems(), [('Plans/a.md', 'b.md#part', 'no such anchor')])
+        self.write('Plans/b.md', '# B\n\n## Parts\n\n<a id="part"></a>\n\ntext\n')
+        self.assertEqual(self.problems(), [])
+
+    def test_a_bad_base_or_argument_is_refused(self):
+        self.assertEqual(cl.main(['--base=no-such-revision-xyz']), 2)
+        self.assertEqual(cl.main(['Plans/a.md']), 2)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -10,6 +10,9 @@ changes and the untracked files, as check-markers.py does) and reports two thing
   - a link, in ANY Markdown file of the tree, to a path the change moved or deleted.
 
   python3 src/check-links.py              the real tree; exit 1 and the links when one is broken
+  python3 src/check-links.py --base=REV   the same against REV instead of main: a commit made straight on main
+                                          has an empty diff against main, so check it after the fact with
+                                          --base=<its parent>
 
 Skipped: links with a scheme (https:, mailto:), absolute paths, anything inside a fenced code block or a code
 span, and an anchor on a target that is not Markdown. An anchor is a heading slug as GitHub makes it, with
@@ -111,10 +114,10 @@ def tracked_markdown(root):
     return {n for n in names if n.endswith('.md') and (root / n).is_file()}
 
 
-def check(root=ROOT, inbound=True):
+def check(root=ROOT, inbound=True, base=None):
     """Problems as (file, line, link, why), sorted."""
     root = Path(root)
-    base = git(root, 'merge-base', 'main', 'HEAD').strip() or 'HEAD'
+    base = base or git(root, 'merge-base', 'main', 'HEAD').strip() or 'HEAD'
     changed, gone = changes(root, base)
     cache = {name: anchors((root / name).read_text(errors='replace')) for name in changed}
     # Archiving a section can leave its file in place. Check only anchors this
@@ -148,7 +151,16 @@ def check(root=ROOT, inbound=True):
 
 
 def main(argv):
-    problems = check()
+    base = None
+    for arg in argv:
+        if not arg.startswith('--base='):
+            print('usage: check-links.py [--base=<rev>]', file=sys.stderr)
+            return 2
+        base = arg[7:]
+        if not git(ROOT, 'rev-parse', '--verify', '--quiet', base + '^{commit}').strip():
+            print('check-links: no such revision: ' + base, file=sys.stderr)
+            return 2
+    problems = check(base=base)
     for source, number, link, why in problems:
         print('%s:%d: %s -> %s' % (source, number, link, why))
     if problems:
