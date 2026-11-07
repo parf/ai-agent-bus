@@ -14,8 +14,8 @@ Owner decisions, 2026-11-06: every agent has its own SemVer; agents gain a `rele
 | Where | `version` and `released` in the agent's `agent.json`, next to `description`, `license`, `author`, `homepage`, `docs` |
 | Start | every bundled agent starts at 1.0.0, with a note in its changelog; the pack was never deployed to a user, so the step back is safe; `#rag` keeps its app line, 0.4.x ([№Q393](resolved.md#Q393)) |
 | Changelog | `CHANGELOG.md` beside each `agent.json`, newest first; `#ab-ceo` writes the entry at deploy (`#rag` has one already) |
-| PATCH | rises once per deploy, by `#ab-ceo` through `deploy-bump.sh`, when anything the agent ships changed since its own last bump commit; MINOR and MAJOR follow the usual rules |
-| Last bump | the newest commit in `git log` of that `agent.json` that changed `version`; no state file |
+| PATCH | rises once per deploy, by `#ab-ceo` through `deploy-bump.sh`, when anything the agent ships changed since the last deploy-bump commit; MINOR and MAJOR follow the usual rules |
+| Last bump | the newest deploy-bump commit (`Version X.Y.Z`): an agent is bumped when what it ships changed since it last shipped; its tests, help goldens and `CHANGELOG.md` do not count, at any depth; no state file |
 | What an agent ships | its folder; the `src/agents/shared` files it declares in `src/smoke-map.json` (its `agent_<name>` paths); the bundled Python client `src/clients/python/agent_bus` when its package bundles it, declared the same way |
 | `released` | the UTC day (`YYYY-MM-DD`) the agent's version was bumped, written by the same `deploy-bump.sh` step and commit as `version`; they move as a pair; never the build or package time, so a repackage or rebuild leaves it alone |
 | First value | written by the first per-agent bump; none is back-filled |
