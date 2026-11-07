@@ -677,6 +677,20 @@
           "protocol_test.py",
           "-v"
         ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents",
+          "-p",
+          "agent_versions_test.py",
+          "-v"
+        ]
       }
     ],
     "mcp_rpc": [
