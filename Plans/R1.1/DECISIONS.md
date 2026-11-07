@@ -21,6 +21,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Q359 `#rag` rerank stays off until mdhouse asks for it | [resolved](resolved.md#Q359) | Owner, 2026-11-06 |
 | Q356 New keys from the owner replace the dead ones; old key backups deleted | [resolved](resolved.md#Q356) | Owner, 2026-11-06 |
 | Q393 Every bundled agent starts its own version at 1.0.0, with a changelog note; `#rag` keeps its app line | [resolved](resolved.md#Q393) | Owner, 2026-11-07 |
+| Q394 An outside agent with no `version` shows none: the field is absent from help and the web | [resolved](resolved.md#Q394) | Owner, 2026-11-07 |
 | Q5 moved to R1.3 | [R1.3 decisions](../R1.3/DECISIONS.md#recorded-decisions) | |
 | Q339 `#imap` keeps the per-delivery subscription check; only `#eventlog` and `#logwatch` check at creation | [resolved](resolved.md#Q339) | Owner, 2026-11-06 |
 | Q336 The root runner (RT19) replaces the standalone starter; a default policy that protects other agents' data is wanted for it and for a user's runner | [resolved](resolved.md#Q336), [root runner](root-runner.md#what-the-starter-is-today) | Owner, 2026-11-06: "replaced it" |

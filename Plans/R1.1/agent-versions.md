@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** every bundled agent but `#rag` reports the pack's version (1.0.4), so a user cannot tell which agent changed or when.
 - **Outcome:** each agent has its own SemVer and its own `released`, shown in `--help`, `--help-json` and its web page; the pack version stays only as deploy bookkeeping.
-- **Start:** [the rules](#rules), then [the readers](#every-reader-of-the-pack-version) and [the doc edits](#doc-edits). Task: [AV.1](TODO.md#agent-versions). Owner choices: [Q393, Q394](QUESTIONS.md#agent-versions).
+- **Start:** [the rules](#rules), then [the readers](#every-reader-of-the-pack-version) and [the doc edits](#doc-edits). Task: [AV.1](TODO.md#agent-versions). Owner choices, settled: [№Q393](resolved.md#Q393), [№Q394](resolved.md#Q394).
 
 Owner decisions, 2026-11-06: every agent has its own SemVer; agents gain a `released` beside it ([decision](DECISIONS.md#recorded-decisions)). This replaces [Q331](resolved.md#Q331), which kept one version for the pack.
 
@@ -20,14 +20,14 @@ Owner decisions, 2026-11-06: every agent has its own SemVer; agents gain a `rele
 | `released` | the UTC day (`YYYY-MM-DD`) the agent's version was bumped, written by the same `deploy-bump.sh` step and commit as `version`; they move as a pair; never the build or package time, so a repackage or rebuild leaves it alone |
 | First value | written by the first per-agent bump; none is back-filled |
 | Users see | `version` and `released` in `--help`, `--help-json` and the web agent page, never the pack version |
-| Missing | every bundled agent under `src/agents` carries both `version` and `released`; `agent_pack` fails when any lacks either, and the pack fallback goes ([one interface](../../CLAUDE.md#working-rules)). "Absent shows nothing" applies only to outside agents: an agent that is not bundled and has no `released` shows no date, with no placeholder or fallback; its missing `version` is [Q394](QUESTIONS.md#agent-versions) |
+| Missing | every bundled agent under `src/agents` carries both `version` and `released`; `agent_pack` fails when any lacks either, and the pack fallback goes ([one interface](../../CLAUDE.md#working-rules)). "Absent shows nothing" applies only to outside agents: an agent that is not bundled and has no `released` shows no date, with no placeholder or fallback; a missing `version` likewise shows nothing, never the bus version ([№Q394](resolved.md#Q394)) |
 | Pack version | `src/agents/VERSION` and `src/agents/CHANGELOG.md` stay as internal deploy bookkeeping: they mark a package as the pack's and name what a deploy carried; no user surface shows them |
 
 ## First bump
 
 The `agent_pack` check is red until every agent has both fields, so the first per-agent bump seeds `version` (1.0.0, [№Q393](resolved.md#Q393)) and `released` (that deploy's UTC date) in **every** `agent.json` at once, changed or not. It is one `#ab-ceo` deploy step: `deploy-bump.sh` run in its seeding form writes all agents, in the same commit and deploy window as the code change that adds the check. Later bumps touch only changed agents.
 
-The Go (`agentmeta`) and web change is a later code task, after the owner's OK on [Q393, Q394](QUESTIONS.md#agent-versions).
+The Go (`agentmeta`) and web change is a later code task, after the owner's OK on the plan; [№Q393](resolved.md#Q393) and [№Q394](resolved.md#Q394) are settled.
 
 ## Every reader of the pack version
 

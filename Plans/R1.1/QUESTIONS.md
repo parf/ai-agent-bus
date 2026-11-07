@@ -206,12 +206,7 @@ The recommendations below are retained parked proposals.
 
 - ✅ Q393 → [№Q393](resolved.md#Q393)
 
-- ❓ Q394 What does an external agent with no `version` report
-  - Context: an agent that is not bundled and omits `version`; today it shows the bus version, which is not the agent's ([plan](agent-versions.md#rules))
-  - ( ) Nothing: the field is absent from help and the web page 🌟
-  - ( ) The word `unversioned` ⭐
-  - ( ) The bus version, as today
-  > 💡👾 Report nothing: the bus version describes the daemon, and a made-up value is a false claim.
+- ✅ Q394 → [№Q394](resolved.md#Q394)
 
 
 ## Agent images

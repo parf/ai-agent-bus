@@ -534,3 +534,14 @@
   > 💬 👤parf (in chat to #ab-ceo, 2026-11-07 ~13:25): "Q393 - 1.0.0 (we never deployed our packs, so can do rollback)"
   >
   > 💬👾 → every bundled agent starts at 1.0.0 with a changelog note; `#rag` keeps its own app line (0.4.x, [versioning](../../CLAUDE.md#versioning)).
+
+<a id="Q394"></a>
+
+- ✅ Q394 What does an external agent with no `version` report
+  - Context: an agent that is not bundled and omits `version`; today it shows the bus version, which is not the agent's ([plan](agent-versions.md#rules))
+  - (x) Nothing: the field is absent from help and the web page 🌟
+  - ( ) The word `unversioned` ⭐
+  - ( ) The bus version, as today
+  > 💡👾 Report nothing: the bus version describes the daemon, and a made-up value is a false claim.
+  >
+  > 💬 👤parf (in chat to #ab-ceo, 2026-11-07 ~13:27): "Q394 - yes, no version - what we can do :) - show nothing"
