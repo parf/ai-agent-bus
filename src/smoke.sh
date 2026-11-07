@@ -428,6 +428,9 @@ ok_exit "node cleanup attribution, retention and observation" "$rc"
 out=$(bash ./git-install-runners.test.sh 2>&1); rc=$?
 ok_exit "git-install restarts each active root-account runner once, and only those" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(bash ./git-install-agents.test.sh 2>&1); rc=$?
+ok_exit "git-install try-restarts only marked standalone units and names stale user-runner pack packages (J128)" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(bash ./git-install-logrotate.test.sh 2>&1); rc=$?
 ok_exit "git-install leaves one log rotation rule for the daemon logs, the tracked one" "$rc"
 [ "$rc" = 0 ] || echo "$out"

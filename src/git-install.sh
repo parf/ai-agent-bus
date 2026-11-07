@@ -139,6 +139,10 @@ echo "$unit restarted from the checkout"
 # fix to its sandbox or limits reaches a running one (an in-flight call can fail).
 "$src/git-install-runners.sh" ||
     echo "warning: some runner instances did not restart; in each affected instance run: systemctl restart agent-bus-runner@<person>.service" >&2
+# Standalone agent units run from the checkout too, so a running one restarts; a
+# person's user-runner pack packages are copies, named here when they are stale.
+"$src/git-install-agents.sh" ||
+    echo "warning: some standalone agents or user-runner packages are not on this checkout; see the lines above" >&2
 # A person's user-account runner restarts on the new runner and template
 # (docs/07-setup.md#a-persons-user-account-runner); their tmux sessions stay.
 if [ -f /etc/systemd/user/agent-bus-runner.service ]; then
