@@ -516,7 +516,7 @@ class KilledRun(unittest.TestCase):
 
 @unittest.skipUnless(subprocess.run(['which', 'podman'], capture_output=True).returncode == 0, 'podman is not installed')
 class Journal(unittest.TestCase):
-    """A real fixture container writes nothing to the host journal (.claude/docs/testing.md#host-limits: normal runs write nothing there; J32)."""
+    """A real fixture container writes nothing to the host journal (CLAUDE.md: normal runs write nothing there; J32)."""
     def count(self, *match):
         out = subprocess.run(['journalctl', '--user', '-q', '-o', 'cat', *match], capture_output=True, text=True)
         return len(out.stdout.splitlines())

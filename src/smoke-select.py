@@ -85,7 +85,7 @@ def plan(root, mode, targets='', paths=None):
                 todo.append(target)
     # The agent pack has its own tests and version: a change inside it runs
     # only the checks that own a changed path, never the daemon's or another
-    # agent's (.claude/docs/testing.md § agent shards).
+    # agent's (CLAUDE.md § verification).
     agents_only = not targets and not fallback and 'L' in direct and set(direct) <= set('LNOP')
     modes = {c: mode if c in promoted and not fallback.startswith('nothing changed') else 'fast' for c in ALL}
     levels = {}
@@ -110,7 +110,7 @@ def plan(root, mode, targets='', paths=None):
     if any(level in ('normal','slow') for check,level in levels.items() if check.startswith('core_')):
         for check in levels:
             if check.startswith('core_') and levels[check] == 'skip': levels[check] = 'fast'
-    # Release packaging runs only in the release run (.claude/docs/testing.md § gate sets);
+    # Release packaging runs only in the release run (CLAUDE.md § verification);
     # outside it a release check keeps at most its fast allowlist.
     if not (mode == 'slow' and targets == 'all'):
         for check in config.get('release', {}):
