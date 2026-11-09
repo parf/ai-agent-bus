@@ -6,7 +6,7 @@ require (
 	github.com/elastic/go-seccomp-bpf v1.6.0
 	github.com/erikdubbelboer/gspt v0.0.0-20190125194910-e68493906b83
 	github.com/klauspost/compress v1.20.0
-	golang.org/x/net v0.41.0
+	golang.org/x/net v0.55.0
 	golang.org/x/sys v0.47.0
 	modernc.org/sqlite v1.59.0
 )
