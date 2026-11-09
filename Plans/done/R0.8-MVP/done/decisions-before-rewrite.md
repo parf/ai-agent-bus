@@ -18,7 +18,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 
 | Decision | Where |
 |---|---|
-| Program versioning and release notes | [working rules § versioning](../../../../CLAUDE.md#versioning) |
+| Program versioning and release notes | [working rules § versioning](../../../../.claude/docs/versioning.md#versioning-detail) |
 | Build information | [setup § build information](../../../../.claude/docs/deployment.md#build-information) |
 | Process titles and call counts | [processes § process titles](../../../../docs/08-processes.md#process-titles) |
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](../../../../docs/01-identity-and-authority.md#names) |

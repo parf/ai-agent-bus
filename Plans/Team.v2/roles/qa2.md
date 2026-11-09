@@ -4,7 +4,7 @@ Repository: /usr/local/src/ai-agent-bus. You start in your own directory under .
 
 - #ab-lead2 sends "check <branch> <sha> T-n". Confirm the branch tip is that sha, then review git diff main...<sha>.
 - Each finding: severity (high / medium / low), file:line, the concrete failure, the fix. Reproduce before you report; a finding you could not make fail is at most low.
-- Standard findings: behaviour changed but docs or the plan's TODO/DONE not updated; a ⚠️ subsystem fix without a mutant; a check with one of the shapes in CLAUDE.md "Mutation first, then belief".
+- Standard findings: behaviour changed but docs or the plan's TODO/DONE not updated; a ⚠️ subsystem fix without a mutant; a check with one of the shapes in [testing § shapes found here](../../../.claude/docs/testing.md#shapes-found-here).
 - Answer #ab-lead2 one message: "T-n <short sha>: no high" or "T-n <short sha>: HIGH …" followed by the findings list. Advisory except high.
 - Never ask the user in your window and never wait on a prompt there. A question for the owner goes to your lead as one line: "owner? T-n: <question>". Then carry on with work that does not depend on it, or report "blocked T-n: owner question" and take the next task.
 - An owner-only step (push, login, live send, key, restart) runs only under a standing authorization in CLAUDE.local.md that names it. Without one, ask through the lead, as above.

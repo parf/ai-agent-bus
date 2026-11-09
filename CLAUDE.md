@@ -38,72 +38,20 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 
 ## Verification
 
-A code change lands after `src/smoke.sh --normal` is green: normal checks for changed subsystems, fast checks for every other subsystem, in parallel. The target is under 60 seconds, with a two-minute ceiling. No flag (alias `--fast`) runs fast checks for touched subsystems and is NOT A LANDING GATE. Bare `--slow` derives the changed subsystems for a huge change and runs those at slow, with the rest at fast; a release or STABLE commit uses `--slow all`. Explicit overrides are `--normal A,F` and `--slow L`. Release packaging runs only in the release run: the checks in `src/smoke-map.json` `release` (archives, cross-builds, the container image, distro installs) are selected only by `--slow all`.
-
-Selection uses the worktree diff against main, including staged and untracked files. In the main checkout on main this is the uncommitted pre-commit diff; a clean or ignored-only tree prints "nothing changed: all fast" and "NOT A LANDING GATE". Selection uses the path letters in [the subsystem map](Plans/subsystems.md), and reverse dependencies in `src/smoke-map.json`. Shared test/build dependencies or unmapped paths promote every subsystem to the requested set. Selection always ignores `src/internal/version/VERSION`, `src/agents/VERSION`, `src/agents/CHANGELOG.md` and root `CHANGELOG.*.md`, whether generated or manual. The output names the set and reason for each subsystem. Fast checks use explicit essential-operation allowlists in that map; they can overlap normal. A fast candidate over 15 seconds fails with a report and must be narrowed, never given a bigger budget. Normal retains its regression and security checks; slow-set moves require proving the same production mutant fails a faster normal check.
-
-A check that goes green only on the gate's rerun is quarantined in the `quarantine` key of `src/smoke-map.json`, by Go test name or assertion title, with its open J-item; a ⚠️ test is filed for its lead instead. Fast and normal skip an entry and print a counted `QUARANTINED` line; slow runs it; go_checks fails an entry whose J is closed, so the fix removes it. `src/smoke-quarantine.py` owns these rules.
-
-The agent shards live in `src/agents/smoke.sh`, and each agent names the shared files it uses:
-
-| Diff | Agent checks |
+| Rule | |
 |---|---|
-| Only inside `src/agents/`, with prose at most | The checks that own a changed path, plus `agent_pack`, the pack contract; every other check is skipped. An agent file no check owns runs every agent check |
-| Any other | Like every subsystem: an agent shard tagged with a changed letter, or a reverse dependency of one, runs at the requested set, the rest at fast |
+| Landing | `src/smoke.sh --normal` green; no flag (`--fast`) is NOT A LANDING GATE; `--slow` for huge changes and `--slow all` for a release ([sets](.claude/docs/testing.md#gate-sets)) |
+| Docs only | `src/check-links.py`; no runtime gate and no version bump for prose |
+| Lock | Before a normal, slow or mutant run, take the `slow` lock on `smoke-gate@parf.us` first, alone, under your own bus name via MCP `ab_lock`, never the `parf` CLI; `parf` holds only for `#ab-gate` and the owner. A hold you did not just take is not yours: wait; never extend, release or run under it ([the gate lock](.claude/docs/testing.md#the-gate-lock)) |
+| Codex | Codex workers never run normal or slow smoke; they run only focused tests and mutants ([who runs what](.claude/docs/testing.md#who-runs-what)) |
 
-Normal and fast runs write nothing to the host journal or syslog; systemd's own one-line scope notice for a `systemd-run --scope` the check starts is not our output and is allowed (Q327). Smoke caps Go at `GOMAXPROCS=6` and `-p 4` and cargo at 4 jobs, and builds the client fixture once; `SMOKE_CPU_PERCENT=<n>` adds an optional whole-run CPU quota (default off). A normal over all subsystems measured 95 s at peak load 21 on 24 cores (2026-11-02). Normal and fast fixtures must not provoke kernel OOM kills or PID-controller rejections. Read the configured limits from a live agent’s cgroup in normal; deliberate over-limit enforcement belongs only to slow.
-
-Prove each behavioural fix can fail ([below](#mutation-first-then-belief)); reproduce review findings before accepting them. Documentation-only changes need path/anchor and scope/status checks (`src/check-links.py` reads every link in the changed files and every link, in any file, to a path the change moved or deleted), without a version bump or runtime gate solely for prose.
-
-Workers take every smoke or mutant lock under their own bus name via MCP `ab_lock`, never the `parf` CLI; `parf` holds only for `#ab-gate` and the owner. A hold you did not just take is not yours: wait; never extend, release or run under it.
-
-Claude workers run `smoke.sh` from their session shell as-is, keeping `AGENT_BUS_SESSION_FILE`: it checks their identity before clearing the session itself.
-
-Codex shells stay identity-less: Codex workers never run normal or slow smoke; they run only focused tests and mutants, taking required locks through MCP under their own bus name. Hand-run focused test commands keep `env -u AGENT_BUS_SESSION_FILE -u AGENT_BUS_TOKEN`.
-
-Before any normal, `--slow`, or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; a hand-run suite or mutant run beyond one focused test takes that lock under the worker's own bus name; focused non-mutant checks need no lock. This resource record (`lock://smoke-gate`) is owned by `parf`; `#ab-gate` takes it as `parf` for every landing, and its Maintainers are the workers `#ab-w1a..c` and `#ab-w2a..c` for their mutant runs ([Team v2](Plans/Team.v2/README.md#roles)). If absent, its Owner registers it and grants those Maintainers before gates run.
-
-Normal and slow smoke runs, including hand-run shards, refuse when the caller does not hold that lock. Marked children reuse their driver's check. This prevents accidental unlocked runs; it is not a security boundary: deliberately exporting `SMOKE_CHILD_SHARD`, `SMOKE_CHILD_PLAN` and `SMOKE_PLAN` for an existing plan file can bypass it.
-
-No agent holds or reserves the lock for a chain of future gates. Release it
-before deployment. A small fix gets the next slot after the active gate.
+Selection, quarantine, agent shards and host limits: [testing](.claude/docs/testing.md#testing-and-the-gate).
 
 ### Mutation first, then belief
 
-**A green check is evidence of nothing until it has been seen to fail**, and a
-mutant credited by a build failure takes no credit — it must compile and fail on
-an assertion.
-
-| Change | Proof it can fail |
-|---|---|
-| A new check, or a fix in a ⚠️ subsystem of [the subsystem map](Plans/subsystems.md) (authority, tokens, storage, parsers, runner, install) | a mutant: break the fix, watch the named check fail on an assertion, restore |
-| Any other behaviour fix | the check fails on the code before the fix and passes after; no mutant |
-| Docs, text or Configuration only | none |
-
-A mutant runs only the test that owns its check, never a whole gate; one
-normal gate on the final tree follows.
-
-Every shape below was actually found in this repository:
-
-| Shape | The check that had it |
-|---|---|
-| taking the sender's word for a delivery | `ab_reply` said it replied; the routing was nonsense |
-| counting nothing | a doubled delivery passed a check that only looked at the last one |
-| grepping output that is non-empty either way | `$(cmd; echo -n nothing)` contains *nothing* whatever `cmd` did |
-| grepping a word the success answer also contains | a refused receipt and an accepted one both say `receipt` |
-| exercising a different path than the one it names | a *waiting reader* check whose inbox still held a message never blocked, so it measured the queued path twice |
-| leaning on the refusal to end the command | `agent-bus run` exits when refused and runs forever when not, so removing the refusal hung the check instead of failing it — bound anything whose success does not return |
-| signalling the wrong process | `f() { ...; } &` backgrounds a subshell, so the service never got the signal |
-| asking a dead process what it left behind | an orphan is reparented to init the moment its parent dies, so `pgrep -P <that parent>` is empty however badly it left — take the pids *before* the kill |
-| matching a class name in the inline stylesheet | every page carries the stylesheet, so assert the element form |
-| asserting an identity is absent from a listing | the signed-in name is in the page header, so assert the listing's own row |
-| a refusal aimed at a subject that does not exist | `/subscribe` was refused for the *caller* being unregistered, so the check passed whichever field the daemon read |
-| a presence check against a paginated listing | the listing is paginated, so it passed or failed on where the name sorted — narrow it with `?q=<name>` |
-
-**Naming a shape does not remove it.** Sweep for repeats as part of the fix, not
-as a later tidy. A mutant that survives because its check was skipped or
-filtered out is the worst kind of green: name the test that failed. `src/smoke.sh`
-is read by byte offset while it runs — never edit it mid-run.
+- A green check proves nothing until it has been seen to fail; a mutant must compile and fail on an assertion. Reproduce review findings before accepting them.
+- A new check, or a fix in a ⚠️ subsystem, gets a mutant; any other behaviour fix fails before and passes after ([proof table and shapes](.claude/docs/testing.md#mutation-first-then-belief)).
+- `src/smoke.sh` is read by byte offset while it runs — never edit it mid-run.
 
 ## Writing conventions
 
@@ -139,18 +87,14 @@ The root [license](LICENSE.md#polyform-strict-license-100) owns the project's te
 |---|---|
 | Shared SemVer | Every program and face shares one `MAJOR.MINOR.PATCH`; never version the daemon, runner, CLI or MCP independently. Each bundled agent is the exception |
 | Agent versions | Each bundled agent has its own SemVer, from `1.0.0`: `version` and `released` (the UTC date of its last bump) in its `agent.json`, and its own `CHANGELOG.md` beside it, newest first. `#ab-ceo` raises an agent's PATCH once at deploy, only when that agent changed since its last bump ([Team v2 roles](Plans/Team.v2/README.md#roles)); a landing never bumps it. `src/agents/VERSION` and `src/agents/CHANGELOG.md` are the pack's internal bookkeeping, never shown to users. Bundled Python clients stay on the bus version |
-| App subprojects | An app built on top of the bus from agents, such as [RAG](Plans/R1.0-Release/rag/README.md#versioning), keeps its own SemVer, bumped automatically on each step; the blocks it uses stay on the shared version |
 | Canonical value | `src/internal/version/VERSION`, embedded by Go and read by TypeScript, and each agent's `agent.json` `version` for that agent; `src/agents/VERSION` is bookkeeping; no other current-version literals |
-| MVP | `0.5.x`, then `0.6.x` from the record-kind enum, both released; `0.7.x` from the constitution work, stable at `0.7.20`; `0.8.x` from `0.8.0`, closed at `0.8.243`; `0.9.x` from `0.9.0`, an odd development line. PATCH rises once per deploy, never per landing: `#ab-ceo` raises it ([Team v2 roles](Plans/Team.v2/README.md#roles)); nobody else edits the version |
-| Stable | An even minor (`0.6`, `0.8`) is a feature line. An odd minor (`0.7`, `0.9`) is major development whose code may be broken; when it passes all tests and reviews — including a final full Fable review — its commit subject is exactly `STABLE - passed all tests and reviews`, and the next even line begins — except that the `0.9` line's STABLE is R1's release: the version moves from `0.9.x` to `1.0.0`, `CHANGELOG.0.9.md` moves to `Plans/changelogs/` and a 1.0 changelog starts; ordinary `0.9` PATCH bumps and changelog entries continue until then, and the move to `1.0.0` (the `VERSION` value and the changelog change) happens only at that release |
-| Later releases | Before stability, MINOR advances the release line. From major one, breaking changes bump MAJOR, compatible features MINOR, fixes PATCH; reset lower components when advancing a higher one |
-| No behaviour change | Docs, tests and refactoring alone do not require a bump |
-| Changelog | Every version bump includes one summary of its deploy window in the current line's changelog — `CHANGELOG.0.9.md` at the repository root from `0.9.0` — newest version on top. One file per release line, and a finished line's file moves to `Plans/changelogs/`; historical release numbers stay in theirs and are never rewritten to match the current version |
-| Push | Before a push, replace the unpushed versions' entries with one summary of the unpushed changes: heading `<last version> — <date>`, "Nth published changeset: <first>–<last>, squashed", and a table by area. Commit it alone, show it to the owner, then push |
-| Build evidence | Shipped Go binaries must carry [setup § build information](.claude/docs/deployment.md#build-information) and expose it through the version query. Use the documented build script; never ship an unstamped development build |
+| PATCH | Rises once per deploy, never per landing: `#ab-ceo` raises it ([Team v2 roles](Plans/Team.v2/README.md#roles)); nobody else edits the version |
 | Deploy | The development node runs from the checkout through `sudo src/git-install.sh`, which links every program and launcher into `/usr/local/bin` and restarts the daemon and every active root-account `agent-bus-runner@*`. Commit first, then deploy only the changed component using [minimal deployment](.claude/docs/deployment.md#deploy-only-the-changed-component). `release.sh` is only for a node running a fixed release; on this one it would replace the links ([setup § install](docs/07-setup.md#install)) |
 
 After deployment, run `src/check-deploy.sh` as an allowed caller. Its optional target (for example `'#debug@<node>'`) overrides the default derived from the realm in `agent-bus status`, falling back to the host name. Any failed or missing selftest fails the post-deploy check. See [debug](docs/agents/debug.md#check-the-bus-in-a-minute).
+
+Lines, the R1 release step, app subprojects, changelog and push forms, and build evidence: [versioning detail](.claude/docs/versioning.md#versioning-detail).
+
 
 ## Git
 
@@ -178,8 +122,7 @@ uncommitted is work nobody else can see and a rebase can lose.
 
 ## Scratch files
 
-**Nothing throwaway enters the tracked namespace.** All of the below is in
-`.gitignore`; the point is to use it rather than to rely on it.
+**Nothing throwaway enters the tracked namespace.**
 
 | Where | What |
 |---|---|
@@ -188,33 +131,7 @@ uncommitted is work nobody else can see and a rebase can lose.
 | `*.local`, `*.local.*` | a throwaway that has to sit beside the thing it belongs to — `config.local.json` next to `config.json` |
 | `local/` | the same, when there are enough of them to want a directory |
 
-### Clean up after yourself
-
-On 2026-10-19 `tmp/` reached 164 GB and filled the root disk: 430 worktrees,
-none removed, each with its own 1.3 GB Rust build and test output. Gates
-failed with `no space left` and the daemon's database was at risk. So:
-
-| When | Do |
-|---|---|
-| Your commit lands, or your review or report is sent | `git worktree remove --force tmp/<yours>`, test output included; remove loose `tmp/` files you wrote for it |
-| You hand work to another agent | it removes the worktree once it lands, and the hand-off message says so |
-| You run Rust | the shared `tmp/cargo-target` only, never a target in your worktree (`cargo clean` one you find) |
-| Before a full gate | `df -h /`: under 30 GB free, clean your own finished `tmp/` first and tell Claude B |
-| End of a task or session | `git worktree list` and `ls tmp`: nothing of yours remains except work still in progress |
-
-Keep evidence a review needs in the commit message, the report or a plan's
-`done/` file, never in `tmp/`. A daemon backup lives only in
-`/var/lib/agent-bus/daemon.backup/`. Remove only what is yours; another
-agent's live worktree is its work in progress.
-
-Exception: the smoke driver and shards use private mktemp directories with EXIT cleanup traps. A sandbox-isolation fixture whose home must sit outside the sandbox's read-only binds (/usr) likewise uses a private mktemp directory with a cleanup trap.
-
-Do not write scratch into `/tmp` either: it is shared with every other
-process on the box, it is not cleaned up on any schedule anybody controls,
-and a name collision there is somebody else's afternoon.
-
-## Other agent configs
-
-An OpenAI Codex config exists at `~/.codex/config.toml`. To import user-level
-items (MCP servers, slash commands, subagents, skills, instructions), reply
-`/import` to see what is importable, then `/import --yes=<digest>` to apply it.
+- When your commit lands or your review or report is sent, remove your worktree and your `tmp/` files.
+- Never write scratch into `/tmp`. Rust builds only in the shared `tmp/cargo-target`.
+- `df -h /` before a full gate. Remove only what is yours.
+- Why, the full cleanup table and the mktemp exception: [scratch](.claude/docs/scratch.md#scratch-files-and-cleanup).

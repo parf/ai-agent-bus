@@ -41,7 +41,7 @@ agent-bus from mdhouse's checklist; the last section is this project's.
 - Tests that depend on time, the network, order or randomness — flaky.
 - Mocks that replace exactly what needed checking.
 - A green check never seen to fail, or a mutant credited by a build failure: every shape in
-  [mutation first, then belief](../../CLAUDE.md#mutation-first-then-belief) is a finding.
+  [mutation first, then belief](../../.claude/docs/testing.md#mutation-first-then-belief) is a finding.
 - A check that was deleted together with the code it guarded.
 
 ## Docs and consistency

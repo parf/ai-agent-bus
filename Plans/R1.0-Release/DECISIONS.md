@@ -79,7 +79,7 @@
 - **RAG is set up on this node** (Q302) — owner, 2026-11-01: "agree"; done by `#ab-ceo` 14:58: Qdrant collection `notes` (voyage-3.5, 1024 dimensions, Cosine, keyword vector `text` with `idf`, the eight keyword payload indexes), `#rag` granted `#qdrant` (write), `#voyage` and `#ai`, Configuration from the example with `keyword_search: builtin`; `keyword_index` answers `indexed: 0, status: ok`.
   - Home: [RAG installing it](../../docs/agents/rag.md#installing-it).
 - **R1 releases as 1.0.0** — owner, 2026-11-01 13:20.
-  - Home: [versioning](../../CLAUDE.md#versioning), its Stable row.
+  - Home: [versioning](../../.claude/docs/versioning.md#lines), its Stable row.
 - **RAG builds all four extras: `count`, `similar`, `complete` and `classify`** (Q360) — owner, 2026-11-06: "yes - implement this all; mdhouse is just one of many possible rag-system-users; we need to cover most common use cases out of the box". Only `classify` pays, and it is off unless configured ([methods](rag/README.md#methods)).
 - **RAG indexes a file over 32 KiB in chunks, fetched as FileScan's bigfile, up to 1 MiB per file** (Q368–Q371) — owner, 2026-11-06 ~13:57: "all recommended options, go". RAG never opens a host path; the `as rag` subscriber admits RAG to the FileScan instance's bigfiles; references keep the 1-hour `bigfile_ttl` ([large files](rag/large-files.md))
 - **RAG keyword search ships in R1** (Q301) — owner, 2026-11-01: "do it in R1 - its EZ and keyword search is essential". A setting chooses Qdrant's built-in BM25 or an external engine, default built-in (Q194), with a working built-in BM25 search checked against real Qdrant; an external engine itself is not built.
@@ -234,7 +234,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD128 The RAG app keeps its own SemVer, bumped automatically per step; xAB controls the RAG plan's execution, marks done items and has meaningful progress reviewed
   - Why: owner, 2026-10-27: "tell xAB that it should control plan execution, mark done items, and do review after meaningful progress; auto bump RAG's subproject own semver"
   - Date: 2026-10-27
-  - Home: [RAG versioning](rag/README.md#versioning), [RAG process](rag/TODO.md#process), [CLAUDE.md versioning](../../CLAUDE.md#versioning)
+  - Home: [RAG versioning](rag/README.md#versioning), [RAG process](rag/TODO.md#process), [CLAUDE.md versioning](../../.claude/docs/versioning.md#lines)
 
 - ✅ RD127 A RAG service built from agents as blocks: Qdrant behind `#qdrant`, Jev through `#ai`, embeddings through `#voyage`, the `#rag` app on top; namespace and table are plain filters; labels and prompts per namespace and table in KV behind a read cache the agent's own writes invalidate; a threshold and top-k on Jev's per-label probabilities; up to ~100k records, no quantization; search hits carry ids and the matched snippet (settles Q193, Q195–Q198)
   - Why: owner, 2026-10-27: "use agents as building blocks; and build a simple app on top of them", then "move it to R1 and give it to xAB; start with block building"

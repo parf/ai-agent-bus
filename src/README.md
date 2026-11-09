@@ -89,7 +89,7 @@ A queue needs nobody reading when it is sent; the consumer may start later:
 
 ### Build and check
 
-- Build requirements and version output follow [setup § build information](../.claude/docs/deployment.md#build-information); release numbering follows [working rules § versioning](../CLAUDE.md#versioning).
+- Build requirements and version output follow [setup § build information](../.claude/docs/deployment.md#build-information); release numbering follows [working rules § versioning](../.claude/docs/versioning.md#lines).
 - With an output-directory argument, the build also bundles the MCP face and launchers with Bun, copies the web face's sources and unit (no tests), the release version, license and standalone install guide, and exposes launcher entry points at the output root.
 - `package.sh` adds the exact artifact manifest and produces the supported tar archive plus its portable SHA-256 file.
 - Source launchers require Bun and the selected AI runtime; the checkout dashboard uses `/usr/bin/bun`. Release archives compile the TypeScript faces into `agent-bus-ts` and need no Bun or Node at runtime.
@@ -107,7 +107,7 @@ go test -race ./...
 
 - `smoke.sh` needs `bun` for the MCP and web shards. It builds once and runs its shards in parallel, each with a temporary socket, token and daemon of its own, so it never touches a daemon you are running.
 - A run owns fifteen loopback ports per shard from its base. Without `PORT` it claims a free block of 1000 between 10000 and 21000 and holds its lock for the run (`smoke-port.sh`), so runs started at once never meet; `PORT=` pins the base, and two pinned runs need bases a thousand apart.
-- A check here is not believed until it has been seen to fail: [working rules § verification](../CLAUDE.md#verification).
+- A check here is not believed until it has been seen to fail: [working rules § verification](../.claude/docs/testing.md#mutation-first-then-belief).
 
 ### Which checks run
 

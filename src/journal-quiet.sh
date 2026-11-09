@@ -1,7 +1,7 @@
 #!/bin/bash
 # journal-quiet.sh <name pattern> <command>...: run the command, then fail if the user journal gained an entry for a
 # container or podman event whose name matches the pattern while it ran. Normal and fast runs write nothing to the
-# host journal (CLAUDE.md#verification); J32's leaked fixture wrote 20,000 lines a minute there.
+# host journal (.claude/docs/testing.md#host-limits); J32's leaked fixture wrote 20,000 lines a minute there.
 # Exit: the command's own on silence, 3 when the journal gained entries, 2 when the journal cannot be read, before or
 # after the run.
 set -uo pipefail   # a failing stage of any pipe below is a failure, never silence

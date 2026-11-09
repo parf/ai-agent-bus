@@ -88,7 +88,7 @@ Each batch is one worktree and one landing through `#ab-gate`, no bump; manifest
 - **Real examples:** each example was run on a real node (this node or a disposable one) and the output is the run's; the batch's report lists the commands run and the node. An example that cannot be run is removed.
 - **Links and anchors:** every link and anchor in a changed file resolves (`linkcheck` with the file list), and inbound links to a moved heading are fixed.
 - **Status unchanged:** a reviewer diffs each batch for built/pending claims; none changes, none is added without evidence.
-- **Checker mutants** (batch 0, [mutation rule](../../CLAUDE.md#mutation-first-then-belief)): the checker fails when a page puts the details first, when why is missing from the first fifth, when an example block is empty, and when a "why" paragraph opens with a jargon term. Each mutant compiles and fails on an assertion.
+- **Checker mutants** (batch 0, [mutation rule](../../.claude/docs/testing.md#mutation-first-then-belief)): the checker fails when a page puts the details first, when why is missing from the first fifth, when an example block is empty, and when a "why" paragraph opens with a jargon term. Each mutant compiles and fails on an assertion.
 - **Manifest batches:** golden help fixtures updated in the same commit and a normal gate green.
 - **Owner review:** `docs/runner/README.md` goes to the owner as an mdhouse URL first; each later batch lands after one owner OK.
 

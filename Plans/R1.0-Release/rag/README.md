@@ -74,7 +74,7 @@ bus version (owner, 2026-10-27: "auto bump RAGs subproject own semver"). The
 implementer bumps PATCH automatically on every landed `#rag` step, without
 asking, with one line in the RAG changelog beside its code. The blocks it uses
 (`#voyage`, `#ai`, `#qdrant`) are bus agents and stay on the shared version
-([versioning](../../../CLAUDE.md#versioning)).
+([versioning](../../../.claude/docs/versioning.md#lines)).
 
 ## Methods
 

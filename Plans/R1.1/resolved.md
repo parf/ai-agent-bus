@@ -533,7 +533,7 @@
   >
   > 💬 👤parf (in chat to #ab-ceo, 2026-11-07 ~13:25): "Q393 - 1.0.0 (we never deployed our packs, so can do rollback)"
   >
-  > 💬👾 → every bundled agent starts at 1.0.0 with a changelog note; `#rag` keeps its own app line (0.4.x, [versioning](../../CLAUDE.md#versioning)).
+  > 💬👾 → every bundled agent starts at 1.0.0 with a changelog note; `#rag` keeps its own app line (0.4.x, [versioning](../../.claude/docs/versioning.md#lines)).
 
 <a id="Q394"></a>
 

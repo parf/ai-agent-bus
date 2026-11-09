@@ -16,7 +16,7 @@ Building the daemon and CLI needs cgo and a C compiler for
 A direct `go build` reports `development (unstamped)` instead of inventing a
 build date. The interpreted MCP and web faces report the shared SemVer only,
 read from `VERSION`.
-Release builds follow [working rules § versioning](../../CLAUDE.md#versioning).
+Release builds follow [versioning detail](versioning.md#versioning-detail).
 
 #### Release evidence
 
@@ -95,3 +95,7 @@ A live Git checkout is never a reset/clean/push/autopull test fixture.
 ### From a checkout
 
 Use the contributor [checkout installation procedure](../../src/INSTALL.md#contributor-checkout).
+
+### Other agent configs
+
+An OpenAI Codex config exists at `~/.codex/config.toml`. To import user-level items (MCP servers, slash commands, subagents, skills, instructions), reply `/import` to see what is importable, then `/import --yes=<digest>` to apply it.

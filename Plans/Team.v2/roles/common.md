@@ -92,7 +92,7 @@ worker that already holds that context. Before accepting unrelated work, a worke
 
 ## Review triggers
 
-Two independent readers, and the mutant proof where [CLAUDE.md](../../../CLAUDE.md#mutation-first-then-belief)
+Two independent readers, and the mutant proof where [CLAUDE.md](../../../.claude/docs/testing.md#mutation-first-then-belief)
 asks for one, are required for a change in a ⚠️ subsystem of [the map](../../subsystems.md) **and** for any
 change, wherever its files are, that touches:
 

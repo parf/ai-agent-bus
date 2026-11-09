@@ -9,7 +9,7 @@ active plan is [TODO.md](../TODO.md#todo-mvp); the stage's stable knowledge is
 [README.md](../README.md#r08).
 
 Everything below was accepted the same way
-([PoC README § mutation first, then belief](../../../../CLAUDE.md#mutation-first-then-belief)):
+([PoC README § mutation first, then belief](../../../../.claude/docs/testing.md#mutation-first-then-belief)):
 `src/smoke.sh --slow` green, and every rule broken again and watched turning a
 **named** check red.
 
@@ -26,7 +26,7 @@ Everything below was accepted the same way
 
 ## Version and build checks
 
-Shared [working rules § versioning](../../../../CLAUDE.md#versioning),
+Shared [working rules § versioning](../../../../.claude/docs/versioning.md#build-evidence),
 [setup § build information](../../../../.claude/docs/deployment.md#build-information), and
 [processes § process titles](../../../../docs/08-processes.md#process-titles) are built.
 The full slow smoke passed 491 checks; TypeScript typechecking passed too.

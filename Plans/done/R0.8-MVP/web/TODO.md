@@ -1,8 +1,8 @@
 # TODO Web face rewrite
 
 📌 **TL;DR:** Released history: all eleven steps are done; the TypeScript face replaced Go in 0.8.50. Steps ran from an empty `src/web/` to the Go face removed.
-Each step ends with a commit, a shared PATCH bump with its current changelog line ([versioning](../../../../CLAUDE.md#versioning)), spec edits for what it changed, screenshots for the owner at three widths in both themes (W.3 on) and a falsifiable check that was
-first seen to fail ([mutation first](../../../../CLAUDE.md#mutation-first-then-belief)).
+Each step ends with a commit, a shared PATCH bump with its current changelog line ([versioning](../../../../.claude/docs/versioning.md#changelog-and-push)), spec edits for what it changed, screenshots for the owner at three widths in both themes (W.3 on) and a falsifiable check that was
+first seen to fail ([mutation first](../../../../.claude/docs/testing.md#mutation-first-then-belief)).
 Design and rules are in the [README](README.md#web-face-rewrite).
 
 ## Objective

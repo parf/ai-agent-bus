@@ -66,7 +66,7 @@ Use local `npm pack` tarballs on a clean supported host in a disposable containe
 
 Existing local checks are in [npm packaging](../../src/npm/README.md#local-checks). P.1 must record the clean-container result and the named assertion-red omitted-asset mutant. [Earlier curl-installer evidence](done/installer-acceptance.md#checks) is historical, not proof of this npm acceptance.
 
-Artifacts follow the shared [versioning and build evidence](../../CLAUDE.md#versioning) and [licensing](../../CLAUDE.md#licensing) rules. Native Linux aarch64 build evidence is [recorded](done/p3-aarch64-mac-run.md#steps); remaining native install work is in the [Mac run list](mac-run-list.md#a-linux-aarch64).
+Artifacts follow the shared [versioning and build evidence](../../.claude/docs/versioning.md#versioning-detail) and [licensing](../../CLAUDE.md#licensing) rules. Native Linux aarch64 build evidence is [recorded](done/p3-aarch64-mac-run.md#steps); remaining native install work is in the [Mac run list](mac-run-list.md#a-linux-aarch64).
 
 ## Publishing a version tag
 

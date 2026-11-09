@@ -150,7 +150,7 @@ do not copy a human token into either package or process environment.
 
 ## Before you say done
 
-- [ ] Prove valid calls, refusals, roles/caps, deadlines and output bounds; every compiling mutant must fail a named assertion ([mutation first](../../CLAUDE.md#mutation-first-then-belief)).
+- [ ] Prove valid calls, refusals, roles/caps, deadlines and output bounds; every compiling mutant must fail a named assertion ([mutation first](../../.claude/docs/testing.md#mutation-first-then-belief)).
 - [ ] Add help-versus-grammar and example checks, including bundled `help`; use exact-fit [debug fixtures](debug.md#check-the-bus-in-a-minute) such as sleep/fail/crash/echo/roles/unicode rather than throwaway scripts. Avoid core-generating signals.
 - [ ] Run focused checks, then `src/smoke.sh --normal` under the [shared gate lock](../../CLAUDE.md#verification); check disk space first.
 - [ ] Verify `package.sh` includes metadata, helpers/client dependencies and licenses outside the checkout; install only the authorized target, preserving ACLs, Configuration and Secret.
