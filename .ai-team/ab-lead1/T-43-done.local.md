@@ -1,0 +1,7 @@
+# T-43 done-line content (from #ab-w1c, 01:36; implementation, not live acceptance)
+
+Met (RAG side): R1 namespace-bound access; R3 synchronous upsert/classify/embed + keyword_index; R5 source hash + indexed_at; R6 keyword/semantic/hybrid + effective mode + namespace/table/key filters; R7 citation fields (namespace/table/id/chunk_index/source/content_hash/excerpt/scores/indexed_at); R8 manager-only inventory/drop/keyword_index; R9 named unknown/incomplete outcomes + confirmed drop; R11 no provider keys, never opens paths; R12 one JSON API; A1/A2/A3/A5/A6/A8/A9 partly (docs, fixtures, confinement mutants).
+Not in RAG (external): R2 source registry, R4 jobs/progress, R10 event stream (FileScan / mdhouse).
+NOT met: A7 request-id dedup (replay may pay again); A4 end-to-end needs FileScan + mdhouse.
+Deploy: FileScan NOT needed for RAG 0.3 / direct upserts (needed for automatic folder ingestion; RAG-source still in rework). No new Configuration key; existing qdrant/voyage/ai/collection/embedding_model/dimensions. Owner provisions #rag/mdhouse record, token, runner, grants, collection metadata, per-table prompts. Old namespace-free data refuses legacy_data → re-feed.
+Free check: agent-bus call '#rag/mdhouse@parf.us' '{"method":"capabilities"}' --body → {"version":"0.3.0","methods":[10],"modes":["keyword","semantic","hybrid"],"limits":{…},"embedding_model":…,"dimensions":…}; no backend/provider work; proves version/discovery only.

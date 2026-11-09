@@ -70,7 +70,7 @@ with every line below, then reports it to the lead:
 
 - read every working window's limits: a Claude status line (`5h N%`, `7d N%` = quota **left**), a Codex status
   line (`weekly N% left`), a QA pane's reset time (China time, EST = −13 h);
-- record the time, what is left, the resets and the decision in `local/dir/` notes;
+- record the time, what is left, the resets and the decision in `.ai-team/dir/` notes;
 - when a window is low for its planned work: give it smaller tasks, move work elsewhere, or tell it to finish
   its current step, checkpoint and stop. Keep capacity for review and hand-off; keep the Claude windows for
   authority and secret work;

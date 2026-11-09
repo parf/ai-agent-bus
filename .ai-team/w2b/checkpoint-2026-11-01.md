@@ -1,0 +1,5 @@
+# W2B checkpoint 2026-11-01 ~14:40 EST
+- S2 (T-24): branch ab-w2b/T-24-S2, worktree tmp/ab-w2b-S2; Rust 062a8850, PHP 19c8fe76, Java b54f6426, READMEs 080bb77d. Tests Rust 15+4+7+1+4, PHP 177, Java 183/0. 9 mutants (3 per client: too-new, kind dropped, no_route) all assertion-red. Lock released 14:38. After "landed": remove worktree and branch.
+- Rules: no fetch/pull/push; mutants only under smoke-gate slow lock taken in its own call; no VERSION/CHANGELOG edits.
+- Queue: MAC.2g read (cca54061, ab-w1c/MAC.2g) and T-25 delta read (ab-w1b/T-25 2583930d) for #ab-lead1; then /find-issues 30215f6..HEAD (.claude/skills/find-issues/SKILL.md), <=8 read-only reviewers (2 per risky subsystem + 1 mixed), after compact and 5h reset ~15:00; append to Plans/issues/2026-11/2026-11-01.md under "# Issues — Nov 1, 2026 · 30215f6..<HEAD>", commit only that file; report serious first + counts. J74 moved to W2C.
+- Notes: zsh use git show "${sha}:path"; PHP needs SASL_PATH=/usr/local/src/ai-agent-bus/tmp/ab-w2b-sasl.

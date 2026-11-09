@@ -1,0 +1,148 @@
+{
+ "session": "AB-DVP",
+ "windows": [
+  {
+   "name": "DIR",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/dir",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-dir",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "DIR"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-claude -2 --restart --tag ab-dvp --descr Director --model claude-opus-5-5 --append-system-prompt-file /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/dir.md"
+  },
+  {
+   "name": "LEAD1",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/ab-lead1",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-lead1",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "LEAD1"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-claude --restart --tag ab-dvp --descr Lead-1 --model claude-opus-5-5 --append-system-prompt-file /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/lead1.md"
+  },
+  {
+   "name": "W1A",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/ab-w1a",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-w1a",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "W1A"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-claude --restart --tag ab-dvp --descr Worker-1a --append-system-prompt-file /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/worker1.md"
+  },
+  {
+   "name": "W1B",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/ab-w1b",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-w1b",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "W1B"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-claude -2 --restart --tag ab-dvp --descr Worker-1b --append-system-prompt-file /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/worker1.md"
+  },
+  {
+   "name": "W1C",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/ab-w1c",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-w1c",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "W1C"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-codex --restart --tag ab-dvp --descr Worker-1c 'Your role is in /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/worker1.md. Read it now and follow it; then wait for tasks on the bus.'"
+  },
+  {
+   "name": "QA1",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/ab-qa1",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-qa1",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "QA1"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-opencode --restart --tag ab-dvp --descr QA-1 --prompt 'Your role is in /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/qa1.md. Read it now and follow it; then wait for tasks on the bus.'"
+  },
+  {
+   "name": "LEAD2",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/ab-lead2",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-lead2",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "LEAD2"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-claude --restart --tag ab-dvp --descr Lead-2 --model claude-opus-5-5 --append-system-prompt-file /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/lead2.md"
+  },
+  {
+   "name": "W2A",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/ab-w2a",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-w2a",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "W2A"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-claude --restart --tag ab-dvp --descr Worker-2a --append-system-prompt-file /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/worker2.md"
+  },
+  {
+   "name": "W2B",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/ab-w2b",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-w2b",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "W2B"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-claude -2 --restart --tag ab-dvp --descr Worker-2b --append-system-prompt-file /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/worker2.md"
+  },
+  {
+   "name": "W2C",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/ab-w2c",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-w2c",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "W2C"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-codex --restart --tag ab-dvp --descr Worker-2c 'Your role is in /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/worker2.md. Read it now and follow it; then wait for tasks on the bus.'"
+  },
+  {
+   "name": "QA2",
+   "cwd": "/usr/local/src/ai-agent-bus/.ai-team/ab-qa2",
+   "env": {
+    "AGENT_BUS_NAME": "#ab-qa2",
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "QA2"
+   },
+   "command": "env -u CLAUDE_CODE_CHILD_SESSION ab-opencode --restart --tag ab-dvp --descr QA-2 --prompt 'Your role is in /usr/local/src/ai-agent-bus/Plans/Team.v2/roles/qa2.md. Read it now and follow it; then wait for tasks on the bus.'"
+  },
+  {
+   "name": "GATE",
+   "cwd": "/usr/local/src/ai-agent-bus",
+   "env": {
+    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
+    "SSH_ASKPASS_REQUIRE": "never",
+    "AGENT_BUS_BIGFILE_DIR": "/var/lib/agent-bus/users/parf/files",
+    "AB_TAB_TITLE": "GATE"
+   },
+   "command": "agent-bus run '#ab-gate' --algo=json --allow=@owner --tags=ab-dvp --descr 'Lands branches on main: rebase, normal gate, bump, ff-merge' /usr/local/src/ai-agent-bus/.ai-team/gate.sh"
+  }
+ ]
+}

@@ -1,0 +1,58 @@
+# ab-w2c hand-off checkpoint
+
+Written after lead2 c4bf7ea840f431aa, between tasks, awaiting compact. Lead reports about27% context; no reset time supplied. Current assignment is completed/ready Java+PHP half of J123, awaiting integration/read/landing; start nothing new.
+
+## Task, plan, owner
+
+- Owner: #ab-lead2; integrating worker #ab-w2a.
+- Task: J123 Java and PHP clients, scoped port of Python J122 ab-w2a/J122 a4f0ce56 plus TypeScript serve onReply contract.
+- Issue: Plans/issues/2026-11/2026-11-06.md, J123 at59 in last observed main. J123 includes other languages owned by W2A; do NOT edit their branch or broaden our port.
+- Ready reports: ae6c0cf43025439b to lead2, 11e5b028ddfdc480 to W2A, topicJ123/tagab-dvp. Lead acknowledges W2A cherry-picking a92b388d+fead3a64.
+
+## Worktree, branch, commits and changes
+
+- Branch ab-w2c/J123, WT /usr/local/src/ai-agent-bus/tmp/ab-w2c-J123.
+- Java commit a92b388df4e834ea18b4b092d4267abf8a889bf7.
+- PHP/tip fead3a64e12078c3ba7a3bb71b68f75d1385cd2b.
+- Clean tree, verified immediately before this checkpoint. No uncommitted changes.
+- Diff9files+137/-22, ONLY src/clients/java and src/clients/php. Java5files+85/-19; PHP4files+52/-3. No Plans/issues, VERSION or CHANGELOG edit.
+- Java Serve.onReply(Consumer<Message>), PHP ServeOptions(onReply:Closure). Only unmatched nonreceipt re answers go to callback; never requesthandler. Pending calls retain priority. Both Bus types now generate private per-client call tag prefix, excluding own late-call answers. Default drop unchanged; no automatic ack/reply/done. Java callback shares permits/pool/drain and HANDLING close semantics; old6argServeconstructor preserved. PHP callback synchronous; Throwable logs messageid+type only. Both READMEs explain option+late exclusion.
+
+## Checks and proof
+
+- ONLY each client's focused own command, section 'serve reply callback'. Real private fixture daemons launched by own client harness using existing /usr/local/src/ai-agent-bus/src binaries (CLIENT_BIN), no daemon/runner suite/build or smoke. Every inherited AGENT_BUS_* removed. Java uses cached JACKSON_CORE_JAR=/usr/local/src/ai-agent-bus/tmp/java-deps/jackson-core-2.22.3.jar, no download. PHP empty private SASL_PATH and -dlog_errors=0 -ddisplay_errors=stderr. Fixtures and PHP child reaped/removed.
+- Java command: bash src/clients/java/tests/run.sh 'serve reply callback'. Eight assertions green initial3.165s/restored3.148s. Compiler prints existing test warnings; production compile Werror passes.
+- PHP command: bash src/clients/php/tests/daemon.sh php -d log_errors=0 -d display_errors=stderr src/clients/php/tests/run.php 'serve reply callback'. Six assertions green initial0.525s/restored0.518s.
+- Tests cover opt-out drop, exactone callback, no handler, receipt exclusion, real timedout-call prefix exclusion, pending call stillowned (Java forces unfiltered routing), and no automatic completion.
+- Four credited compiling ASSERTION-red mutants under OWN MCP smoke-gate slow lock, standalone takes; both holds released:
+  - JavaM1 duplicate callback -> exactlyonceFAIL [async answer, async answer],3.106s.
+  - JavaM2 callback also handler -> handler-isolationFAIL [async answer],3.130s.
+  - PHPM1 duplicate callback -> exactlyonceFAIL [async answer,async answer],0.517s.
+  - PHPM2 callback also handle -> handler-isolationFAIL [async answer], no-completionFAIL,0.526s.
+- LOCAL recipes/logs: /usr/local/src/ai-agent-bus/.ai-team/ab-w2c/J123/mutants.local.py and *.local.log. Final PHP M2 authoritative php-M2-callback-only.local.log. Helper now uses preferred exact try-body handler injection. Earlier broad PHP M2 also affected default drop; refinement removingcontinue leaked latecall; one draft insertion between try/catch failed parsing and is NOT credited. Final proper mutant preserves default and late exclusion, fails on actual unmatched async answer. All sources restored and final green before commits.
+- git diff --check clean. No full gate, smoke, other client tests, paid/live calls or unrelated suite.
+
+## Pending, blocker and next step
+
+- No blocker. W2A integrates both commits, obtains reads/gate. Keep ab-w2c/J123 and WT until explicit J123 landed notice; fix scoped findings if returned. On landed notice remove own WT+branch only, report cleanup to lead2.
+- No runs/PTYsessions/exec cells, own background processes, fixture units, containers or locks active. Stand by for compact; start no new task.
+
+## Other parked/local material
+
+- ab-w2c/A4 WT tmp/ab-w2c-A4, tip59e39b6db45461e50f0874d74437c499b81e481c. Old stored-ACL restore fix, no explicit cleanup notice received in this window; retain, don't reopen.
+- ab-w2c/R1-stable-local WT tmp/ab-w2c-R1-stable-local, tipca7c7396cd057d9f0e1b22cd396f18c4d9492eaa. Old RC2 explicitly parked: no rebase/tag/remove absent instruction.
+- J121 allowlist440621e3 landed inside maina4f0ce56/J122. Own J121 WT+branch removed per c06c1c98ac240ee8. KEEP .ai-team/gate.sh.j121 and .ai-team/ab-w2c/J121/gate.sh.j121.diff for CEO swap. CandidateSHA256a4b34ddad8e1b70d8a793580e5b2b4ad34bb40aedbd2573cac70205fd2d54eb4; live gate originalSHA2563f6479d6ab7ee9ef18a8ab787785a191825566dd39537a43a9a67e7f045ee006 untouched by us. OptionA: eligible Markdown-only diff with docs/ -> DOCS_CHECK+literal smoke--fast without lock, Plans/rootonly olddocs logic, LICENSE/nonmd/code normal. Decision-only3case logs retained, no actual gate/smoke. CEO owns swap/CLAUDE line/statusdocs.
+- Earlier F2 landed69c3719b/1.0.41, cleaned. All review detached trees removed. Detailed older history lives .ai-team/ab-w2c/restart-state.md; this checkpoint is the current hand-off and supersedes its old pending sections.
+- Last observed mainf89bfaa3; main moves independently, no fetch/origin operation.
+
+## Rules on resume
+
+- Read worker2.md, common.md, CLAUDE.md, CLAUDE.local.md and THIS checkpoint. Bus identity#ab-w2c. Tasks fromlead2, ownWT, no main mutation/fetch/push/origin/version/changelog or normalgate. No proactive subagents.
+- Current dir ruling888407cfeee14881 overrides earlier TD7 bookkeeping: CODE BRANCHES DO NOT EDIT Plans/issues; CEO does status/docs afterswap. Owner also says CEO handles settled QUESTIONS and decision rows; workers implement only.
+- Host-light: no builds/suites/mutants until furthernotice except exact task authorizations (J123 explicitlyownclientfocused+mutants authorized). No --slow/load/repeats/podman withoutleadapproval. Neverparallel suites. Singlefocused checks nolock; mutants take OWN MCP ab_lock slow smoke-gate@parf.us in own call/readgrant, releaseimmediately; no parfCLI/force/borrowing. Strip ALL inherited AGENT_BUS_* for manualtests.
+- Neverlive paidprovider #ai/#voyage/SMS/mail for tests/checks/demo; fixtures only. Every live call ownerOK viaCEO; models freeallowed. Agent changes test onlythatagent; deploy onlythatagent, no runnerrestart/reload.
+- Bus answers MUST use ab_send exactpushed return destination/topic/tag; UIoutput invisibletopeer. Never prose toscripted#ab-gate. No ackafteranswer, no doneafteranswer, reports/notices/receipts neednone. No livehost actions withoutstandingauthorization.
+- Findings need realuser/security/MED+impact; LOWpolish ownplanlist. Rerungreenchecks quarantine+Jitem, neverquietrerun. Review exactcommit; authornotreader. Cleanuponlyownlanded/reviewtrees.
+
+## J123 landed / cleanup
+Lead2 confirmed main 99b2de30. Clean J123 worktree and ab-w2c/J123 branch removed. No runs or locks. Idle; light tasks only per lead2 (18% weekly).

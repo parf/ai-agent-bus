@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent-bus — Serg Parf</title>
+<meta name="description" content="An enterprise platform that connects your AI agents, tools and people, governs every access, and runs each agent safely in its own box.">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="en" href="https://parf.dev/agent-bus/">
+<link rel="alternate" hreflang="zh-Hans" href="https://parf.dev/agent-bus/zh/">
+<link rel="alternate" hreflang="ja" href="https://parf.dev/agent-bus/ja/">
+<link rel="alternate" hreflang="ru" href="https://parf.dev/agent-bus/ru/">
+<link rel="alternate" hreflang="x-default" href="https://parf.dev/agent-bus/">
+<style>
+  :root {
+    --bg:#fbfaf8; --fg:#1a1a1a; --muted:#6b6b6b; --rule:#e3e0da;
+    --accent:#b4531f; --code-bg:#f1efea; --blue:#1558d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#16161a; --fg:#e8e6e1; --muted:#9a978f; --rule:#2c2c33;
+      --accent:#e08b52; --code-bg:#22222a; --blue:#7ab6ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--fg);
+    font:17px/1.65 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:46rem; margin:0 auto; padding:5rem 1.5rem 6rem; }
+  @media (max-width:40rem) { .wrap { padding-top:3rem; } }
+  h1 { font-size:2rem; line-height:1.15; margin:0 0 .35rem; letter-spacing:-.02em; font-weight:650; }
+  h1 a { color:var(--blue); border-bottom-color:var(--blue); }
+  h1 a:hover { color:var(--accent); border-bottom-color:var(--accent); }
+  h1 .sep { color:var(--muted); font-weight:400; }
+  .tagline { color:var(--muted); margin:0 0 2rem; font-size:1.05rem; }
+  p { margin:0 0 1.1rem; }
+  a { color:var(--fg); text-decoration:none; border-bottom:1px solid var(--rule); }
+  a:hover { color:var(--accent); border-bottom-color:var(--accent); }
+  h2 {
+    font-size:.8rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted);
+    font-weight:600; margin:3rem 0 1rem; padding-bottom:.5rem; border-bottom:1px solid var(--rule);
+  }
+  h3 { font-size:1.05rem; font-weight:620; margin:2rem 0 .75rem; }
+  figure { margin:0 0 1.5rem; }
+  figure img {
+    display:block; width:100%; height:auto; border-radius:6px; border:1px solid var(--rule);
+  }
+  dl { margin:0 0 1.25rem; display:grid; gap:.7rem; }
+  dt { font-weight:600; }
+  dd { margin:.05rem 0 0; color:var(--muted); font-size:.95rem; }
+  ul { margin:0 0 1.25rem; padding-left:1.2rem; }
+  li { margin:0 0 .45rem; }
+  li strong { font-weight:600; }
+  code {
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.875em;
+    background:var(--code-bg); padding:.12em .38em; border-radius:3px;
+  }
+  pre {
+    background:var(--code-bg); padding:1rem 1.1rem; border-radius:6px; overflow-x:auto;
+    font-size:.85rem; line-height:1.55; margin:0 0 1.25rem;
+  }
+  pre code { background:none; padding:0; font-size:inherit; }
+  table { width:100%; border-collapse:collapse; margin:0 0 1.25rem; font-size:.95rem; }
+  th, td { text-align:left; padding:.45rem .6rem .45rem 0; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th { font-weight:600; color:var(--muted); font-size:.85rem; }
+  h3 .icon { width:22px; height:22px; vertical-align:-4px; margin-right:.3rem; border:0; }
+  .note { color:var(--muted); font-size:.95rem; }
+  footer {
+    margin-top:4rem; padding-top:1.25rem; border-top:1px solid var(--rule);
+    color:var(--muted); font-size:.85rem;
+  }
+  .langs { margin: -.1rem 0 .9rem; font-size: .85rem; color: var(--muted); }
+  .langs a { color: var(--muted); }
+  .langs a[aria-current] { color: var(--fg); font-weight: 600; border-bottom-color: transparent; }
+  pre.mermaid { background:none; padding:0; text-align:center; }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <h1><a href="/">Home</a> <span class="sep">/</span> agent-bus</h1>
+  <nav class="langs" aria-label="Language"><a href="/agent-bus/" lang="en" aria-current="page">EN</a> <span aria-hidden="true">·</span> <a href="/agent-bus/zh/" lang="zh" hreflang="zh">中文</a> <span aria-hidden="true">·</span> <a href="/agent-bus/ja/" lang="ja" hreflang="ja">日本語</a> <span aria-hidden="true">·</span> <a href="/agent-bus/ru/" lang="ru" hreflang="ru">Русский</a></nav>
+  <p class="tagline">🏢 <strong>An enterprise platform that connects your AI agents, tools and people, governs every access, and runs each agent safely in its own box.</strong><br>
+     💻 <strong>Runs on Linux and macOS:</strong> everything on Linux; on macOS the bus, the runner and the command line.<br>
+     Not a single tool but a whole platform: it runs on localhost and grows to many hosts, users and teams.</p>
+
+  <figure>
+    <img src="/img/agent-bus.jpg" width="1280" height="853"
+         alt="Cartoon of a red double-decker bus labelled &quot;Agents Bus — connecting agents&quot;,
+              driven by the Linux penguin, carrying Claude, OpenAI, Slack, Telegram, Email and Bash
+              mascots past the Statue of Liberty and the Boston skyline.">
+  </figure>
+
+  <h2>What it gives you</h2>
+  <ul>
+    <li>🔗 <strong>Connect:</strong> reach any assistant, script, service or person by name.</li>
+    <li>🔍 <strong>Discover:</strong> see who is there and what each one can do.</li>
+    <li>🛡️ <strong>Access Control:</strong> decide who may call, read and manage each name.</li>
+    <li>🔑 <strong>Secrets:</strong> shared passwords on the bus; a script's own stay on its host.</li>
+    <li>🔒 <strong>Secure communications:</strong> other machines can connect over HTTPS with a pinned certificate, or over SSH; one port serves HTTP and HTTPS; on one host, a private socket only your account can reach.</li>
+    <li>📦 <strong>Confinement:</strong> scripts run walled off, with memory and process caps.</li>
+    <li>🧱 <strong>Ready helpers:</strong> chat, mail, text messages, databases, server checks.</li>
+    <li>⏰ <strong>Scheduling:</strong> wake an assistant at a time or on a rhythm.</li>
+    <li>🚨 <strong>Alerts:</strong> a server error reaches an assistant, then you on Slack (or Telegram, SMS).</li>
+    <li>🌐 <strong>Clients:</strong> libraries for six common programming languages.</li>
+    <li>🖥️ <strong>Web console:</strong> see and manage everything from one page.</li>
+    <li>📥 <strong>Install:</strong> one command, a ready-made container or a package.</li>
+    <li>🧠 <strong>Search by meaning:</strong> your AI finds and sorts your documents.</li>
+  </ul>
+  <pre class="mermaid">
+flowchart LR
+  P[People] &lt;--&gt; B((Bus))
+  A[AI sessions] &lt;--&gt; B
+  S[Scripts] &lt;--&gt; B
+  B &lt;--&gt; R[Runner]
+  R &lt;--&gt; H[Helpers]
+  H &lt;--&gt; O[Outside services]
+</pre>
+
+  <h2>Why you want it</h2>
+  <ul>
+    <li>🤝 <strong>Your AI assistants work alone.</strong> Now they message each other and you by name. <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/04-messaging.md#inbox-queues">How</a></li>
+    <li>📬 <strong>Someone is away.</strong> A message waits in their inbox until they read it. <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/04-messaging.md#durability">How</a></li>
+    <li>🔑 <strong>You cannot trust an assistant with a password.</strong> Now it uses your tools through helpers that hold the passwords. <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/02-access.md#acl">How</a></li>
+    <li>⏰ <strong>Routine work waits for somebody to remember.</strong> Now reminders and daily checks wake an assistant by themselves. <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/agents/cron.md#what-it-does">How</a></li>
+    <li>🚨 <strong>You hear about breakage late.</strong> Now a server problem reaches an assistant that tells you on Slack (or Telegram, SMS). <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/agents/logwatch.md#what-it-does">How</a></li>
+    <li>🔄 <strong>Updating servers means logging in to each.</strong> Now one code push updates them all and reports back. <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/agents/git-autopull.md#how-it-works">How</a></li>
+    <li>🧰 <strong>Your handy scripts stay private hacks.</strong> Now any script becomes a safe, shared team tool. <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/runner/README.md">How</a></li>
+    <li>👀 <strong>You cannot see what is going on.</strong> Now one web page shows what needs attention. <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/05-discovery.md#dashboard">How</a></li>
+  </ul>
+
+  <h2>The bus</h2>
+  <p><strong>Everyone finds each other; you decide who can do what.</strong></p>
+  <p><em>The problem:</em> AI sessions, scripts and people cannot find or reach each other, and nobody controls who may use what.</p>
+  <ul>
+    <li>🔗 <strong>Connect:</strong> reach anyone by name, on this machine or another.</li>
+    <li>🔍 <strong>Discover:</strong> see who is there and ask each one what it can do.</li>
+    <li>🛡️ <strong>Access Control:</strong> for each person and each agent, decide who may call it, read it and manage it.</li>
+    <li>🗂️ <strong>One place for settings and shared passwords:</strong> kept with each name, readable only by its owner, its managers and the agent itself.</li>
+  </ul>
+  <p>More: <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/02-access.md#acl">access</a>.</p>
+
+  <p>🔐 <strong>Passwords in two places:</strong> the ones several people or machines share live on the bus; a script's own stay with its runner, on its host. <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/runner/security.md#secrets">Two stores</a></p>
+
+  <h2>The runner</h2>
+  <p><em>systemd on steroids, for AI-era tools.</em> The problem: a useful script is unsafe to share, or a pain to run as a service.</p>
+  <ul>
+    <li>📦 <strong>Confined:</strong> by default it sees only its own folder and cannot touch its neighbours.</li>
+    <li>📏 <strong>Capped:</strong> memory and processes are limited; a host that cannot confine it refuses to run it.</li>
+    <li>🔑 <strong>Its own passwords:</strong> kept in a file on its host; the bus never shows them, and set on the host they never cross it.</li>
+    <li>🎛️ <strong>Controlled from a web page:</strong> start, stop and restart it, and see its state and why it stopped.</li>
+    <li>🔁 <strong>Kept running:</strong> a helper that stays running is restarted when it fails; a script run per message starts fresh each time.</li>
+  </ul>
+  <p>Under the hood: cgroups, a namespace sandbox with a system-call filter, and the runner's own unprivileged account. More: <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/runner/security.md#isolation-today">isolation</a>.</p>
+
+  <h2>Helpers are building blocks</h2>
+  <p>🧱 <strong>Our agents are building blocks, like lego: they make it possible to assemble complex systems easily, without sacrificing security.</strong></p>
+  <ul>
+    <li>💬 <strong>Chat:</strong> Slack and Telegram.</li>
+    <li>✉️ <strong>Email:</strong> read, write, connect a mailbox to an agent or queue.</li>
+    <li>📱 <strong>Phone:</strong> a text message.</li>
+    <li>⏰ <strong>Schedule:</strong> at a time, on a rhythm, or later.</li>
+    <li>🖥️ <strong>Servers:</strong> logs, disks, services, code.</li>
+    <li>🗄️ <strong>Data:</strong> safe database access for your AI, from read-only to full access — the password never leaves the server.</li>
+    <li>🧠 <strong>RAG:</strong> a shared memory for your AI: it sorts your texts into your own topics and finds them by meaning.</li>
+    <li>🌐 <strong>Web:</strong> AI reads web pages as text or Markdown and makes bounded HTTP requests; limit it to the sites you allow.</li>
+    <li>🤖 <strong>AI:</strong> ask a model.</li>
+    <li>🪟 <strong>Sessions:</strong> start whole fleets of your sessions with one call — AI chats, monitors, anything in a terminal — and bring them all back after a reboot the same way.</li>
+  </ul>
+  <p>A mail help desk, snapped together from four blocks:</p>
+  <pre class="mermaid">
+flowchart LR
+  C[Customer mail] --&gt; I[Mail reader]
+  I --&gt; A[AI session]
+  G[Help pages in Git] --&gt; A
+  A --&gt; S[Mail sender]
+  S --&gt; R[Reply to customer]
+</pre>
+  <p>🔒 <strong>Why it stays safe:</strong> each block gets only the access you grant, and a block that holds a password keeps it: your AI uses the block and never sees that password. <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/agents/README.md#example-a-mail-help-desk">Help desk</a></p>
+
+  <h2>From one laptop to many hosts</h2>
+  <ul>
+    <li>💻 <strong>Start small:</strong> bus, runner and AI sessions on one laptop.</li>
+    <li>🖧 <strong>Add servers:</strong> each runs its own runner and helpers against the same bus.</li>
+    <li>👥 <strong>Add people and teams:</strong> users, groups, and who may use what.</li>
+  </ul>
+  <pre class="mermaid">
+flowchart LR
+  subgraph M[Main host]
+    B((Bus))
+  end
+  subgraph S[Other servers]
+    R[Runners and helpers]
+  end
+  subgraph L[Laptops]
+    A[AI sessions and people]
+  end
+  R -- HTTPS or SSH --&gt; B
+  A -- HTTPS or SSH --&gt; B
+</pre>
+
+  <h2>One real flow: a server error reaches you on Slack</h2>
+  <pre class="mermaid">
+flowchart LR
+  E[Server log] --&gt; W[Log watcher]
+  W --&gt; A[Your AI session]
+  A --&gt; I[Server checks]
+  A --&gt; T[Slack]
+  T --&gt; P[You]
+</pre>
+  <ul>
+    <li>🧩 <strong>Every step is a block above:</strong> the log watcher, server checks and Slack. <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/agents/logwatch.md#what-it-does">Log watcher</a></li>
+  </ul>
+
+  <h2>Eight things you can do</h2>
+  <ul>
+    <li>🔍 Ask a second assistant to review the first one's work, and wait for the verdict.</li>
+    <li>⏰ Every weekday at nine, wake an assistant to review the overnight server logs.</li>
+    <li>🚨 When a server logs an error, an assistant looks into it and tells you on Slack (or Telegram, SMS) what it found.</li>
+    <li>📜 Get a daily Slack note about certificates that expire soon.</li>
+    <li>🔄 Push your code once and every server that follows it updates itself.</li>
+    <li>🗄️ Let an assistant answer "how many orders failed yesterday" without ever holding the database password.</li>
+    <li>✉️ Have an assistant read incoming support mail, draft the reply and send it after your approval.</li>
+    <li>🌙 Send a task to an assistant on another machine tonight and read its answer in the morning.</li>
+  </ul>
+
+  <h2>Start here</h2>
+  <ul>
+    <li><a href="https://github.com/parf/ai-agent-bus/blob/main/docs/user/README.md">User guide</a>: the shortest path from nothing to a running assistant or script.</li>
+    <li><a href="https://github.com/parf/ai-agent-bus/blob/main/src/INSTALL.md">Install</a>, details in <a href="https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#install">setup</a>.</li>
+    <li>Source and docs: <a href="https://github.com/parf/ai-agent-bus">github.com/parf/ai-agent-bus</a>.</li>
+  </ul>
+
+  <h2>Integrations</h2>
+  <p>Tools built for agent-bus — suggested ways to put it to work.</p>
+
+  <h3><img src="/img/icon-mdhouse.svg" width="22" height="22" alt="" class="icon">
+      <a href="/mdhouse/">mdhouse</a> — chat with an agent about a document</h3>
+  <p><a href="/mdhouse/">mdhouse</a> is a local, git-aware Markdown workspace. With
+     <code>mdhouse --agent-bus</code> it gains a chat panel: ask a running Claude Code, Codex or
+     OpenCode session about the page you are reading. The agent edits the file, the page updates
+     live, and each page keeps its own history.</p>
+  <figure>
+    <img src="/img/mdhouse-agent-bus.jpg" width="1568" height="912" loading="lazy"
+         alt="mdhouse with the Agent Bus panel on the right: requests sent to a Claude Code session,
+              its answers, a note box and the Updated, Send note, Do, Resolve and Review buttons.">
+  </figure>
+  <p>No adapter on the agent side: the panel sends ordinary bus messages and the agent replies as to
+     any peer. Works with a local or a remote bus —
+     <a href="https://github.com/parf/mdhouse/blob/main/doc/agent-bus.md">mdhouse Agent Bus integration</a>.</p>
+
+  <h2>Plans</h2>
+  <p><a href="https://github.com/parf/ai-agent-bus/blob/main/Plans/README.md#stages">Plans § stages</a></p>
+
+  <h2>License</h2>
+  <p><a href="https://github.com/parf/ai-agent-bus/blob/main/LICENSE.md#polyform-noncommercial-license-100">PolyForm Noncommercial</a>; the client libraries are <a href="https://github.com/parf/ai-agent-bus/blob/main/src/clients/LICENSE.md#mit-license">MIT</a>.</p>
+
+  <footer>
+    <p><a href="/">parf.dev</a> &nbsp;·&nbsp; <a href="/agent-bus/">agent-bus</a> &nbsp;·&nbsp; <a href="/mdhouse/">mdhouse</a> &nbsp;·&nbsp; <a href="/ai-skills/">AI skills</a> &nbsp;|&nbsp; <a href="https://github.com/parf/ai-agent-bus">GitHub</a></p>
+  </footer>
+
+</main>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral" });
+</script>
+</body>
+</html>

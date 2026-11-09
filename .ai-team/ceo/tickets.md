@@ -1,0 +1,51 @@
+# #ab-ceo tickets
+
+| ID | Goal | Plan | Owner of work | Status |
+|---|---|---|---|---|
+| T-1 | Finish and land B.29 shared subscriptions TypeScript twin from worktree `tmp/b29` (branch `b29-subs-ts`, 6 unlanded commits) | [B.29](../../Plans/R1.0-Release/subscriptions.md#one-behaviour), [TODO](../../Plans/R1.0-Release/TODO.md) | #ab-dir → #ab-lead2 | in progress: #ab-w2a on b29-subs-ts, rebases after T-2's vectors; invalid_state approved by owner 10-30; due 10-30 20:00 |
+| T-2 | Finish and land B.28 eventlog agent with the shared Python subscription module from worktree `tmp/eventlog` (branch `task/eventlog`, 2 unlanded commits) | [B.28](../../Plans/R1.0-Release/agent-events/TODO.md#b28-eventlog-agent) | #ab-dir → #ab-lead1 | in progress: step 1a #ab-w1c → #ab-qa1 → #ab-gate (bump); 1) shared Python module + vectors, due 10-30 14:00; 2) eventlog agent, due 10-31 18:00 (no agent code on branch yet) |
+| T-3 | Rename old role names (#ceo, #dir, #gate, …) to #ab-* in Team v2 README, docs only | [Team v2](../../Plans/Team.v2/README.md#roles), [TD2](../../Plans/Team.v2/DECISIONS.md#recorded-decisions) | #ab-dir → #ab-lead2 | ✅ done 20bbb267, no version (docs only); names follow TD3 (replaced TD2) |
+| T-4 | start-ceo.sh launches claude without the inherited CLAUDE_CODE_CHILD_SESSION marker; check the tmux windows too | [Team v2](../../Plans/Team.v2/README.md#status) (node-local, no gate) | #ab-dir → #ab-lead1 | ✅ done (.ai-team/, no commit): start-ceo.sh and the 11 agent windows use env -u CLAUDE_CODE_CHILD_SESSION; marker only in #ab-ceo |
+| T-5 | Move backups (RT13, RBK1) from R1 to R1.1 | [R1.1](../../Plans/R1.1/README.md#scope) | #ab-dir → #ab-lead2 | in progress: #ab-w2c, plan-only move, due 10-30 06:00 |
+| T-6 | TOP: finish Linux distribution (RT14, P.1–P.4, RT17 as far as not owner-only); clean install passes check-deploy in podman on AlmaLinux 10, Ubuntu 26.04 LTS, Debian 13 | [RT14](../../Plans/R1.0-Release/TODO.md) | #ab-dir → #ab-lead1 | in progress: archive layout + install.sh on main (full/client archives per arch, signed SHA256SUMS); #ab-w1a podman harness; P.2 → #ab-w2a, #ab-w1b RT17 questions then P.3; P.4 + podman 3-distro due 10-31 20:00; P.3 same day; P.1, P.2 by 11-01 20:00; RT17 owner choices → questions |
+| T-7 | Finish everything in R1 that needs no owner; owner choices go to the owning QUESTIONS.md, indexed in questions.md | [R1](../../Plans/R1.0-Release/TODO.md#objective) | #ab-dir → #ab-lead2 | in progress, wave 1: DR.1 first (debug agent `env` leaks secret keys; #ab-w2b, due 10-30 14:00); RGW1 due 10-31 14:00; RT8+RT21 due 11-01 20:00; stale-row doc flips |
+| T-17 | IMAP agent: full mail-automation call set (folders, --folder, flags, headers/parts, server search, copy/move/trash/delete/compact_trash, folder ops, append, sub --folder + IDLE), steps 1→5 | [imap-folders](../../Plans/R1.0-Release/imap-folders.md#help-text) | #ab-dir | DONE 14:42: 0.9.244–0.9.249 live on difive+eprofit, allow_destructive on; pushed c21ed563 |
+| T-18 | Runner docs: explicit network and filesystem confinement wherever "confined" appears; review docs/runner/security.md#isolation-today against code (docs only) | [security](../../Plans/../docs/runner/security.md#isolation-today) | #ab-dir | DONE 1f97b72d, pushed 26f38490; hardening plan M.14 (Q276–Q280) ef89a5ac |
+| T-19 | IMAP chunked part/append (large transfer) | [imap-large-transfer](../../Plans/R1.1/imap-large-transfer.md) | #ab-dir | plan d303a43f; NOT NOW (owner 11-01), superseded by T-20 |
+| T-20 | Bus "big key" store: key → memory-or-file content; agents pass keys; Maintainers upload/download, ACL download; size limits | [big-keys](../../Plans/R1.0-Release/bigfile.md) | #ab-dir | DONE 12:17: live 0.9.260 (1a95ec19), pushed 35959628 |
+| T-21 | (C) Sergey Porfiriev as copyright holder and author everywhere | — | #ab-dir | DONE 0.9.250, deployed |
+| T-22 | Rename big keys → bigfile | [bigfile](../../Plans/R1.0-Release/bigfile.md) | #ab-dir | DONE 0.9.262, deployed 13:12 |
+| T-23 | Bigfile index in the daemon DB (temp → rename → row) | [bigfile](../../Plans/R1.0-Release/bigfile.md) | #ab-dir | DONE: 0.9.263, deployed 14:18 |
+| T-24 | Protocol freeze before 1.0 (Q296): 09 contract, protocol number, refusal kind, shared vectors, aliases removed | [decision](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions) | #ab-dir | DONE 17:03: 0.9.264–0.9.284, live |
+| T-25 | RAG keyword search (Q301) | [R1 DECISIONS](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions) | #ab-dir | DONE 0.9.265 + RAG app 0.2.0 deployed; live store blocked by the #ai OpenRouter 401 |
+| T-26 | FileScan (poll/watch/both, subscribers) — plan only | [filescan](../../Plans/R1.1/filescan.md) | #ab-dir | plan landed; R1.1; Q305–Q310 parked |
+| T-27 | Setup creates /var/lib/agent-bus/users/<person>/files | — | #ab-dir | DONE 0.9.281, deployed 16:43 |
+| T-28 | DBSync: separate agent like FileScan, linked plans (updated-field cursor via DB agent) — plan only | [filescan](../../Plans/R1.1/filescan.md) | #ab-dir | plan landed f4aa60e6; R1.1; Q314–Q319 parked |
+| T-29 | Q312: unify per-agent events (RT34) with #eventlog; one engine in #bus — plan + estimate | [agent events](../../Plans/R1.0-Release/agent-events/README.md) | #ab-dir | DONE 0.9.293 (87f3b80b), deployed 14:37 |
+| T-30a | Q313: release workflow ships macOS archives + npm macOS packages; runbook Mac check | [decision](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions) | #ab-dir | DONE c6b8f8ec 0.9.288; proof = first v* tag run |
+| T-30b | Q311: RW4/RW8 docs moved to R1.1 | [decision](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions) | #ab-dir | DONE 4a98f8dc |
+| T-31 | Client libraries: review all six vs the contract; add event-log (T-29) support — plan first | [client contract](../../docs/09-daemon-api.md#the-client-contract) | #ab-dir | code complete (3249e133…25be118f), no deploy; close-out ~15:00 |
+| T-32 | Developer guide: everything needed to write an agent (help, event logs, …) — plan first | [plan](../../Plans/R1.0-Release/agent-guide.md) | #ab-dir | DONE on main (69228913…14cc6cf4); close-out after T-31 |
+| T-35 | Glyph-led tab titles in ab-* launchers: agent glyph (✴️/🔶/🌟/❇️/👾), ❓/🟥 state, AB_TAB_TITLE, tmux window name (PRF-67) — plan first | [launchers](../../docs/06-launchers.md) | #ab-dir | GO (owner 11-05): step 1 names+glyphs+ab_tab_title+tmux, step 2 ❓/🟥 |
+| T-36 | #ai agent: models, model <id>, balance, key, embed, ask cost; image deferred to R2.0 | [R1.1 TODO](../../Plans/R1.1/TODO.md) | #ab-dir | queued 11-05, team 2 |
+| T-37 | Move new auth work (identity, AUTH distribution, scoped credentials, encryption) from R1.1 to R2.0 — docs only | [R1.1 README](../../Plans/R1.1/README.md) | #ab-dir | queued 11-05 |
+| T-38 | FileScan + DBSync (Q334; Q307 replay, Q308 system paths, Q319 MySQL/PG first) | [R1.1 resolved](../../Plans/R1.1/resolved.md) | #ab-dir | queued 11-05 |
+| T-39 | Agent pack own SemVer in the monorepo (Q331), lands ab-w1a/agent-pack | [R1.1 resolved](../../Plans/R1.1/resolved.md) | #ab-dir | queued 11-05 |
+| T-40 | agent.d package as symlink (Q332), lands ab-w1a/agentd-links | [R1.1 resolved](../../Plans/R1.1/resolved.md) | #ab-dir | queued 11-05 |
+| T-41 | Subscription rules: Q326 creation-only everywhere; Q328 Personal may allow #bus | [R1.1 resolved](../../Plans/R1.1/resolved.md) | #ab-dir | queued 11-05 |
+| T-42 | CLI: `-h` is help again; `ls` prints the table on a terminal, JSON when piped | [cli](../../docs/user/cli.md) | #ab-dir | queued 11-05 |
+| T-43 | RAG app 0.3 for mdhouse: semantic+hybrid search, required namespace, drop/list namespaces, citations, capabilities | [mdhouse RAG contract](/home/parf/src/mdhouse/Plans/R3/RAG-CONTRACT.md) | #ab-dir | queued 11-05 |
+| T-48 | mdhouse RAG gaps — plan first: (1) on-demand finite FileScan sync (scan → all confirmed, no standing watch/subscription, no false done on a capped scan); (2) Markdown over 32 KiB into RAG by safe chunking with source/hash/citations | [filescan](../../Plans/R1.1/filescan.md), [rag](../../Plans/R1.0-Release/rag/README.md) | #ab-dir | DONE a055ac62 + a254f562, deployed 1.0.51 / pack 1.0.3 (14:22) |
+| T-49 | Provision #rag/mdhouse (root runner) and #filescan/mdhouse (user runner, root /home/parf/src/mdhouse); parf Owner, #cx/mdhouse-cto Maintainer; no ingestion | [Q353/Q355](../../Plans/R1.1/resolved.md#Q353) | #ab-dir → #ab-ceo runs steps | queued 11-06 |
+| T-50 | #cron and #at become bus core (any agent schedules its own); web Crons/Ats pages + tag filter/count for KV/Crons/Ats + agent-page sections; all current functionality kept — combined plan doc, ideas + questions | Plans/R1.1/cron-in-core.md (to write) | #ab-dir | queued 11-06 14:00, plan only |
+| T-51 | Every agent has its own SemVer (agent.json `version`, own changelog) + `released` (UTC date of the version bump; absent if unknown) in help/help-json and web pages; the pack SemVer stays internal to us — plan first, revises Q331 | [R1.1 resolved Q331](../../Plans/R1.1/resolved.md) | #ab-dir | DONE 1.0.54 / pack 1.0.6 (5e141ac7), 11-07 13:51; per-agent deploy-bump swapped in 14:00 |
+| T-52 | Optional agent image: agent.json `image` (file relative to the agent's code dir), returned with the default agent fields (help/help-json) and shown on the web; pre-generate images for our bundled agents; auto-generate via #ai when none, marked autogenerated — plan first | Plans/R1.1 (to write) | #ab-dir | queued 11-07 |
+| T-53 | Trim CLAUDE.md: keep only per-turn essentials, move detail (verification, mutation, versioning, scratch) to .claude/docs/ files with links; no rule lost; docs-only | CLAUDE.md | #ab-dir | queued 11-09 |
+
+## Waiting on the owner
+
+1. Relaunch the CEO window (start-ceo.sh) to turn transcript saving back on.
+2. Apply the window config (record is parf's): `agent-bus config '#tmux-sessions/ab-dvp@parf.us' - < .ai-team/ab-dvp-v2-config.json`; takes effect at the next window start.
+3. Open questions: see [questions.md](questions.md); expected Q220–Q227 (T-6, RT17) and Q230–Q237 (T-7).
+4. Daemon restart slot (later) for RTA1 multi-tag query and RT32 #bus docs.
+5. Debug agent `env` leaks secret keys on the live node until DR.1 lands (10-30 14:00): disable it now or wait?

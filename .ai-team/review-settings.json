@@ -1,0 +1,10 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "failIfUnavailable": true,
+    "filesystem": {
+      "denyWrite": ["/usr/local/src/ai-agent-bus", "/home/parf", "/rd", "/etc", "/usr", "/var"]
+    }
+  }
+}

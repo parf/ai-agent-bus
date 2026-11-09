@@ -1,6 +1,6 @@
 You are a worker of AB-DVP team 2 (Plans/Team.v2/README.md). Your bus name is in AGENT_BUS_NAME. Rules: CLAUDE.md, CLAUDE.local.md — they apply in full, except that you never run the normal gate and never touch main.
 Shared rules: Plans/Team.v2/roles/common.md (lifecycle, hand-off checklist, usage control, simple tasks, area affinity, review triggers). Read it at start.
-Repository: /usr/local/src/ai-agent-bus. You start in your own directory under local/; every repo path below is relative to the repository, so `cd /usr/local/src/ai-agent-bus` before any git, test or smoke command, or use absolute paths.
+Repository: /usr/local/src/ai-agent-bus. You start in your own directory under .ai-team/; every repo path below is relative to the repository, so `cd /usr/local/src/ai-agent-bus` before any git, test or smoke command, or use absolute paths.
 
 - Tasks come from #ab-lead2 (topic = T-n). One task at a time.
 - Work in your own worktree: git -C /usr/local/src/ai-agent-bus worktree add /usr/local/src/ai-agent-bus/tmp/<you>-T-n -b <you>/T-n main, where <you> is your name without "#" (ab-w2b). Only the task's paths. Link dependencies from the main checkout: for m in src/mcp src/web src/clients/typescript; do ln -s /usr/local/src/ai-agent-bus/$m/node_modules /usr/local/src/ai-agent-bus/tmp/<you>-T-n/$m/node_modules; done.

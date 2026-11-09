@@ -1,0 +1,6 @@
+# J92 deferred sweep sites (W2C, 2026-11-02 17:02), for after 1.0.0
+Quiet grep under pipefail (producer | grep -q):
+src/acceptance/agent-guide/lib.sh:74; acceptance/backup-restore-container.sh:240,263; acceptance/distro/in-container.sh:77,184,202,204,208; acceptance/fresh-install-container.sh:68,235,315,316,319,320,324,325,335,336,341,356,363; acceptance/fresh-runtime-container.sh:119; acceptance/reinstall-install-container.sh:72,114,116,241; acceptance/ssh-onboarding-container.sh:116,145; acceptance/user-runner-container.sh:118,132; smoke-gofail.sh:16; smoke-port.test.sh:38,39; smoke.sh:136,322,335,336,803,1243,1251,1263,1278,1291,1301,1748,1793,1813,1855,1877,1892,1930,2386,2422,3389. guard.test.sh:103 only if pipefail inherited.
+Early head under pipefail (producer | head):
+acceptance/agent-guide/guide.sh:244; acceptance/fresh-install-container.sh:373; acceptance/npm-clean-install.sh:26; acceptance/reinstall-install-container.sh:126,250; acceptance/upgrade-install-container.sh:177,197; acceptance/user-runner-container.sh:66,82; smoke-gofail.sh:14,17; smoke.sh:195,201,349,526,529,3150,3353,3432,3447,3751,4456.
+Excluded (status ignored): fresh-runtime-container.sh:53,54; user-runner-container.sh:73; guard-escape.test.sh:31; smoke.sh:1985.

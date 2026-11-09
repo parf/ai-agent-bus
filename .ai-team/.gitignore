@@ -1,0 +1,27 @@
+# Runtime output and private scratch stay on this node, not in the team history.
+*.log
+*.pid
+*.pyc
+__pycache__/
+*.local
+*.local.*
+*.bak
+*.orig
+*.new
+*.headers
+*.tsv
+*.sha256
+t13-backup/
+**/RC/
+**/RC2/
+# Historical binary/security probes and generated fixture state.
+ab-w1c/b5-review/
+
+# Handoffs and working notes are versioned, including notes named *.local.md.
+!*.md
+
+# Saved patch/build variants are scratch, not the running launcher.
+*.diff
+*.patch
+*.pre-*
+*.av[0-9]
