@@ -1114,7 +1114,7 @@ async fn dispatcher(weak: Weak<Inner>) {
 }
 
 fn default_socket(token: bool) -> String {
-    let account = users::get_current_username().map(|s| s.to_string_lossy().into_owned());
+    let account = uzers::get_current_username().map(|s| s.to_string_lossy().into_owned());
     let mut dirs = Vec::new();
     if let Ok(dir) = std::env::var("XDG_RUNTIME_DIR") {
         dirs.push(PathBuf::from(dir).join("agent-bus"));

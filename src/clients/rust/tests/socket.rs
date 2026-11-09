@@ -27,7 +27,7 @@ async fn default_socket_follows_the_credential_given_to_the_builder() {
     let root = &runtime.0;
     let dir = root.join("agent-bus");
     std::fs::create_dir_all(&dir).unwrap();
-    let account = users::get_current_username().unwrap();
+    let account = uzers::get_current_username().unwrap();
     answer(bind(dir.join("bus.sock")), "#worker@node");
     answer(
         bind(dir.join(format!("user-{}.sock", account.to_string_lossy()))),
