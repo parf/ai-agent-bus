@@ -2,6 +2,8 @@
 # The entry point's own checks, without a container: id, hostname, setpriv, chown and the two programs
 # are stubs that record what the entry point asked of them (README.md#run). Run: bash entrypoint_test.sh
 set -uo pipefail
+# The fixture's directories must not inherit a group-writable umask: the entry point refuses those by design.
+umask 022
 here=$(cd "$(dirname "$0")" && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
