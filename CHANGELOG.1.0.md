@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.55 — 2026-11-09
+
+Security: the MCP SDK rises to 1.32.2, golang.org/x/net to 0.55.0 and rustls to 0.23.46, and the Rust client reads its account through uzers instead of the unmaintained users crate (19 Dependabot alerts); git-install refreshes standalone units and names stale user-runner packages (J128); faster fast go_checks (J129)
+
 ## 1.0.54 — 2026-11-07
 
 Agents get their own versions: every bundled agent reports its own version (1.0.0; #rag 0.4.2) and released date in --help, --help-json and the web agent page (Released row); an outside agent without them shows none (AV.1, T-51)
