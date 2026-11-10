@@ -107,9 +107,9 @@ Owner, 2026-11-10: "add agents - OSD, sound signals, TTS service, speech to text
 | | From | |
 |---|---|---|
 | **osd** | owner | an on-screen display: large text or a level drawn over the screen, which no notification daemon shows. Real OSD tools only, never `notify-send` (that is **notify**): `osd_cat` from xosd on X11, SwayOSD or avizo on Wayland compositors, KDE Plasma's OSD service and GNOME Shell's `ShowOSD`, both over D-Bus |
-| **sound** | owner | play a sound file on the host's audio through `pw-play` (PipeWire), `paplay` (PulseAudio) or `aplay` (ALSA). Named signals map to files in the instance's configuration, so a caller asks for *important message* rather than a path; a spoken signal such as "new important message from Slack" is a **tts** call played here |
-| **tts** | owner | text to speech, to a sound file returned to the caller or spoken on the host's audio. Local engines first: Piper (neural, fast on a CPU), espeak-ng (tiny), or `spd-say` through speech-dispatcher. A cloud voice is a paid provider call and a separate name |
-| **stt** | owner | speech to text from an audio file the caller sends, with a local Whisper (whisper.cpp or faster-whisper) or Vosk for light hosts. Listening to the microphone is a different power from transcribing a file, so it would be a separate name with its own grants |
+| **sound** | owner | play a sound file on the host's audio through `pw-play` (PipeWire), `paplay` (PulseAudio) or `aplay` (ALSA). Named signals map to files in the instance's configuration, so a caller asks for *important message* rather than a path; a spoken signal such as "new important message from Slack" is a **say** call played here |
+| **say** | owner | text to speech (TTS), to a sound file returned to the caller or spoken on the host's audio. Local engines first: Piper (neural, fast on a CPU), espeak-ng (tiny), or `spd-say` through speech-dispatcher. A cloud voice is a paid provider call and a separate name |
+| **transcribe** | owner | speech to text (STT) from an audio file the caller sends, with a local Whisper (whisper.cpp or faster-whisper) or Vosk for light hosts. Listening to the microphone is a different power from transcribing a file, so it would be a separate name, **listen**, with its own grants |
 
 ### Reading the box
 
