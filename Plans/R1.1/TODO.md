@@ -192,6 +192,13 @@ Owner, 2026-11-03 11:04 EST: "todo - add "Calendar agent, add/edit/delete/subscr
 - ☐ CAL.1 Calendar agent: add, edit and delete events, subscribe to changes, and answer smart queries from a cache
   - Next: a plan in `calendar.md` naming the provider, what the cache holds and how it stays fresh, with steps, an estimate and falsifiable acceptance against a fake provider
 
+Owner, 2026-11-10: "add to todo - apple & google calendar integration agents". Not planned; the same plan decides whether these are separate agents or providers behind CAL.1.
+
+- ☐ CAL.2 Google Calendar integration agent
+  - Next: in the `calendar.md` plan, the Google account authorization and how the token is stored and renewed, change notification against polling, and acceptance against a fake Google Calendar API
+- ☐ CAL.3 Apple Calendar integration agent
+  - Next: in the `calendar.md` plan, iCloud CalDAV with an app-specific password, how changes are noticed, and acceptance against a fake CalDAV server
+
 ## DBSync
 
 Owner, 2026-11-02; approved 2026-11-05 ([Q334](resolved.md#Q334)); plan in [dbsync](dbsync.md#steps-and-estimate), answers [Q314–Q320](resolved.md#Q314). Stage S3, after the shared core and FileScan; MySQL and PostgreSQL first.
