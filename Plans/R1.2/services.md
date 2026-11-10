@@ -100,6 +100,17 @@ anybody holding a person. Neither keeps anything about people, both stop at
 the first success, and if a third caller of this kind appears that is the
 signal to make it one agent with three ways in rather than three agents.
 
+### The desk: screen, sound and speech
+
+Owner, 2026-11-10: "add agents - OSD, sound signals, TTS service, speech to text". Each is per host, like **notify**: the name means the person at that machine. Each wraps a common local tool rather than writing its own, and picks among them by what the host has.
+
+| | From | |
+|---|---|---|
+| **osd** | owner | an on-screen alert on the host's display, passed to the OSD tool already there. The common ones: freedesktop notifications over D-Bus (`notify-send`, shown by GNOME Shell, KDE Plasma, dunst, mako or swaync), `osd_cat` from xosd on X11, and SwayOSD or avizo on Wayland compositors. It may become **notify**'s implementation rather than a second name; the plan decides |
+| **sound** | owner | play a sound file on the host's audio through `pw-play` (PipeWire), `paplay` (PulseAudio) or `aplay` (ALSA). Named signals map to files in the instance's configuration, so a caller asks for *important message* rather than a path; a spoken signal such as "new important message from Slack" is a **tts** call played here |
+| **tts** | owner | text to speech, to a sound file returned to the caller or spoken on the host's audio. Local engines first: Piper (neural, fast on a CPU), espeak-ng (tiny), or `spd-say` through speech-dispatcher. A cloud voice is a paid provider call and a separate name |
+| **stt** | owner | speech to text from an audio file the caller sends, with a local Whisper (whisper.cpp or faster-whisper) or Vosk for light hosts. Listening to the microphone is a different power from transcribing a file, so it would be a separate name with its own grants |
+
 ### Reading the box
 
 Safe to hand out widely, which is why they are not in the group below.
