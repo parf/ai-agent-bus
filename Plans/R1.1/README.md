@@ -19,8 +19,6 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Node cleanup (B.15) | [Lasting bounds](node-cleanup.md#lasting-bounds) |
 | Runner backups | [Backup contract](backups.md#backing-it-up); [RT13 and RBK1](TODO.md#backups) |
 | Operations | [Operations](operations.md#reload) |
-| File scanner (FS.1, plan only) | [Filescan plan](filescan.md#steps-and-estimate); [task](TODO.md#filescan) |
-| Database sync (DS.1, plan only) | [DBSync plan](dbsync.md#steps-and-estimate); [task](TODO.md#dbsync) |
 | Calendar agent (CAL.1), Google and Apple calendar agents (CAL.2, CAL.3); not planned | [tasks](TODO.md#calendar) |
 | Storage backends | [Storage backends](storage.md#backends) |
 | Peer registry | [Registry sync](registry.md#registry-sync) |

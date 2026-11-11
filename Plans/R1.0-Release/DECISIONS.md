@@ -866,6 +866,37 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Home: [current roles](../../docs/03-records-agent.md#roles)
   - Completed by: [№RD95](#recorded-decisions), applicability to ACL-bearing records
 
+- FileScan and DBSync decisions, moved from [R1.1 decisions](../R1.1/DECISIONS.md#recorded-decisions) on 2026-11-11 with their plans; questions keep their R1.1 records.
+
+- **Q355 FileScan's first root is `/home/parf/src/mdhouse` for `#filescan/mdhouse` on the user-account runner, controlled by mdhouse as Maintainer** — Owner, 2026-11-06.
+  - Home: [resolved](../R1.1/resolved.md#Q355).
+- **Q372–Q375 FileScan gets a finite `sync` on on-demand instances only: a bounded call that resumes, removal of files gone from the folder, `max_per_scan` as the run bound** — Owner, 2026-11-06.
+  - Home: [resolved](../R1.1/resolved.md#Q372), [on-demand sync](filescan.md#on-demand-sync).
+- **Q334, Q305–Q310, Q314–Q320 Build FileScan and DBSync: shared core, replay the existing base by default, system paths allowed, MySQL and PostgreSQL first** — Owner, 2026-11-05.
+  - Home: [resolved](../R1.1/resolved.md#Q334).
+- **FileScan host boundary** — Owner, 2026-11-05 (Q308).
+  - Home: [host and sandbox](filescan.md#host-and-sandbox).
+- **FileScan watch roots are the node owner's** — #ab-dir, 2026-11-05 (replaces the record Owner setting `dir`).
+  - Home: [host and sandbox](filescan.md#host-and-sandbox).
+- **FileScan content** — Owner, 2026-11-01 and 2026-11-05.
+  - Home: [what a message carries](filescan.md#what-a-message-carries).
+- **Kept-process deployment** — Owner, 2026-11-05.
+  - Home: [host and sandbox](filescan.md#host-and-sandbox), [DBSync decisions](dbsync.md#decisions).
+- **DBSync credential boundary** — Owner, 2026-11-05.
+  - Home: [DBSync decisions](dbsync.md#decisions), [who may use it](dbsync.md#who-may-use-it).
+- **Filescan: file contents go inline, bigfile only as the fallback** — Owner, 2026-11-01.
+  - Home: [what a message carries](filescan.md#what-a-message-carries).
+- **Filescan: state is one atomically written file in the work directory** — Owner, 2026-11-01.
+  - Home: [state](filescan.md#state).
+- **Filescan: one scan at a time** — Owner, 2026-11-01.
+  - Home: [how it works](filescan.md#how-it-works).
+- **Filescan: change notification** — Owner, 2026-11-01.
+  - Home: [finding changes](filescan.md#finding-changes).
+- **Filescan: the `mode` setting** — Owner, 2026-11-01.
+  - Home: [modes](filescan.md#modes).
+- **Filescan: host, authority and the mass-delete guard** — Owner, 2026-11-01.
+  - Home: [host](filescan.md#host-and-sandbox), [who may use it](filescan.md#who-may-use-it), [guard](filescan.md#the-mass-delete-guard).
+
 ## Assigned roles implementation planning
 
 - ✅ RD63 Prepare a checkbox plan and peer review, with efficient handling when no roles are assigned

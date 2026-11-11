@@ -12,9 +12,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Cron and at: built now in R1.1; schedules on agents, queues and pubsubs; caps per record of 100 recurring and 10 000 one-shots; the owning record's tags on KV, Crons and Ats; a schedule goes with a short-lived name, with a warning | [questions](cron-in-core.md#questions) | Owner, 2026-11-06 19:20: Q379 "now"; Q382 "agent, queue, pubsub; only ones who can receive message"; Q384 "100 for cron / per record; 10k for AT / per record"; Q387 and Q389 the recommended options |
 | Cron and at: the alerts and warnings a schedule raises, with the web's problem states | [Q390](cron-in-core.md#q390) | Owner, 2026-11-06 19:12: every item ticked, the recommended rows agreed: "agree" |
 | Q353 mdhouse gets its own `#rag/mdhouse@parf.us` on its runner (here the user-account runner), owned and used by mdhouse as an external user would; on this one-account node parf stays Owner and mdhouse is Maintainer | [resolved](resolved.md#Q353) | Owner, 2026-11-06 |
-| Q355 FileScan's first root is `/home/parf/src/mdhouse` for `#filescan/mdhouse` on the user-account runner, controlled by mdhouse as Maintainer | [resolved](resolved.md#Q355) | Owner, 2026-11-06 |
 | Q377, Q378 mdhouse's `#rag/mdhouse` uses the shared `#voyage` and `#ai`, admitted on their allow lists; no own keys | [resolved](resolved.md#Q377) | Owner, 2026-11-06 |
-| Q372–Q375 FileScan gets a finite `sync` on on-demand instances only: a bounded call that resumes, removal of files gone from the folder, `max_per_scan` as the run bound | [resolved](resolved.md#Q372), [on-demand sync](filescan.md#on-demand-sync) | Owner, 2026-11-06 |
 | Q376 mdhouse's RAG stores through a `#qdrant/mdhouse` proxy to the existing Qdrant server, collection `rag_mdhouse` | [resolved](resolved.md#Q376) | Owner, 2026-11-06 |
 | Q391 `#ai@parf.us` stays open to every caller (`*`) for now | [resolved](resolved.md#Q391) | Owner, 2026-11-06 |
 | Q354 `#ai`'s default image model is `google/gemini-3.1-flash-image` | [resolved](resolved.md#Q354) | Owner, 2026-11-06 |
@@ -23,18 +21,13 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Q393 Every bundled agent starts its own version at 1.0.0, with a changelog note; `#rag` keeps its app line | [resolved](resolved.md#Q393) | Owner, 2026-11-07 |
 | Q394 An outside agent with no `version` shows none: the field is absent from help and the web | [resolved](resolved.md#Q394) | Owner, 2026-11-07 |
 | Q5 moved to R1.3 | [R1.3 decisions](../R1.3/DECISIONS.md#recorded-decisions) | |
+| FileScan and DBSync decisions moved to R1 with their plans, 2026-11-11 | [R1 decisions](../R1.0-Release/DECISIONS.md#recorded-decisions) | |
 | Q339 `#imap` keeps the per-delivery subscription check; only `#eventlog` and `#logwatch` check at creation | [resolved](resolved.md#Q339) | Owner, 2026-11-06 |
 | Q336 The root runner (RT19) replaces the standalone starter; a default policy that protects other agents' data is wanted for it and for a user's runner | [resolved](resolved.md#Q336), [root runner](root-runner.md#what-the-starter-is-today) | Owner, 2026-11-06: "replaced it" |
 | Q72 The single front door (one port, a public homepage, sign-in under `/admin/`, an on-demand Bun admin) is rejected | [resolved](resolved.md#Q72), [archive](../done/decisions-archive.md#web-cli-mcp-and-launchers) | Owner, 2026-11-06: "NO - reject this idea; lots of troubles for no gain" |
 | Q337 `#ai` defaults to `anthropic/claude-haiku-5.5` (its Configuration `model`) | [resolved](resolved.md#Q337) | Owner, 2026-11-05 |
 | Q268, Q178 MCP: hand-write the Go face's small JSON-RPC part; the runner adds the `mcp` tag | [resolved](resolved.md#Q268) | Owner, 2026-11-05 |
 | Q326, Q328 Subscriptions: one rule everywhere (source checked at creation); a Personal agent may list `#bus` in its Allow | [resolved](resolved.md#Q326) | Owner, 2026-11-05 |
-| Q334, Q305–Q310, Q314–Q320 Build FileScan and DBSync: shared core, replay the existing base by default, system paths allowed, MySQL and PostgreSQL first | [resolved](resolved.md#Q334) | Owner, 2026-11-05 |
-| FileScan host boundary | [host and sandbox](filescan.md#host-and-sandbox) | Owner, 2026-11-05 (Q308) |
-| FileScan watch roots are the node owner's | [host and sandbox](filescan.md#host-and-sandbox) | #ab-dir, 2026-11-05 (replaces the record Owner setting `dir`) |
-| FileScan content | [what a message carries](filescan.md#what-a-message-carries) | Owner, 2026-11-01 and 2026-11-05 |
-| Kept-process deployment | [host and sandbox](filescan.md#host-and-sandbox), [DBSync decisions](dbsync.md#decisions) | Owner, 2026-11-05 |
-| DBSync credential boundary | [DBSync decisions](dbsync.md#decisions), [who may use it](dbsync.md#who-may-use-it) | Owner, 2026-11-05 |
 | Q281–Q284, Q286, Q287 IMAP large transfer: chunked calls, bounded staging, caller-built mail, optional hash, base64 windows | [resolved](resolved.md#Q281) | Owner, 2026-11-05 |
 | Q332 An `agent.d` package may be a link to its checkout | [resolved](resolved.md#Q332) | Owner, 2026-11-05: "i place symlink; i do git pull there" |
 | Every agent has its own SemVer and a `released` in its `agent.json`; the pack version is only deploy bookkeeping (revises Q331) | [agent versions](agent-versions.md#rules), [AV.1](TODO.md#agent-versions) | Owner, 2026-11-06 |
@@ -62,12 +55,6 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Scope | [definition](README.md#scope) | D69 |
 | Registry sync | [definition](registry.md#registry-sync) | D79 |
 | Dashboard extensions | [definition](discovery.md#dashboard-extensions) | D243 |
-| Filescan: file contents go inline, bigfile only as the fallback | [what a message carries](filescan.md#what-a-message-carries) | Owner, 2026-11-01 |
-| Filescan: state is one atomically written file in the work directory | [state](filescan.md#state) | Owner, 2026-11-01 |
-| Filescan: one scan at a time | [how it works](filescan.md#how-it-works) | Owner, 2026-11-01 |
-| Filescan: change notification | [finding changes](filescan.md#finding-changes) | Owner, 2026-11-01 |
-| Filescan: the `mode` setting | [modes](filescan.md#modes) | Owner, 2026-11-01 |
-| Filescan: host, authority and the mass-delete guard | [host](filescan.md#host-and-sandbox), [who may use it](filescan.md#who-may-use-it), [guard](filescan.md#the-mass-delete-guard) | Owner, 2026-11-01 |
 
 ## Open
 

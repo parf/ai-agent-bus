@@ -25,7 +25,7 @@ The checklist owns the reading path, not another version of those contracts.
 ## 3 ways to run agents
 
 This is the guide's TOP section, before the tiers. Use a simple Mermaid flowchart
-like [FileScan's](../R1.1/filescan.md#how-it-works), without extra visual styling.
+like [FileScan's](filescan.md#how-it-works), without extra visual styling.
 The diagram is a proposed reading aid, not a claim that these examples already run.
 
 ```mermaid

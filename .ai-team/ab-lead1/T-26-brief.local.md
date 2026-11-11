@@ -1,6 +1,6 @@
 T-26 consolidated brief (settled with #ab-dir and the owner, 2026-11-01 14:39–14:50). PLAN ONLY, R1.1, docs only, one reader, no bump. Start after V1 lands.
 
-Deliver Plans/R1.1/filescan.md + one R1.1 TODO item (falsifiable acceptance) + open questions from the next free Q id (check decision records and git log first), each with a recommendation. Help-text syntax and settings; no JSON schemas or wire shapes beyond help syntax. Include an AI-time ETA for building it. Record the owner decisions below as owner DECISIONS (dated 2026-11-01).
+Deliver Plans/R1.0-Release/filescan.md + one R1.1 TODO item (falsifiable acceptance) + open questions from the next free Q id (check decision records and git log first), each with a recommendation. Help-text syntax and settings; no JSON schemas or wire shapes beyond help syntax. Include an AI-time ETA for building it. Record the owner decisions below as owner DECISIONS (dated 2026-11-01).
 
 What: a runner agent `#filescan/<name>` tracks new/changed/deleted/renamed files in one directory and hands them to subscriber agents (e.g. Obsidian vault -> RAG).
 

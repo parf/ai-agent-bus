@@ -28,6 +28,9 @@ the tools stage is [R1.2](../R1.2/README.md#scope).
 | Record-defined roles | [Roles](../../docs/03-records-agent.md#roles) |
 | Daemon configuration | [RT22 approved plan](daemon-configuration.md#approved-plan) |
 | Method metadata | [Method metadata](done/method-metadata.md#method-metadata) |
+| File scanner (FS.1–FS.3), moved from R1.1 | [FileScan plan](filescan.md#steps-and-estimate); [completed](done/filescan-dbsync.md#filescan) |
+| Database sync (DS.1), moved from R1.1 | [DBSync plan](dbsync.md#steps-and-estimate); [completed](done/filescan-dbsync.md#dbsync) |
+| Launcher tab titles (T-35) and `call --body`, moved from R1.1 | [completed](done/t35-and-call-body.md#launcher-tab-titles) |
 | Good-agent checklist | [Three ways to run the same agent](agent-guide.md#3-ways-to-run-agents), then the minimum, suggested and optional checklist |
 | Client libraries | [Current client guide](../../src/clients/README.md); [completed event examples](DONE.md#t-31-client-event-logs-and-subscriptions) |
 

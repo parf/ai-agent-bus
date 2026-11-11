@@ -423,3 +423,8 @@ The Linux-tested `1.0.0RC2` source passes the full Darwin arm64 archive's native
 ## T-33 Markdown setup entry point
 
 [AI-SETUP.md](../../AI-SETUP.md#how-to-start) now directs an AI to inspect an installation, offer tuning when present, read the main docs and selected agent help, and follow the existing install/configuration/update rules. [Delivered scope and checked limits](done/t33-ai-setup.md#checks-and-limits) record the Linux workflow check and distinguish it from a real version upgrade or provider-account test. T-34 moved to R1.1.
+
+
+## FileScan, DBSync, tab titles and call --body
+
+Shipped in 1.0.x and moved from R1.1 on 2026-11-11: FileScan FS.1–FS.3, DBSync DS.1, T-35 launcher tab titles and `agent-bus call --body`. [FileScan and DBSync](done/filescan-dbsync.md#filescan), [T-35 and `--body`](done/t35-and-call-body.md#launcher-tab-titles).

@@ -21,7 +21,7 @@ Landed this session (worktrees removed): T-32c, T-32d, T-31f, J88, B1, guide-uns
 
 ## Next
 1. Wait for W1C's re-read of S0 (77fbbf1d); then S1 when lead confirms.
-2. Wait for the compact, then T-38 S1 (the shared core library: state file, subscriptions with authority, delivery with confirm/resend, poll timer) once lead confirms after S0 lands; S3 (DBSync) moves to W1A if my weekly is under 40% (7d was 89% left, 5h 49% at 21:45). Plans: Plans/R1.1/filescan.md (#stages), dbsync.md, TODO FS.1/DS.1, resolved.md Q305–Q320 (Q307 replay by default, Q308 system paths, Q319 MySQL/PG first).
+2. Wait for the compact, then T-38 S1 (the shared core library: state file, subscriptions with authority, delivery with confirm/resend, poll timer) once lead confirms after S0 lands; S3 (DBSync) moves to W1A if my weekly is under 40% (7d was 89% left, 5h 49% at 21:45). Plans: Plans/R1.0-Release/filescan.md (#stages), dbsync.md, TODO FS.1/DS.1, resolved.md Q305–Q320 (Q307 replay by default, Q308 system paths, Q319 MySQL/PG first).
 3. Land cleanup after each "landed": for each branch `for m in src/mcp src/web src/clients/typescript; do rm -f tmp/<wt>/$m/node_modules; done; git worktree remove --force tmp/<wt>; git branch -D <branch>`.
 4. tmp/go-cache-w1b and any tmp/agent-guide.* of mine may still exist; remove at close-out.
 

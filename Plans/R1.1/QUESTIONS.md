@@ -83,7 +83,7 @@ None open: [№Q191](DECISIONS.md#recorded-decisions) is [settled](DECISIONS.md#
 - ✅ Q334 → [№Q334](resolved.md#Q334)
 
 
-Open choices for [filescan](filescan.md#questions).
+Open choices for [filescan](../R1.0-Release/filescan.md#questions).
 
 - ✅ Q305 → [№Q305](resolved.md#Q305)
 
@@ -99,7 +99,7 @@ Open choices for [filescan](filescan.md#questions).
 
 ## Filescan on-demand sync
 
-Four open questions for the [on-demand sync](filescan.md#on-demand-sync) (T-48).
+Four open questions for the [on-demand sync](../R1.0-Release/filescan.md#on-demand-sync) (T-48).
 
 <a id="Q372"></a>
 
@@ -119,7 +119,7 @@ Four open questions for the [on-demand sync](filescan.md#on-demand-sync) (T-48).
 
 ## DBSync
 
-Open choices for [dbsync](dbsync.md#questions).
+Open choices for [dbsync](../R1.0-Release/dbsync.md#questions).
 
 - ✅ Q314 → [№Q314](resolved.md#Q314)
 

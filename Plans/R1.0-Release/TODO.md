@@ -635,6 +635,15 @@ Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#
   - MAC.2g restores a missing role group at the existing user's unused PrimaryGroupID without changing the user; preflight accepts that safe user-only state, refuses group-only and GID clashes, and fails closed on unreadable privileged membership ([checks](done/mac2g.md#local-checks)). The native Mac run restored the group as designed ([result](done/mac2.md#archive-acceptance)).
 - MAC.3 Moved to [R1.1](../R1.1/TODO.md#macos-sandbox) by owner decision (Q299), 2026-11-01.
 
+## Moved from R1.1
+
+Shipped in 1.0.x, so recorded as R1 work (owner, 2026-11-11).
+
+- ✅ FS.1–FS.3 FileScan, with on-demand sync and large files in RAG (1.0.33–1.0.48): [completed](done/filescan-dbsync.md#filescan)
+- ✅ DS.1 DBSync (1.0.37): [completed](done/filescan-dbsync.md#dbsync)
+- ✅ T-35 Glyph-led launcher tab titles (1.0.3, 1.0.8): [completed](done/t35-and-call-body.md#launcher-tab-titles)
+- ✅ `agent-bus call --body` prints only the reply body (1.0.14): [completed](done/t35-and-call-body.md#cli-reply-body)
+
 ## Web scale follow-up from MVP
 
 - ✅ F.13.6 follow-up — growing pages and directory reads

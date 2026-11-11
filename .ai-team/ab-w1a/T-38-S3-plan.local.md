@@ -1,6 +1,6 @@
 # T-38 S3 — DBSync build plan (MySQL, PostgreSQL)
 
-📌 **TL;DR:** `#dbsync/<name>` is a kept process on the S1 core (`change_sync.py`). It pages one table through a read-only `#db/<name>` with a per-subscriber (`updated`, key) position, and keeps only a bounded window of rows in state, never the whole table. The steps are D1 (agent, statement builder, cursor and paging), D2 (lookback, de-duplication, soft delete) and D3 (DB-fixture lines, guide, mutants). Code starts when S1 lands. The plan is [Plans/R1.1/dbsync.md](../../Plans/R1.1/dbsync.md); this note covers how I build it and the points the lead asked about.
+📌 **TL;DR:** `#dbsync/<name>` is a kept process on the S1 core (`change_sync.py`). It pages one table through a read-only `#db/<name>` with a per-subscriber (`updated`, key) position, and keeps only a bounded window of rows in state, never the whole table. The steps are D1 (agent, statement builder, cursor and paging), D2 (lookback, de-duplication, soft delete) and D3 (DB-fixture lines, guide, mutants). Code starts when S1 lands. The plan is [Plans/R1.0-Release/dbsync.md](../../Plans/R1.0-Release/dbsync.md); this note covers how I build it and the points the lead asked about.
 
 ## 1. Credentials boundary
 
@@ -63,7 +63,7 @@ S1's model of "all items plus marks per subscriber" would be O(rows × subscribe
 | Subscriber confirm, resend, authority | S1's fake bus (may_send, record lookup, call and send recorders) | same |
 | The real SQL on both engines, read-only refusal, late commit with two transactions | **the existing `agent_db` podman fixture** (MySQL/MariaDB and PG containers from `agents/db/fixtures.py`) | `agent_dbsync` normal shard only. podman needs the lock and the lead's approval, so I run it by hand once in D3 at most and leave it to the gate's normal |
 
-- Every acceptance item in [DS.1](../../Plans/R1.1/TODO.md#dbsync) maps to one named fake-DB test. The four that need a real engine (dialect `now()`, read-only refusal, late commit across transactions, the type query) also get a fixture line.
+- Every acceptance item in [DS.1](../../Plans/R1.0-Release/done/filescan-dbsync.md#dbsync) maps to one named fake-DB test. The four that need a real engine (dialect `now()`, read-only refusal, late commit across transactions, the type query) also get a fixture line.
 - Mutants, each compiled and failing on an assertion, on the ⚠️ parts:
   - the statement builder: allow a quote; the cursor on `updated` only; drop the key tie-break;
   - state and window: prune without dropping marks, which makes a phantom delete; no back-pressure;

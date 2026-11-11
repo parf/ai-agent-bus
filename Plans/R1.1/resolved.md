@@ -52,7 +52,7 @@
 <a id="Q334"></a>
 
 - ✅ Q334 Build FileScan and DBSync with every suggested answer below (№Q305–№Q310, [№Q314–№Q320](QUESTIONS.md#dbsync))
-  - Context: both plans are written ([FileScan](filescan.md#steps-and-estimate), [DBSync](dbsync.md#steps-and-estimate)); order: the shared core, then FileScan, then DBSync, about 8–10 hours of agent time after T-35 and T-36. Your steps at the end: the folder and database account to watch, and a live RAG run (one paid embedding per file)
+  - Context: both plans are written ([FileScan](../R1.0-Release/filescan.md#steps-and-estimate), [DBSync](../R1.0-Release/dbsync.md#steps-and-estimate)); order: the shared core, then FileScan, then DBSync, about 8–10 hours of agent time after T-35 and T-36. Your steps at the end: the folder and database account to watch, and a live RAG run (one paid embedding per file)
   - (x) Yes: take every 🌟 option below and build 🌟
   - ( ) Answer the questions one by one below first
   > 💡👾 The suggestions hold. Mind №Q306: notes over 32 KiB do not reach RAG until RAG takes bigger texts; and №Q308: folders under your home only, for now.
@@ -129,7 +129,7 @@
 <a id="Q315"></a>
 
 - ✅ Q315 Whose DB-agent grant the query runs under
-  - Context: the subscription author's rights to the target are checked as in [FileScan](filescan.md#who-may-use-it); the query itself reads data
+  - Context: the subscription author's rights to the target are checked as in [FileScan](../R1.0-Release/filescan.md#who-may-use-it); the query itself reads data
   - (x) The DBSync instance's own grant, fixed by its Owner; the author also needs may-send to the DB agent at `sub add` and before every forward, so nobody reads through DBSync what they could not read directly 🌟
   - ( ) The instance's own grant alone, with no author check on the DB agent ⭐
   - ( ) The subscriber's grant, forwarded per query
@@ -161,7 +161,7 @@
 
 - ✅ Q318 Cursor and key types without bind parameters
   - Context: the DB agent takes one statement of text and has no binds
-  - (x) Only numeric or timestamp types in R1.1; the [type guard](dbsync.md#the-cursor) counts the declared cursor and key columns that are not and refuses at configuration and at `sub add`, never tolerant quoting 🌟
+  - (x) Only numeric or timestamp types in R1.1; the [type guard](../R1.0-Release/dbsync.md#the-cursor) counts the declared cursor and key columns that are not and refuses at configuration and at `sub add`, never tolerant quoting 🌟
   - ( ) Add binds to the DB agent first, as its own item ⭐
   - ( ) Allow text keys through each engine's literal quoting
   > 💡👾 Numeric and timestamp only: no quoting to get wrong; a DB-agent bind feature can widen it later.
