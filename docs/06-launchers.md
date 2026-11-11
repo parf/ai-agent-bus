@@ -303,6 +303,32 @@ checkout or manual marketplace path is needed.
 - The plugin gets its face path and private session environment from the launcher; persistent plugin files contain no bus token, name or socket.
 - Other runtimes are unchanged.
 
+### Allowlist warning
+
+| Startup shows | Cause | Fix |
+|---|---|---|
+| `plugin:agent-bus@agent-bus-local · not on the approved channels allowlist`; tools work, nothing is pushed | The effective policy has no entry for `agent-bus-local`, so Anthropic's default channel list applies | Add the allowlist to the managed policy: [API-key accounts](#api-key-accounts) or [Team and Enterprise](#team-and-enterprise-administration) |
+
+### API-key accounts
+
+A Console or API-key account has no org policy: its `remote-settings.json` is
+`{}`. Put the allowlist in the host policy, then start a fresh `ab-claude`:
+
+```sh
+sudo tee /etc/claude-code/managed-settings.json <<'JSON'
+{
+  "channelsEnabled": true,
+  "allowedChannelPlugins": [{"marketplace":"agent-bus-local", "plugin":"agent-bus"}]
+}
+JSON
+sudo chmod 0644 /etc/claude-code/managed-settings.json
+```
+
+- Merge into an existing file rather than overwriting it.
+- The file is host-wide. Team accounts on the host keep their server-managed policy, which wins over it.
+- If the API org later publishes server-managed settings, they override this file; move the allowlist there.
+- The same list rule applies as below: include any official channel plugins you use.
+
 ### Team and Enterprise administration
 
 The org Owner enables **Organization settings → Claude Code → Channels**.
