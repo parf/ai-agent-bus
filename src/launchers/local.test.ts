@@ -524,7 +524,7 @@ test("Claude channel plugin loads the launcher-selected face and inherits its se
   try {
     const entry = join(scratch, "face.ts"), marker = join(scratch, "loaded.json");
     writeFileSync(entry, 'await Bun.write(process.env.TEST_MARKER!, JSON.stringify({name:process.env.AGENT_BUS_NAME,addr:process.env.AGENT_BUS_ADDR,runtime:process.env.AGENT_BUS_RUNTIME}));');
-    const root = resolve(import.meta.dir, "../mcp");
+    const root = resolve(import.meta.dir, "../plugin");
     const manifest = await Bun.file(join(root, ".claude-plugin/plugin.json")).json();
     const server = manifest.mcpServers["agent-bus"];
     const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("AGENT_BUS_")));

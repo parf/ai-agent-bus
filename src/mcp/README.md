@@ -8,7 +8,7 @@ start with [Loading it](#loading-it); source contributors can edit the [tool des
 
 **Claude Code.** Use `ab-claude`; follow [plugin installation and Team/Enterprise policy](../../docs/06-launchers.md#claude-channel-plugin).
 The plugin supplies MCP tools and `/agent-bus:ls` and `/agent-bus:send`.
-The source plugin's cache-safe `channel.ts` imports `AGENT_BUS_MCP_ENTRY`, supplied by the
+The plugin lives in [`../plugin/`](../plugin/channel.ts), apart from this face, so Claude's per-account copy holds only its manifest, `channel.ts` and commands. Its cache-safe `channel.ts` imports `AGENT_BUS_MCP_ENTRY`, supplied by the
 launcher; the private session environment carries identity and connection
 settings. No credentials are embedded in the plugin.
 
@@ -203,5 +203,4 @@ See [module boundaries](../MODULES.md#languages) for the language split.
 | `rpc.ts` | newline-delimited JSON-RPC line reader and request matcher |
 | `face-mark.ts` | the mark that tells a launcher its face is still alive |
 | `version.ts` | the shared release number, read from `../internal/version/VERSION` |
-| `.claude-plugin/`, `commands/` | the Claude Code plugin manifest and its `/agent-bus:ls`, `/agent-bus:send` |
 | `smoke*.ts`, `launcher-runtime-fixture.ts`, `*.test.ts` | acceptance and unit checks; run by [`../smoke.sh`](../smoke.sh) |

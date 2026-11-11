@@ -38,8 +38,8 @@ required=(
   agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup
   agent-bus-token # fixed SSH wrapper, copied by build.sh
   web/server.ts web/agent-bus-web.service
-  .claude-plugin/marketplace.json mcp/.claude-plugin/plugin.json mcp/channel.ts mcp/tags.ts
-  mcp/commands/ls.md mcp/commands/send.md
+  .claude-plugin/marketplace.json plugin/.claude-plugin/plugin.json plugin/channel.ts mcp/tags.ts
+  plugin/commands/ls.md plugin/commands/send.md
   agent-bus-ts # the compiled MCP face, launcher and web face
   launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1
   internal/version/VERSION LICENSE.md licenses/NOTICE.md INSTALL.md
@@ -64,7 +64,7 @@ croot="$work/$client"
 mkdir "$croot"
 (
   cd "$root"
-  tar -cf - agent-bus agent-bus-runner agent-bus-ts launchers .claude-plugin mcp/.claude-plugin mcp/commands \
+  tar -cf - agent-bus agent-bus-runner agent-bus-ts launchers .claude-plugin plugin \
     agents clients internal/version/VERSION LICENSE.md licenses/NOTICE.md | tar -xf - -C "$croot"
 )
 (

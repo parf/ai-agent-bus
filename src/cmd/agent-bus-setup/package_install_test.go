@@ -17,7 +17,7 @@ import (
 var requiredBundleContract = []string{
 	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token",
 	"web/server.ts", "web/agent-bus-web.service",
-	".claude-plugin/marketplace.json", "mcp/.claude-plugin/plugin.json", "mcp/channel.ts", "mcp/tags.ts", "mcp/commands/ls.md", "mcp/commands/send.md",
+	".claude-plugin/marketplace.json", "plugin/.claude-plugin/plugin.json", "plugin/channel.ts", "mcp/tags.ts", "plugin/commands/ls.md", "plugin/commands/send.md",
 	"agent-bus-ts", // the compiled MCP face, launcher and web face (src/ts-main.ts)
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1",
 	"internal/version/VERSION", "agents/VERSION", "agents/protocol.json", "LICENSE.md", "licenses/NOTICE.md", "INSTALL.md",
@@ -577,7 +577,7 @@ func TestObsoleteReleaseLayoutIsNotARecoveryTarget(t *testing.T) {
 		root := t.TempDir()
 		var lines []string
 		names := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token", "agent-bus-web",
-			".claude-plugin/marketplace.json", "mcp/.claude-plugin/plugin.json", "mcp/channel.ts", "mcp/commands/ls.md", "mcp/commands/send.md",
+			".claude-plugin/marketplace.json", "plugin/.claude-plugin/plugin.json", "plugin/channel.ts", "plugin/commands/ls.md", "plugin/commands/send.md",
 			"mcp/server.js", "launchers/launcher.js", "internal/version/VERSION", "LICENSE.md", "licenses/NOTICE.md", "INSTALL.md"}
 		for _, name := range names {
 			if name == drop {

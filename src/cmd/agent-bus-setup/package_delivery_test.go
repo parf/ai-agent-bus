@@ -25,7 +25,7 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(src, "package.sh"), script, 0700); err != nil {
 		t.Fatal(err)
 	}
-	files := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token", "web/server.ts", "web/agent-bus-web.service", ".claude-plugin/marketplace.json", "mcp/.claude-plugin/plugin.json", "mcp/channel.ts", "mcp/tags.ts", "mcp/commands/ls.md", "mcp/commands/send.md",
+	files := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token", "web/server.ts", "web/agent-bus-web.service", ".claude-plugin/marketplace.json", "plugin/.claude-plugin/plugin.json", "plugin/channel.ts", "mcp/tags.ts", "plugin/commands/ls.md", "plugin/commands/send.md",
 		"agent-bus-ts", "launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1", "LICENSE.md", "licenses/NOTICE.md", "INSTALL.md"}
 	files = append(files, []string{
 		"agents/slack/agent.json",

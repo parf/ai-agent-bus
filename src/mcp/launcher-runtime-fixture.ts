@@ -1,6 +1,7 @@
 import { Bus } from "./bus.ts";
 import { shareFixtureInbox } from "./smoke-access.ts";
 // Runtime boundary fixture. The bus and MCP face are real in smoke.sh.
+import { join } from "node:path";
 import { appendFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
@@ -133,10 +134,10 @@ if (args[0] === "serve") {
   if (kind === "claude" && value("--channels") === "plugin:agent-bus@agent-bus-local" && !args.includes("--dangerously-load-development-channels")) {
     const installed = JSON.parse(readFileSync(process.env.CLAUDE_CONFIG_DIR + "/plugins/installed_plugins.json", "utf8"));
     if (!installed.plugins?.["agent-bus@agent-bus-local"]?.length) throw Error("local channel plugin not installed");
-    const manifest = JSON.parse(readFileSync(new URL("./.claude-plugin/plugin.json", import.meta.url), "utf8"));
+    const manifest = JSON.parse(readFileSync(new URL("../plugin/.claude-plugin/plugin.json", import.meta.url), "utf8"));
     if (manifest.name !== "agent-bus" || manifest.channels?.[0]?.server !== "agent-bus") throw Error("channel plugin is not declared");
     const server = manifest.mcpServers["agent-bus"];
-    config = { ...server, args: server.args.map((arg: string) => arg.replaceAll("${CLAUDE_PLUGIN_ROOT}", import.meta.dir)), env: {...server.env, AGENT_BUS_SESSION_FILE: process.env.AGENT_BUS_SESSION_FILE} };
+    config = { ...server, args: server.args.map((arg: string) => arg.replaceAll("${CLAUDE_PLUGIN_ROOT}", join(import.meta.dir, "../plugin"))), env: {...server.env, AGENT_BUS_SESSION_FILE: process.env.AGENT_BUS_SESSION_FILE} };
   }
   if (kind === "codex" && args.includes("--remote")) config = JSON.parse(readFileSync(file + ".mcp", "utf8"));
   // v2 TUI connects with --server; 1.x attached as a subcommand.

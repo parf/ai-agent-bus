@@ -23,7 +23,7 @@ if (!(part in parts) && process.argv[2] && `agent-bus-${process.argv[2]}` in par
   part = `agent-bus-${process.argv[2]}`;
   process.argv.splice(2, 1);
 }
-// The Claude plugin's channel entry: as mcp/channel.ts, it serves only a
+// The Claude plugin's channel entry: as plugin/channel.ts, it serves only a
 // session ab-claude started, and is silent otherwise.
 if (part === "agent-bus-mcp" && process.argv[2] === "channel") {
   process.argv.splice(2, 1);

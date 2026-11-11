@@ -21,6 +21,7 @@
 | `cmd/agent-bus` | the CLI — `agent-bus help` lists every verb |
 | [Client libraries](clients/README.md) | Language clients and isolated daemon conformance checks |
 | `mcp/` | the MCP face and its Claude, Codex and opencode push adapters, on bun — [mcp/README.md](mcp/README.md#the-mcp-face) |
+| `plugin/` | the Claude Code channel plugin: manifest, `channel.ts` and commands, kept small because Claude copies it into each account — [loading it](mcp/README.md#loading-it) |
 | `web/` | the web face, TypeScript on bun under its own account and unit — [processes § the web face](../docs/08-processes.md#the-web-face) |
 | `launchers/` | smart runtime launchers — [contract and usage](../docs/06-launchers.md#running-the-launchers) |
 | `internal/tokencmd` | the CLI token verb, reached through the fixed wrapper behind an ordinary user’s SSH key; `--fingerprint` prints the node's TLS pin ([access § getting a token](../docs/02-access.md#getting-a-token)) |

@@ -19,17 +19,18 @@ if [ "$out" != . ]; then
     AGENT_BUS_BUILD_VERSION=$(cat internal/version/VERSION) AGENT_BUS_BUILD_INFO="$build_info" \
         bun build --compile --target="${BUN_TARGET:-bun}" ts-main.ts --outfile "$out/agent-bus-ts" --env 'AGENT_BUS_BUILD_*' >/dev/null
     cp internal/version/VERSION "$out/internal/version/VERSION"
-    mkdir -p "$out/.claude-plugin" "$out/mcp/.claude-plugin" "$out/mcp/commands"
+    mkdir -p "$out/.claude-plugin" "$out/plugin/.claude-plugin" "$out/plugin/commands"
     cp .claude-plugin/marketplace.json "$out/.claude-plugin/"
     # The plugin starts the compiled face by its name on PATH (setup links it).
     sed 's|"command": "bun",|"command": "agent-bus-mcp",|; s|"args": \["${CLAUDE_PLUGIN_ROOT}/channel.ts"\]|"args": ["channel"]|' \
-        mcp/.claude-plugin/plugin.json >"$out/mcp/.claude-plugin/plugin.json"
+        plugin/.claude-plugin/plugin.json >"$out/plugin/.claude-plugin/plugin.json"
     # Both halves, or the face would start outside ab-claude in every session.
-    grep -q '"command": "agent-bus-mcp"' "$out/mcp/.claude-plugin/plugin.json"
-    grep -q '"args": \["channel"\]' "$out/mcp/.claude-plugin/plugin.json"
-    ! grep -q 'channel\.ts\|"bun"' "$out/mcp/.claude-plugin/plugin.json"
-    cp mcp/channel.ts mcp/tags.ts "$out/mcp/"
-    cp mcp/commands/ls.md mcp/commands/send.md "$out/mcp/commands/"
+    grep -q '"command": "agent-bus-mcp"' "$out/plugin/.claude-plugin/plugin.json"
+    grep -q '"args": \["channel"\]' "$out/plugin/.claude-plugin/plugin.json"
+    ! grep -q 'channel\.ts\|"bun"' "$out/plugin/.claude-plugin/plugin.json"
+    cp mcp/tags.ts "$out/mcp/"
+    cp plugin/channel.ts "$out/plugin/"
+    cp plugin/commands/ls.md plugin/commands/send.md "$out/plugin/commands/"
     # The web face is TypeScript run from source by the system bun, under its
     # own account and unit (docs/08-processes.md#the-web-face): its sources and
     # unit, without tests, development scripts or build tooling.
