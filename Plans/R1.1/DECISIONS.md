@@ -18,7 +18,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Q354 `#ai`'s default image model is `google/gemini-3.1-flash-image` | [resolved](resolved.md#Q354) | Owner, 2026-11-06 |
 | Q359 `#rag` rerank stays off until mdhouse asks for it | [resolved](resolved.md#Q359) | Owner, 2026-11-06 |
 | Q356 New keys from the owner replace the dead ones; old key backups deleted | [resolved](resolved.md#Q356) | Owner, 2026-11-06 |
-| Q395–Q398, Q401 Each agent ships its own image; the web reads it from disk, else from a runner-served agent's record like `description`, else asks the agent; nothing on the bus generates one | [agent images](agent-images.md#how-the-web-gets-it), [resolved](resolved.md#Q395) | Owner, 2026-11-11 |
+| Q395–Q398, Q401 Each agent ships its own image; the web reads it from disk, else asks the agent, which the runner answers from the package like `help`; nothing on the bus generates one | [agent images](agent-images.md#how-the-web-gets-it), [resolved](resolved.md#Q395) | Owner, 2026-11-11 |
 | Q393 Every bundled agent starts its own version at 1.0.0, with a changelog note; `#rag` keeps its app line | [resolved](resolved.md#Q393) | Owner, 2026-11-07 |
 | Q394 An outside agent with no `version` shows none: the field is absent from help and the web | [resolved](resolved.md#Q394) | Owner, 2026-11-07 |
 | Q5 moved to R1.3 | [R1.3 decisions](../R1.3/DECISIONS.md#recorded-decisions) | |

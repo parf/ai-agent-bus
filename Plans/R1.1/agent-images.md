@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** the web agent page and every list show agents as bare names; a user cannot tell the mail agent from the chat agent at a glance.
-- **Outcome:** an agent ships one image file in its own folder, named by `image` in its `agent.json`; the web reads it from disk when it can, takes a runner-served agent's from its record like the description, and otherwise asks the agent, and shows it in the page header and small in lists.
+- **Outcome:** an agent ships one image file in its own folder, named by `image` in its `agent.json`; the web reads it from disk when it can, and otherwise asks the agent, which for a runner-served agent the runner answers from its package like the description, and shows it in the page header and small in lists.
 - **Start:** [the rules](#rules), then [how the web gets it](#how-the-web-gets-it). Task: [IMG.1](TODO.md#agent-images). Open: [Q400](QUESTIONS.md#agent-images).
 
 Owner's ask, 2026-11-07: an optional `image` field and bundled images. Owner answers, 2026-11-11: the agent provides its own image ([№Q395](resolved.md#Q395), [№Q396](resolved.md#Q396)); nothing on the bus generates one.
@@ -28,8 +28,8 @@ Owner, 2026-11-11 ([№Q395](resolved.md#Q395)): disk first, then the agent; for
 | Order | Source | When |
 |---|---|---|
 | 1. Disk | the file in the installed bundled pack, found by the bundled agent's name under the pack directory the web already knows, never by a path from a record | a bundled agent installed on the web's host |
-| 2. Record, runner-served | the runner registers the image on the record at package load, the same way it registers `description`; the web reads it from the record; listings carry only its hash, as they carry `config_sha` | an agent the runner serves |
-| 3. Ask, self-hosted | the same ask, answered by the shared helpers (Go, Python, TypeScript) from the agent's own `agent.json` | any agent that serves itself, bundled or not |
+| 2. Ask, runner-served | an `image` ask the runner answers from the file next to `agent.json`, the same way it answers `help` from the package, without running the script; the answer is the file in base64 | an agent the runner serves |
+| 2. Ask, self-hosted | the same ask, answered by the shared helpers (Go, Python, TypeScript) from the agent's own `agent.json` | any agent that serves itself, bundled or not |
 
 - **Caching:** the web keeps an image by its SHA-256 from help; a new hash fetches again; an unchanged one never asks.
 - **Offline agent:** a cached image still shows; one never fetched shows the placeholder.
@@ -49,8 +49,7 @@ Owner, 2026-11-11 ([№Q395](resolved.md#Q395)): disk first, then the agent; for
 |---|---|
 | `src/internal/agentmeta/metadata.go` (`Manifest`), `help.go` | the `image` field and its hash; validate; return in `--help-json` and the text help |
 | `src/agents/shared/metadata.py`, `metadata.ts`, the Go helper | validate at start; answer the `image` ask from `agent.json` |
-| runner package load | the same validation, refusing by name; register the image on the record with `description` |
-| daemon record | hold a runner-registered image like `description`; listings return only its hash |
+| runner package load and asks | the same validation, refusing by name; answer `image` from the package beside `help` |
 | `src/web/agent-metadata.tsx` and the lists | header image, lazy thumbnail, placeholder; one image route; disk first, then the ask; the hash cache |
 | `src/agents/smoke.sh` `agent_pack` | every `image` named is valid; no agent names a file outside its folder |
 | `docs/runner/configuration.md` (field table), `docs/10-writing-an-agent.md`, `docs/agents/create-agent-prompt.md` | the field, and how to make and place an image |

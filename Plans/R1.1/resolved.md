@@ -550,13 +550,13 @@
 
 - ✅ Q395 Where does an agent's image live
   - Context: where the web gets an agent's image from, so every viewer who may see the agent sees it
-  - (x) The agent ships the file; the web reads it from disk, else from a runner-served agent's record like `description`, else asks the agent
+  - (x) The agent ships the file; the web reads it from disk, else asks the agent; the runner answers for its agents from the package, like `help`
   >
   > 💬 👤parf (in chat, 2026-11-11): "each agent can provide one - lets dicuss; ideally agent.avif/webp in agent dir"; then, disk or ask: "C (when fail) B; for runner - it can get it from parsing provided agent.json file"
   >
   > 💬 👤parf (in chat, 2026-11-11): "for "runners" agents image is just a same field as descr (just lying in a file next to agent.json)"
   >
-  > 💬👾 → [how the web gets it](agent-images.md#how-the-web-gets-it); a runner-served agent's image is registered on its record like `description`.
+  > 💬👾 → [how the web gets it](agent-images.md#how-the-web-gets-it); the runner answers a served agent's `image` from the file next to `agent.json`, as it answers `help`.
 
 <a id="Q396"></a>
 
