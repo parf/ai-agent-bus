@@ -2,80 +2,56 @@
 
 📌 **TL;DR:**
 - **Problem:** the web agent page and every list show agents as bare names; a user cannot tell the mail agent from the chat agent at a glance.
-- **Outcome:** an agent may name one `image` in its `agent.json`; bundled agents ship theirs, an agent with none gets a generated one marked "AI", and the web shows it in the page header and small in lists.
-- **Start:** [the rules](#rules), then [identity and spend](#identity-and-spend) and [cost](#cost-and-size). Task: [IMG.1](TODO.md#agent-images). Owner choices: [Q395–Q398, Q400, Q401](QUESTIONS.md#agent-images).
+- **Outcome:** an agent ships one image file in its own folder, named by `image` in its `agent.json`; the web reads it from disk when it can and otherwise asks the agent, and shows it in the page header and small in lists.
+- **Start:** [the rules](#rules), then [how the web gets it](#how-the-web-gets-it). Task: [IMG.1](TODO.md#agent-images). Open: [Q400](QUESTIONS.md#agent-images).
 
-Owner's ask, 2026-11-07: an optional `image` field, bundled images, a generated image for an agent with none. The design below is `#ab-ceo`'s, accepted by `#ab-dir`; `image_generated` and the node-wide rate limit are part of it, not the owner's words. Lands after [AV.1](agent-versions.md#rules): both change the same `agentmeta` help code, one decision per commit.
+Owner's ask, 2026-11-07: an optional `image` field and bundled images. Owner answers, 2026-11-11: the agent provides its own image ([№Q395](resolved.md#Q395), [№Q396](resolved.md#Q396)); nothing on the bus generates one.
 
 ## Rules
 
 | Rule | Value |
 |---|---|
-| Field | optional `image` in `agent.json`: a file name inside the agent's code directory; a default field, so `--help` and `--help-json` return it and the web shows it (page header, small lazy thumbnail in lists, a letter-on-colour placeholder until there is one) |
-| Accepted | PNG, WebP or JPEG, chosen by the first bytes, never by the extension; square; at most 256 KiB; 512×512 is the cap and the suggestion; nothing in the pack scales an image (no image library in shared code, [external tools](../../src/MODULES.md#external-tools)), so a shipped image must already meet the caps or `agent_pack` refuses it, and `#ai` returns only a picture that meets them; never SVG, GIF or anything else |
+| Field | optional `image` in `agent.json`: a file name inside the agent's own folder, suggested `agent.avif` or `agent.webp`; returned by `--help` and `--help-json` with the file's SHA-256, so the web caches by hash. Without one the web shows a letter-on-colour placeholder |
+| Accepted | AVIF, WebP, PNG or JPEG, chosen by the first bytes, never by the extension; square; at most 256 KiB; 512×512 is the cap and the suggestion; never SVG, GIF or anything else. Nothing shipped scales an image (no image library in shared code, [external tools](../../src/MODULES.md#external-tools)): a file over the caps is refused, never resized |
 | Refused | an absolute path, `..`, any symlink in the path, a name that is not a regular file, a wrong type, a non-square image, a file over the byte cap, a pixel count over the cap |
-| Pixel cap | the byte cap alone does not bound the decoded size (a tiny PNG can claim 60 000×60 000), so the width and height are read from the header without decoding and bounded by the 512×512 cap |
-| Where it is checked | `agent_pack` for a bundled agent; the runner's package load for any package, refusing it by name as it does for a blank `description`; the web before it serves, from the bytes it fetched |
-| Lifetime | the one home of the numbers: a bigfile lasts at most 30 days ([bigfile limits](../../docs/03-records-kv.md#bigfiles)); the agent puts the image again at start and whenever its bigfile has under 15 days left, judged from the bigfile's own SHA-256 and expiry in `bigfile ls`, never from a local copy of the hash. A restore keeps no bigfile files, so the same re-put covers a restore. The bytes come from a source that outlives the bigfile ([sources](#image-sources)) |
-| Delivery | the agent puts the validated image into a bigfile of its own record under its own identity, only when `ls` shows none or a different SHA-256 or the lifetime rule says so ([Q395](QUESTIONS.md#agent-images)) |
-| Serving | the web reads the file through the bus as the viewer, one route, record name only, never a path from a record; the type is sniffed again, `X-Content-Type-Options: nosniff`, a restrictive `Content-Security-Policy`, immutable cache keyed by the hash. The web already serves its own static files from a fixed map in `server.ts` (`statics`, `secure()`); the new route reuses `secure()` and adds none of that map's paths |
-| Generation | through `#ai`'s new `agent-image` method ([below](#identity-and-spend)), once, when an agent first appears with no image; the Owner and Maintainers also get Regenerate; never on a page view ([Q396](QUESTIONS.md#agent-images), [Q397](QUESTIONS.md#agent-images)). If the provider cannot return the requested size, see [Q401](QUESTIONS.md#agent-images) |
-| Prompt | `#ai` takes a name and a short description from the caller (length-capped), wraps them in one fixed house style ([Q400](QUESTIONS.md#agent-images)) and never reads a record |
-| Marking | a generated image has no file name in help: `--help-json` carries `image_generated: true`, and the web shows a small "AI" badge wherever the image shows. It is replaced, and the mark goes, the first time the agent ships its own |
-| Bundled set | 24 images generated once in the house style, reviewed by the owner, committed into each agent's folder as ordinary images, no mark ([Q398](QUESTIONS.md#agent-images)); no live generation until the owner OKs the count and cost |
+| Pixel cap | the byte cap alone does not bound the decoded size (a tiny PNG can claim 60 000×60 000), so width and height are read from the header without decoding (AVIF: its `ispe` property) and bounded by the 512×512 cap |
+| Where it is checked | `agent_pack` for a bundled agent; the runner's package load for any package, refusing it by name as it does for a blank `description`; the web before it serves, from the bytes it got |
+| Serving | one web route, record name only, never a path from a record; the type is sniffed again, `X-Content-Type-Options: nosniff`, a restrictive `Content-Security-Policy`, immutable cache keyed by the hash. The route reuses `secure()` in `server.ts` and adds none of the `statics` map's paths |
+| Seeing it | the image shows to whoever may see the agent's page; a viewer the agent refuses gets the placeholder unless the web already holds that hash |
+| Generation | none on the bus. The [good-agent guide](../../docs/10-writing-an-agent.md) and the create-agent prompt say how to make one (for example `#ai`'s `image`, open to whoever `#ai`'s ACL admits, [№Q397](resolved.md#Q397)) and where to put it |
+| Bundled set | 24 images made once with the best image model `#ai` offers, reviewed by the owner, committed into each agent's folder as ordinary images, no mark ([№Q398](resolved.md#Q398)); sized to the caps when made, outside shipped code; the model and estimated cost go to the owner before any paid call |
 
-## Identity and spend
+## How the web gets it
 
-`#ai`'s `image` is for its Owner and Maintainers only ([ai](../../docs/agents/ai.md#images)), and those two roles are generated by the daemon, so an agent asking under its own identity is refused; making agents Maintainers would expose `#ai`'s secret. So generation is a separate method.
+Owner, 2026-11-11 ([№Q395](resolved.md#Q395)): disk first, then the agent.
 
-| Point | Design |
-|---|---|
-| The method | a new fixed-prompt `#ai` method, `agent-image`. It never reads a record: the caller sends a name and a short description (length-capped), `#ai` wraps them in the house style, asks the model for the target size, checks the type (PNG, WebP or JPEG; never SVG or GIF) and the size, and returns the bytes in the answer body |
-| Answer size | 256 KiB is about 342 KiB in base64, under the 1 MiB reply ceiling ([ai.md](../../docs/agents/ai.md#technical-details)); IMG.1 tests a maximal picture there |
-| Who may call | `#ai`'s ACL, by an assigned role: the [ACL](../../docs/03-records-agent.md#roles) lets a term carry an application label, such as `@owner(agent-image)`, and the daemon puts it on the message. `#ai` allows the method only to a caller carrying it. No core change: the label is `#ai`-local enforcement, one name added to the roles `#ai` accepts. `@owner` is the record's Owner and every Agent that Owner owns ([ACL terms](../../docs/02-access.md#acl)). The default list is `#ai`'s Owner and their agents ([Q397](QUESTIONS.md#agent-images)) |
-| Who sets the default | `#ai` serves itself, so its Owner registers it by hand ([operations](../../docs/runner/operations.md#why-an-agent-was-refused), [configuration](../../docs/runner/configuration.md#agents-that-serve-themselves)); setup registers only the person's runner and the samples, and this plan adds no setup step. The one path is a documented command the Owner runs, `agent-bus manage '#ai@node.example' --add-to-set-allow '@owner(agent-image)'`, placed in [ai.md](../../docs/agents/ai.md#who-may-use-it) beside the existing `--add-to-set-allow '@owner'` line, and linked from both registration pages. Until it runs, `agent-image` refuses with `agent-image needs the agent-image grant: add @owner(agent-image) to #ai's allow list`, so an unconfigured node is told, not silently refused |
-| Who stores the result | the caller: an agent puts it into its own key-value store and bigfile ([sources](#image-sources)); an Owner or Maintainer pressing Regenerate acts as the signed-in User who manages the record, and needs the label too |
-| Self-hosted agent (13 bundled) | does it in its own process at start, and again by the [lifetime rule](#rules) |
-| Runner-served agent (11 bundled, no `serves` field, so the runner default) | has no process, so the runner's load step runs the shared function under that agent's own token, which the runner already holds ([what runs as what](../../docs/runner/security.md#what-runs-as-what)), and a daily runner timer re-puts it the same way. No new runner right |
-| Rate limit | at most 1 a minute and 50 a day, on `agent-image` only, never on plain `image`; enforced in `#ai`; no central queue |
-| A failed attempt | a refused picture is still paid ([ai.md](../../docs/agents/ai.md#technical-details)): the caller records a failed first attempt in its own key-value store and never retries it automatically; only Regenerate tries again |
-| Residual | an allowed caller can request any picture within the caps: the name and description are the caller's words |
-| Seeing the image | a bigfile `get` follows the record's visibility, so whoever sees the agent sees the image; only the daemon Owner, on an agent it does not manage, gets the placeholder |
-| Key-value alternative | the record's key-value store has no expiry but only the Owner, Maintainers and the agent read it ([where to attach it](../../docs/03-records-kv.md#where-to-attach-it)), so ordinary viewers would never see the image ([Q395](QUESTIONS.md#agent-images)) |
-
-## Image sources
-
-| Image | Source of truth | Served copy |
+| Order | Source | When |
 |---|---|---|
-| Shipped (bundled or an outside agent's own file) | the file in the agent's package | the bigfile, re-put from the package |
-| Generated | the agent's own key-value store (no expiry, readable by the agent itself; the value limit is in [the store's rules](../../docs/03-records-kv.md#rules)) | the bigfile, re-put from that key |
+| 1. Disk | the file in the installed bundled pack, found by the bundled agent's name under the pack directory the web already knows, never by a path from a record | a bundled agent installed on the web's host |
+| 2. Ask, runner-served | an `image` ask the runner answers for the agents it serves, from the image named in the package's `agent.json`, validated at package load | an agent with no process of its own |
+| 2. Ask, self-hosted | the same ask, answered by the shared helpers (Go, Python, TypeScript) from the agent's own `agent.json` | any agent that serves itself, bundled or not |
 
-- **Same for outside agents:** they keep a generated image in their own key-value store the same way.
-- **Restore:** the store lives in the daemon's database, so a database restore brings the key back as of the backup and nothing is lost; the bigfile files are not in that backup ([backups](../../docs/03-records-kv.md#bigfiles)), and the re-put restores them. A record removed and registered again starts with an empty store ([the record's life](../../docs/03-records-kv.md#rules)); its generated image is then gone.
-- **When the key is gone:** the agent makes a new image only through Regenerate by its Owner or a Maintainer, never automatically and never as an unattended paid call.
+- **Caching:** the web keeps an image by its SHA-256 from help; a new hash fetches again; an unchanged one never asks.
+- **Offline agent:** a cached image still shows; one never fetched shows the placeholder.
+- **Answer size:** 256 KiB is about 342 KiB in base64, under the 1 MiB reply ceiling; IMG.1 tests a maximal image.
+- **Nothing expires:** no bigfile, no key-value copy, no re-put timer.
 
-## Cost and size
+## Size
 
 | Item | Value |
 |---|---|
-| Model | `google/gemini-3.1-flash-image`, [Q354](resolved.md#Q354) |
-| Price | $60 per million image-output tokens; a 1024×1024 picture is about 1 290 tokens, so about $0.08 a picture, the upper bound here: the request is for the 512×512 target, and whether the provider prices that lower is not known from the repository. Source: `#ai`'s `model google/gemini-3.1-flash-image`, field `pricing.image_output`, read by `#ab-ceo` on 2026-11-07; this plan made no `#ai` call |
-| Bundled set | 24 pictures at most about $2; with variants at most about $5 |
-| Daily exposure | at most 50 `agent-image` pictures a day, at most about $4 |
-| Package size | a 512×512 WebP is typically 20–60 KB; 24 of them add 0.5–1.5 MB, at most 6 MB at the 256 KiB cap, against the 4.3 MB `src/agents` tree today (344 KB for the largest asset the web ships, `agent-bus.webp`) |
-| Container image | the same bytes added once; the base image size was not measured here (no podman, [load rule](../../CLAUDE.md#working-rules)); `#ab-ceo` reads it with `podman images` when the owner OKs a build |
+| Package | a 512×512 WebP or AVIF is typically 15–60 KB; 24 add about 0.4–1.5 MB, at most 6 MB at the cap, against the 4.3 MB `src/agents` tree today |
+| Container image | the same bytes added once; measured by `#ab-ceo` with `podman images` at the build |
 
 ## Readers and edits
 
 | Where | Change |
 |---|---|
-| [ai.md](../../docs/agents/ai.md#who-may-use-it) beside its `--add-to-set-allow '@owner'` line; the two hand-registration pages ([operations](../../docs/runner/operations.md#why-an-agent-was-refused), [configuration](../../docs/runner/configuration.md#agents-that-serve-themselves)) | the one command that grants `agent-image`, and a link to it |
-| `src/agents/ai/` and [ai.md](../../docs/agents/ai.md) | the `agent-image` method: name and description in, fixed prompt, target size, type and size checks, the assigned role it requires and the refusal that names the missing grant, the 1-a-minute and 50-a-day cap; its `agent.json` help and golden; the [ai.md](../../docs/agents/ai.md#who-may-use-it) line "No other roles or per-caller limits" (it becomes false: `agent-image` has a role and a cap) |
-| `src/internal/agentmeta/metadata.go` (`Manifest`), `help.go` | `Image` and `image_generated` fields; validate; return in `--help-json` and the text help |
-| `src/web/agent-metadata.tsx` and the lists | header image, lazy thumbnail, placeholder, "AI" badge; one image route |
-| runner package load | the same validation, refusing by name; the shared put step and the daily re-put timer for runner-served agents |
+| `src/internal/agentmeta/metadata.go` (`Manifest`), `help.go` | the `image` field and its hash; validate; return in `--help-json` and the text help |
+| `src/agents/shared/metadata.py`, `metadata.ts`, the Go helper | validate at start; answer the `image` ask from `agent.json` |
+| runner package load | the same validation, refusing by name; answer `image` for the agents it serves |
+| `src/web/agent-metadata.tsx` and the lists | header image, lazy thumbnail, placeholder; one image route; disk first, then the ask; the hash cache |
 | `src/agents/smoke.sh` `agent_pack` | every `image` named is valid; no agent names a file outside its folder |
-| `src/agents/shared/metadata.py`, `metadata.ts` | pass `image` through the agent's own help; the shared put function |
-| `docs/runner/configuration.md` (field table), `docs/agents/authoring.md`, `docs/agents/create-agent-prompt.md` | the field |
+| `docs/runner/configuration.md` (field table), `docs/10-writing-an-agent.md`, `docs/agents/create-agent-prompt.md` | the field, and how to make and place an image |
 
-No model call, no image made, no schema beyond the two named fields.
+No schema beyond the named field and its hash.

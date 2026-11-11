@@ -545,3 +545,56 @@
   > 💡👾 Report nothing: the bus version describes the daemon, and a made-up value is a false claim.
   >
   > 💬 👤parf (in chat to #ab-ceo, 2026-11-07 ~13:27): "Q394 - yes, no version - what we can do :) - show nothing"
+
+<a id="Q395"></a>
+
+- ✅ Q395 Where does an agent's image live
+  - Context: a bigfile follows the record's visibility, so whoever sees the agent sees the image, but it expires and is put again by the agent ([lifetime](agent-images.md#rules)). The record's key-value store never expires but is read only by the Owner, Maintainers and the agent, so ordinary viewers would see no image
+  - (x) The agent ships the file; the web reads it from disk, else asks the agent; the runner answers for the agents it serves
+  > 💡👾 The bigfile keeps who may see it right; the key-value store is simpler but hides the picture from most users.
+  >
+  > 💬 👤parf (in chat, 2026-11-11): "each agent can provide one - lets dicuss; ideally agent.avif/webp in agent dir"; then, on disk, ask or bigfile: "C (when fail) B; for runner - it can get it from parsing provided agent.json file"
+  >
+  > 💬👾 → [how the web gets it](agent-images.md#how-the-web-gets-it); no bigfile, no key-value copy.
+
+<a id="Q396"></a>
+
+- ✅ Q396 When does an agent's generated image get made
+  - Context: through `#ai`'s `agent-image` method and its image model (Gemini 3.1 Flash Image, [№Q354](resolved.md#Q354)), paid from the production key, at most 1 a minute and 50 a day ([cost](agent-images.md#size))
+  - (x) Never on the bus: the agent provides it; the agent guide says how to make and place one; our set uses the best image model we have
+  > 💡👾 First appearance plus Regenerate gives every agent a picture; the button alone costs nothing unless someone asks.
+  >
+  > 💬 👤parf (in chat, 2026-11-11): "provided by agent; our agent prompt will reccomend how to generate / place one / for us - use best image gen we have"
+  >
+  > 💬👾 → no `agent-image` method, no Regenerate, no "AI" badge ([generation](agent-images.md#rules)).
+
+<a id="Q397"></a>
+
+- ✅ Q397 Who may call `#ai`'s `agent-image`
+  - Context: the method is allowed by a label in `#ai`'s ACL, each picture is paid from the production key, at most 50 a day; the default list is `#ai`'s Owner and their agents, who generate automatically. An outside agent's owner can use Regenerate only if `#ai`'s Owner adds them ([spend gate](agent-images.md#rules))
+  - (x) Whoever `#ai`'s ACL admits, through its existing `image` method
+  > 💡👾 `#ai`'s Owner and their agents: no stranger spends the key by registering, and the Owner can add anyone later.
+  >
+  > 💬 👤parf (in chat, 2026-11-11): "anyone who have access to #ai - its acl"
+  >
+  > 💬👾 → no new role or cap; `#ai`'s ACL decides.
+
+<a id="Q398"></a>
+
+- ✅ Q398 How are our own agents' pre-generated images shown
+  - Context: 24 images generated once in the house style, reviewed by you, committed into each agent's folder; nothing is generated until you OK the count and cost ([cost](agent-images.md#size))
+  - (x) Ordinary images, no mark 🌟
+  > 💡👾 Ordinary images: you reviewed them and they ship with the code, so the mark would say nothing true.
+  >
+  > 💬 👤parf (in chat, 2026-11-11): "Ordinary, no mark (Recommended)"
+  >
+  > 💬👾 → [bundled set](agent-images.md#rules).
+
+<a id="Q401"></a>
+
+- ✅ Q401 What if the image model cannot return a 512×512 picture
+  - Context: nothing in the pack scales images and `#ai` returns only a picture within the caps, 256 KiB and 512×512; a picture the provider returns and `#ai` refuses is still paid; the repository does not show which sizes Gemini 3.1 Flash Image returns ([plan](agent-images.md#rules))
+  - (x) Superseded by Q396: nothing generates at runtime; the bundled set is sized to the caps when made
+  > 💡👾 Keep the caps and the placeholder: a picture that does not fit is no reason to add a dependency or loosen the rule.
+  >
+  > 💬👾 → [bundled set](agent-images.md#rules).
