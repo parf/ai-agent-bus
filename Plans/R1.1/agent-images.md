@@ -34,7 +34,7 @@ Owner, 2026-11-11 ([№Q395](resolved.md#Q395)): disk first, then the agent; for
 - **Caching:** the web keeps an image by its SHA-256 from help; a new hash fetches again; an unchanged one never asks.
 - **Offline agent:** a cached image still shows; one never fetched shows the placeholder.
 - **Answer size:** 256 KiB is about 342 KiB in base64, under the 1 MiB reply ceiling; IMG.1 tests a maximal image.
-- **Nothing expires:** no bigfile, no key-value copy, no re-put timer.
+- **Nothing expires:** the image is the agent's file; the web keeps only its cache.
 
 ## Size
 

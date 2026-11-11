@@ -549,15 +549,14 @@
 <a id="Q395"></a>
 
 - ✅ Q395 Where does an agent's image live
-  - Context: a bigfile follows the record's visibility, so whoever sees the agent sees the image, but it expires and is put again by the agent ([lifetime](agent-images.md#rules)). The record's key-value store never expires but is read only by the Owner, Maintainers and the agent, so ordinary viewers would see no image
-  - (x) The agent ships the file; the web reads it from disk, else asks the agent; the runner answers for the agents it serves
-  > 💡👾 The bigfile keeps who may see it right; the key-value store is simpler but hides the picture from most users.
+  - Context: where the web gets an agent's image from, so every viewer who may see the agent sees it
+  - (x) The agent ships the file; the web reads it from disk, else from a runner-served agent's record like `description`, else asks the agent
   >
-  > 💬 👤parf (in chat, 2026-11-11): "each agent can provide one - lets dicuss; ideally agent.avif/webp in agent dir"; then, on disk, ask or bigfile: "C (when fail) B; for runner - it can get it from parsing provided agent.json file"
+  > 💬 👤parf (in chat, 2026-11-11): "each agent can provide one - lets dicuss; ideally agent.avif/webp in agent dir"; then, disk or ask: "C (when fail) B; for runner - it can get it from parsing provided agent.json file"
   >
   > 💬 👤parf (in chat, 2026-11-11): "for "runners" agents image is just a same field as descr (just lying in a file next to agent.json)"
   >
-  > 💬👾 → [how the web gets it](agent-images.md#how-the-web-gets-it); a runner-served agent's image is registered on its record like `description`; no bigfile, no key-value copy.
+  > 💬👾 → [how the web gets it](agent-images.md#how-the-web-gets-it); a runner-served agent's image is registered on its record like `description`.
 
 <a id="Q396"></a>
 
