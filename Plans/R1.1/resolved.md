@@ -555,7 +555,9 @@
   >
   > 💬 👤parf (in chat, 2026-11-11): "each agent can provide one - lets dicuss; ideally agent.avif/webp in agent dir"; then, on disk, ask or bigfile: "C (when fail) B; for runner - it can get it from parsing provided agent.json file"
   >
-  > 💬👾 → [how the web gets it](agent-images.md#how-the-web-gets-it); no bigfile, no key-value copy.
+  > 💬 👤parf (in chat, 2026-11-11): "for "runners" agents image is just a same field as descr (just lying in a file next to agent.json)"
+  >
+  > 💬👾 → [how the web gets it](agent-images.md#how-the-web-gets-it); a runner-served agent's image is registered on its record like `description`; no bigfile, no key-value copy.
 
 <a id="Q396"></a>
 
