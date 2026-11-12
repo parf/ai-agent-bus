@@ -307,10 +307,10 @@ A record's store has three kinds, `string`, `int` and `json`; `kind` defaults to
 | `POST /schedule/enable` · `POST /schedule/disable` | `{id}` | `{schedule}`; enabling makes the caller its creator |
 | `POST /schedule/run` | `{id}` | `{outcome}`: one firing now; the next slot does not move |
 | `POST /schedule/delete` | `{id}` | `{id, deleted}` |
-| `GET /schedule` | query `id` | the schedule with its `outcomes`, newest first |
+| `GET /schedule` | query `id` | the schedule with its `outcomes`, newest first, and `upcoming`, its next five slots |
 | `GET /schedule/list` | query `record`, or none | `{schedules}`: one record's, or every schedule on a record the caller manages |
 
-- A schedule is `{id, holder, kind (recurring or once), expr?, at?, target, body, creator, enabled, disabled?, until?, max_runs?, max_late?, next?, last?, runs, sent, dropped, refused_in_a_row?, created, changed}`; every time is RFC 3339 in UTC. An outcome is `{at, slot, outcome, detail?}`, `outcome` one of `sent`, `admission_refused`, `target_gone`, `send_refused`, `send_unknown`, `late`.
+- A schedule is `{id, holder, holder_kind, kind (recurring or once), expr?, at?, target, body, creator, enabled, disabled?, until?, max_runs?, max_late?, next?, last?, last_outcome?, runs, sent, dropped, refused_in_a_row?, created, changed}`; every time is RFC 3339 in UTC. `disabled` says why it is not enabled: `hand`, `failure` (five refusals in a row) or `ended` (past `until` or `max_runs`). An outcome is `{at, slot, outcome, detail?}`, `outcome` one of `sent`, `admission_refused`, `target_gone`, `send_refused`, `send_unknown`, `late`.
 - **A firing** arrives from `#bus`, topic `schedule`, tag `by <creator>`, with `reply_to` the creator and `schedule: {id, by, slot, late_by?, missed?}`; only the daemon sets `schedule`.
 - **Authority:** the holder's Owner, Maintainers and own Agent; anyone else gets the answer for a missing schedule, `404 not_found`. The creator must be allowed to send to the target, at add and at every firing.
 - **Limits:** per record 100 recurring and 10 000 one-shot schedules, per owner 1 000 and 100 000; over a cap is `413 malformed`; a bad expression, time or body is `400 malformed`.

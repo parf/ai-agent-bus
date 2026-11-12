@@ -48,8 +48,55 @@ type ScheduleRequest struct {
 // ScheduleView is a schedule as a manager sees it.
 type ScheduleView struct {
 	ports.Schedule
-	Holder   string                  `json:"holder"`
-	Outcomes []ports.ScheduleOutcome `json:"outcomes,omitempty"`
+	Holder      string                  `json:"holder"`
+	HolderKind  string                  `json:"holder_kind"`
+	LastOutcome string                  `json:"last_outcome,omitempty"`
+	Outcomes    []ports.ScheduleOutcome `json:"outcomes,omitempty"`
+	Upcoming    []int64                 `json:"upcoming,omitempty"`
+}
+
+// withLast names each schedule's newest outcome, from one read of its holder's.
+func withLast(store ports.ScheduleStore, r protocol.Record, list []ports.Schedule) ([]ScheduleView, error) {
+	outcomes, err := store.ScheduleOutcomes(r.ID, "")
+	if err != nil {
+		return nil, err
+	}
+	last := map[string]string{}
+	for _, o := range outcomes {
+		if _, seen := last[o.Schedule]; !seen {
+			last[o.Schedule] = o.Outcome
+		}
+	}
+	out := make([]ScheduleView, 0, len(list))
+	for _, v := range list {
+		out = append(out, ScheduleView{Schedule: v, Holder: r.Name, HolderKind: r.Kind, LastOutcome: last[v.ID]})
+	}
+	return out, nil
+}
+
+// upcoming is a recurring schedule's next n slots from its next one.
+func upcoming(v ports.Schedule, n int) []int64 {
+	if v.Next == 0 {
+		return nil
+	}
+	out := []int64{v.Next}
+	if v.Once {
+		return out
+	}
+	e, err := schedule.Parse(v.Expr)
+	if err != nil {
+		return out
+	}
+	t := time.Unix(v.Next, 0)
+	for len(out) < n {
+		next, ok := e.Next(t)
+		if !ok || (v.Until > 0 && next.Unix() > v.Until) {
+			break
+		}
+		out = append(out, next.Unix())
+		t = next
+	}
+	return out
 }
 
 func scheduleID() string {
@@ -401,7 +448,11 @@ func (b *Bus) ScheduleGet(caller, id string) (ScheduleView, error) {
 	if err != nil {
 		return ScheduleView{}, err
 	}
-	return ScheduleView{Schedule: v, Holder: r.Name, Outcomes: outcomes}, nil
+	last := ""
+	if len(outcomes) > 0 {
+		last = outcomes[0].Outcome
+	}
+	return ScheduleView{Schedule: v, Holder: r.Name, HolderKind: r.Kind, LastOutcome: last, Outcomes: outcomes, Upcoming: upcoming(v, 5)}, nil
 }
 
 // ScheduleList is holder's schedules, or with no holder every schedule on a
@@ -416,11 +467,7 @@ func (b *Bus) ScheduleList(caller, holder string) ([]ScheduleView, error) {
 		if err != nil {
 			return nil, err
 		}
-		out := make([]ScheduleView, 0, len(list))
-		for _, v := range list {
-			out = append(out, ScheduleView{Schedule: v, Holder: r.Name})
-		}
-		return out, nil
+		return withLast(store, r, list)
 	}
 	b.mu.Lock()
 	store, _ := b.store.(ports.ScheduleStore)
@@ -451,9 +498,11 @@ func (b *Bus) ScheduleList(caller, holder string) ([]ScheduleView, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, v := range list {
-			out = append(out, ScheduleView{Schedule: v, Holder: r.Name})
+		views, err := withLast(store, r, list)
+		if err != nil {
+			return nil, err
 		}
+		out = append(out, views...)
 	}
 	return out, nil
 }

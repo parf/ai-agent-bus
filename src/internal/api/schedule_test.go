@@ -48,8 +48,18 @@ func TestScheduleCallsCrossTheAPI(t *testing.T) {
 	if code, out := send(s, tok("admin@h"), "POST", "/schedule/run", `{"id":"`+id+`"}`, ""); code != http.StatusOK || !strings.Contains(out, `"outcome":"sent"`) {
 		t.Fatalf("run: %d %s", code, out)
 	}
-	if code, out := send(s, tok("admin@h"), "GET", "/schedule?id="+id, "", ""); code != http.StatusOK || !strings.Contains(out, `"outcomes":[`) {
+	code, out = send(s, tok("admin@h"), "GET", "/schedule?id="+id, "", "")
+	var one struct {
+		Upcoming    []string
+		LastOutcome string `json:"last_outcome"`
+		HolderKind  string `json:"holder_kind"`
+		Outcomes    []any
+	}
+	if code != http.StatusOK || json.Unmarshal([]byte(out), &one) != nil || len(one.Upcoming) != 5 || one.LastOutcome != "sent" || one.HolderKind != "queue" || len(one.Outcomes) != 1 {
 		t.Fatalf("get: %d %s", code, out)
+	}
+	if code, out := send(s, tok("admin@h"), "GET", "/schedule/list", "", ""); code != http.StatusOK || !strings.Contains(out, `"last_outcome":"sent"`) {
+		t.Fatalf("a listing without the last outcome: %d %s", code, out)
 	}
 	mcode, mout := send(s, tok("bob@h"), "GET", "/schedule?id=000000000000", "", "")
 	if code, out := send(s, tok("bob@h"), "GET", "/schedule?id="+id, "", ""); code != mcode || out != mout || code != http.StatusNotFound {

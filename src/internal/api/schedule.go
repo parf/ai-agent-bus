@@ -13,28 +13,31 @@ import (
 
 // scheduleAnswer is a schedule on the wire, its times RFC 3339 in UTC.
 type scheduleAnswer struct {
-	ID       string          `json:"id"`
-	Holder   string          `json:"holder"`
-	Kind     string          `json:"kind"` // recurring or once
-	Expr     string          `json:"expr,omitempty"`
-	At       string          `json:"at,omitempty"`
-	Target   string          `json:"target"`
-	Body     string          `json:"body"`
-	Creator  string          `json:"creator"`
-	Enabled  bool            `json:"enabled"`
-	Disabled string          `json:"disabled,omitempty"`
-	Until    string          `json:"until,omitempty"`
-	MaxRuns  int             `json:"max_runs,omitempty"`
-	MaxLate  string          `json:"max_late,omitempty"`
-	Next     string          `json:"next,omitempty"`
-	Last     string          `json:"last,omitempty"`
-	Runs     int             `json:"runs"`
-	Sent     int             `json:"sent"`
-	Dropped  int             `json:"dropped"`
-	Streak   int             `json:"refused_in_a_row,omitempty"`
-	Created  string          `json:"created"`
-	Changed  string          `json:"changed"`
-	Outcomes []outcomeAnswer `json:"outcomes,omitempty"`
+	ID          string          `json:"id"`
+	Holder      string          `json:"holder"`
+	HolderKind  string          `json:"holder_kind"`
+	Kind        string          `json:"kind"` // recurring or once
+	Expr        string          `json:"expr,omitempty"`
+	At          string          `json:"at,omitempty"`
+	Target      string          `json:"target"`
+	Body        string          `json:"body"`
+	Creator     string          `json:"creator"`
+	Enabled     bool            `json:"enabled"`
+	Disabled    string          `json:"disabled,omitempty"`
+	Until       string          `json:"until,omitempty"`
+	MaxRuns     int             `json:"max_runs,omitempty"`
+	MaxLate     string          `json:"max_late,omitempty"`
+	Next        string          `json:"next,omitempty"`
+	Last        string          `json:"last,omitempty"`
+	Runs        int             `json:"runs"`
+	Sent        int             `json:"sent"`
+	Dropped     int             `json:"dropped"`
+	Streak      int             `json:"refused_in_a_row,omitempty"`
+	Created     string          `json:"created"`
+	Changed     string          `json:"changed"`
+	LastOutcome string          `json:"last_outcome,omitempty"`
+	Upcoming    []string        `json:"upcoming,omitempty"`
+	Outcomes    []outcomeAnswer `json:"outcomes,omitempty"`
 }
 
 type outcomeAnswer struct {
@@ -59,7 +62,10 @@ func toAnswer(v core.ScheduleView) scheduleAnswer {
 	a := scheduleAnswer{ID: v.ID, Holder: v.Holder, Kind: kind, Expr: v.Expr, At: stamp(v.At), Target: v.Target, Body: v.Body,
 		Creator: v.Creator, Enabled: v.Enabled, Disabled: v.Disabled, Until: stamp(v.Until), MaxRuns: v.MaxRuns,
 		Next: stamp(v.Next), Last: stamp(v.Last), Runs: v.Runs, Sent: v.Sent, Dropped: v.Dropped, Streak: v.Streak,
-		Created: stamp(v.Created), Changed: stamp(v.Changed)}
+		Created: stamp(v.Created), Changed: stamp(v.Changed), HolderKind: v.HolderKind, LastOutcome: v.LastOutcome}
+	for _, t := range v.Upcoming {
+		a.Upcoming = append(a.Upcoming, stamp(t))
+	}
 	if v.MaxLate > 0 {
 		a.MaxLate = (time.Duration(v.MaxLate) * time.Second).String()
 	}
