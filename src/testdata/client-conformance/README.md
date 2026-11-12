@@ -20,13 +20,14 @@ transport and capacity tests remain independent.
 ## State, identity and refusal vectors
 
 Same rule: concrete examples, read by each adapter, run through the SDK's own
-calls. `send`, `call` and `self-call` need a worker; these five do not share it.
+calls. `send`, `call` and `self-call` need a worker; these six do not share it.
 
 | File | Needs | One row |
 |---|---|---|
 | `kv.json` | the real fixture daemon | `id`, optional `fresh`, `steps` |
 | `locks.json` | the real fixture daemon | `id`, optional `setup`, `steps` with `as` (`owner` or `worker`) |
 | `bigfile.json` | the real fixture daemon; Go, Python and TypeScript only | `id`, `steps` |
+| `schedule.json` | the real fixture daemon | `id`, `steps`; the owner's schedules on `jobs@fixture` |
 | `identity.json` | a fake daemon | `id`, `identity` (the raw `/identity` body), `expect` |
 | `refusals.json` | a fake daemon | `id`, `identity` (`current` or `old`), then `daemon` and `expect`, or `call` and `expect` |
 
@@ -41,6 +42,13 @@ one the client or the daemon may send (a TTL or size the client checks first).
 A case with `fresh: true` fills a store and gets a daemon of its own; the
 adapters give every case a clean daemon where that is cheap. Setup
 `worker-maintains-jobs` makes `#worker@fixture` a Maintainer of `jobs@fixture`.
+
+**Schedules.** Ops `add`, `edit`, `get`, `enable`, `disable`, `run`, `delete`
+and `list` (`all: true` lists every schedule the caller manages). `$schedule`
+is the id the last `add` answered; every later op names it. A schedule's
+`expect` compares its fields by wire name, and `outcomes` by their outcome
+words; `list` compares `ids`. `inbox` with `as: worker` is one bounded consume
+of `#worker@fixture`'s inbox, compared by `from`, `topic`, `tag` and `body`.
 
 **Identity.** The fake daemon answers `/identity` with the row's raw body and
 `{"you":"owner@fixture"}` elsewhere; the adapter calls the client's status

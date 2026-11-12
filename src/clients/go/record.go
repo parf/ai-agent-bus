@@ -13,11 +13,12 @@ import (
 )
 
 type Record struct {
-	Name    string
-	bus     *Bus
-	KV      KV
-	Bigfile Bigfile
-	Locks   Locks
+	Name      string
+	bus       *Bus
+	KV        KV
+	Bigfile   Bigfile
+	Locks     Locks
+	Schedules Schedules
 }
 
 func (r Record) Lookup(ctx context.Context) (json.RawMessage, error) {

@@ -1,0 +1,150 @@
+[
+ {
+  "id": "run-fires-once-from-bus",
+  "steps": [
+   {
+    "op": "add",
+    "in": "1h",
+    "target": "#worker@fixture",
+    "body": "schedule-fixture-tick",
+    "expect": {
+     "kind": "once",
+     "holder": "jobs@fixture",
+     "creator": "owner@fixture",
+     "enabled": true
+    }
+   },
+   {
+    "op": "list",
+    "expect": {
+     "ids": [
+      "$schedule"
+     ]
+    }
+   },
+   {
+    "op": "list",
+    "all": true,
+    "expect": {
+     "ids": [
+      "$schedule"
+     ]
+    }
+   },
+   {
+    "op": "run",
+    "expect": {
+     "outcome": "sent"
+    }
+   },
+   {
+    "op": "inbox",
+    "as": "worker",
+    "expect": {
+     "from": "#bus",
+     "topic": "schedule",
+     "tag": "by owner@fixture",
+     "body": "schedule-fixture-tick"
+    }
+   },
+   {
+    "op": "get",
+    "expect": {
+     "sent": 1,
+     "outcomes": [
+      "sent"
+     ]
+    }
+   },
+   {
+    "op": "disable",
+    "expect": {
+     "enabled": false
+    }
+   },
+   {
+    "op": "enable",
+    "expect": {
+     "enabled": true
+    }
+   },
+   {
+    "op": "edit",
+    "expr": "0 3 * * *",
+    "target": "#worker@fixture",
+    "body": "schedule-fixture-nightly",
+    "expect": {
+     "kind": "recurring",
+     "expr": "0 3 * * *"
+    }
+   },
+   {
+    "op": "delete",
+    "expect": {
+     "deleted": true
+    }
+   },
+   {
+    "op": "get",
+    "expect": {
+     "refused": {
+      "status": 404
+     }
+    }
+   },
+   {
+    "op": "list",
+    "expect": {
+     "ids": []
+    }
+   }
+  ]
+ },
+ {
+  "id": "malformed-adds-are-refused",
+  "steps": [
+   {
+    "op": "add",
+    "expr": "61 * * * *",
+    "target": "#worker@fixture",
+    "body": "never",
+    "expect": {
+     "refused": {
+      "status": 400
+     }
+    }
+   },
+   {
+    "op": "add",
+    "expr": "* * * * *",
+    "in": "90s",
+    "target": "#worker@fixture",
+    "body": "never",
+    "expect": {
+     "refused": {
+      "status": 400,
+      "message_has": "give one of"
+     }
+    }
+   },
+   {
+    "op": "add",
+    "in": "1h",
+    "target": "#worker@fixture",
+    "body": "",
+    "expect": {
+     "refused": {
+      "status": 400,
+      "message_has": "body is required"
+     }
+    }
+   },
+   {
+    "op": "list",
+    "expect": {
+     "ids": []
+    }
+   }
+  ]
+ }
+]

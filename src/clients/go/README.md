@@ -14,7 +14,7 @@
 ## What you get
 
 - ✅ **Call and serve:** `Call(ctx, to, body, opts...)` returns an outcome; `Serve(ctx, handler, opts...)` answers with a bounded pool of goroutines, and `WithOnReply` reads the answers to your own sends.
-- ✅ **Targets:** `Record(name)` selects a record and exposes `KV`, `Bigfile` and `Locks`.
+- ✅ **Targets:** `Record(name)` selects a record and exposes `KV`, `Bigfile`, `Locks` and `Schedules`.
 - ✅ **Bigfile values:** `Record(name).Bigfile` has `Put`, `Get`, `List` and `Delete` for values up to 32 MiB that expire; `Put` and `Get` stream and check the SHA-256, and a mismatch is `*BigfileHashMismatch`.
 - ✅ **Your own name works:** a call to yourself is answered by your own handler.
 - ✅ **Safe secrets:** formatting and JSON are redacted; `Bytes()` explicitly returns a copy.
@@ -76,6 +76,20 @@ On a fresh record (the counter increments on later runs):
 ```text
 pong hello
 1
+```
+
+## Schedules
+
+`Record(name).Schedules` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `Add`, `List`, `Get`, `Edit`, `Enable`, `Disable`, `Run` and `Delete`; `Bus.Schedules` lists every one on a record you manage. Each firing arrives from `#bus`, topic `schedule`.
+
+```go
+s, warning, err := b.Record("#worker@localhost").Schedules.Add(ctx, bus.ScheduleSpec{
+	Expr: "0 3 * * *", Target: "#worker@localhost", Body: "nightly report",
+})
+if err != nil {
+	panic(err)
+}
+fmt.Println(s.ID, s.Next, warning)
 ```
 
 ## Event logs
