@@ -14,6 +14,27 @@ Built 2026-11-12 by `#claude/usr-local-src-ai-agent-bus` on `claude/RT35` ([plan
 | Removed | `#cron`, `#at`, `scheduler.py`, `cronexpr.py`, their docs, shards and package entries |
 | Checks | focused only (owner, 2026-11-12): core, api, store, schedule, CLI, setup and runner packages; client suites Python, Go, Rust 47/0, Java 552/0, PHP 588/0; web schedule 12/12 and contract 112/0; no mutants, no normal or slow gate |
 
+Parity check (the plan's [parity list](cron-in-core.md#parity-list-today-and-its-core-equivalent), row by row; core tests in `src/internal/core/schedule_test.go` unless named):
+
+| Rows | Core call | Fixture |
+|---|---|---|
+| 1–3, 9 | add, list, delete | `TestSchedulesAreTheHoldersManagersAlone`; CLI `TestScheduleVerbsSendTheirRequests`; API `TestScheduleCallsCrossTheAPI` |
+| 4–8, 11 | add with `in` or `at` | `TestOneShotTimeForms` (`internal/schedule`), `TestAFiringComesFromBusOnTheCreatorsBehalf` |
+| 10 | expressions | `TestExprMatchesTheCronVectors`, `TestExprSeconds` (`internal/schedule`) |
+| 12, 16 | body and target rules | `TestScheduleCapsAndRefusals`, `TestFiringTimeToLiveAndTargetKinds` |
+| 13 | sender, topic, tag, stamp, reply route | `TestAFiringComesFromBusOnTheCreatorsBehalf`, `TestASenderCannotStampASchedule` |
+| 14 | outcome names | `TestRefusedFiringsDisableTheScheduleAfterFive`, `TestDropsAreNamedTargetGoneAndSendRefused`, `TestAFiringCutOffByAStopIsNeverRepeated` |
+| 15 | creator's may-send at every firing, disable after 5 | `TestRefusedFiringsDisableTheScheduleAfterFive`, `TestACreatorWhoLeftTheHolderFiresNothing` |
+| 17 | managers alone | `TestSchedulesAreTheHoldersManagersAlone` |
+| 18 | caps | `TestScheduleCapsAndRefusals` |
+| 19 | time to live | `TestFiringTimeToLiveAndTargetKinds` |
+| 21 | downtime catch-up, backward clock | `TestDowntimeCatchUpAndABackwardClock` |
+| 23 | persisted counts and outcomes | `TestSchedulesSurviveAReopenAndComeDueInOrder`, `TestScheduleOutcomesAreKeptByCountAndAge` (`store/sqlite`) |
+| 25 | warnings | `TestScheduleWarningsLandInTheHolderAgentsLog`, `TestASessionHolderIsWarnedThatItsSchedulesGoWithIt` |
+| 20, 22, 24 | none needed | 20 (`deferred`) and 22 (zones) are gone by design; 24 carries `#bus`'s roles through the ordinary send path, not a schedule rule |
+
+Each fixture was seen to pass; none was run against a mutant (owner's rule outside a release).
+
 ## Clean R1 inputs
 
 - Prerelease field/flag/route aliases, unbound credentials, schema/state converters and obsolete package adapters are removed. First-party callers, fixtures, help and documentation use the canonical forms. Current-format updates and atomic recovery remain supported.
