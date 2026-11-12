@@ -7,7 +7,7 @@ import { createServer } from 'node:https';
 import { createHash,X509Certificate } from 'node:crypto';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../../../..');
 const bundle=resolve(process.argv[2]);
-execFileSync(process.execPath,['--input-type=module','-e',"import { Bus, VERSION } from '@agent-bus/client'; if (typeof Bus.connect !== 'function' || !VERSION) throw new Error('package exports broken');"],{cwd:dirname(bundle),stdio:'inherit'});
+execFileSync(process.execPath,['--input-type=module','-e',"import { Bus, VERSION } from 'ai-agent-bus-sdk'; if (typeof Bus.connect !== 'function' || !VERSION) throw new Error('package exports broken');"],{cwd:dirname(bundle),stdio:'inherit'});
 const {Bus,BusUnreachable,VERSION}=await import(pathToFileURL(bundle).href);
 const scratch=mkdtempSync(join(root,'tmp/ts-node-'));
 const processFixture=spawn(process.env.AB_CLIENT_FIXTURE ?? join(root,'tmp/client-fixture'),[join(scratch,'owner.sock')],{stdio:'pipe'});

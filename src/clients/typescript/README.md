@@ -23,7 +23,7 @@
 Use Node 22+ or Bun 1.3+.
 
 - **Checkout example:** install this directory's dependencies with `bun install --frozen-lockfile`, save the snippet as a `.ts` file here, replace its package import with `./src/index.ts`, and run it with Bun.
-- **Application package:** use the [local package build](#build-and-checks) and install its `dist/` directory as `@agent-bus/client`.
+- **Application package:** install `ai-agent-bus-sdk` from npm, or the [local package build](#build-and-checks) from its `dist/` directory.
 
 1. Register `#worker@localhost` as an Agent using an authorized CLI account. Construction alone does not register the identity.
 2. Obtain its token with `agent-bus token '#worker@localhost'` and set `AGENT_BUS_TOKEN` to that token.
@@ -32,7 +32,7 @@ Use Node 22+ or Bun 1.3+.
 Serve one handler and call it from the same process:
 
 ```ts
-import { Bus } from '@agent-bus/client';
+import { Bus } from 'ai-agent-bus-sdk';
 
 const bus = Bus.connect({ expectName: '#worker@localhost' });
 const server = bus.serve(async message => `pong ${message.body}`, { workers: 2 });

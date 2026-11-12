@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@agent-bus/client",
+      "name": "ai-agent-bus-sdk",
       "dependencies": {
         "lossless-json": "4.3.0",
       },

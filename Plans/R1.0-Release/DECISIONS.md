@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- ✅ RD190 The TypeScript client library is published to npm now, ahead of 1.0.0, as unscoped `ai-agent-bus-sdk` from `parf73`, at the bus's shared version; `ai-agent-bus-client` stays the CLI command package ([npm](distribution.md#npm); owner, 2026-11-12)
+
 - ✅ RD189 Schedule caps also count per holder Owner across all holders, 1 000 recurring and 100 000 one-shots; outcomes are kept 7 days per schedule, at most 1 000 per holder ([the schedule](cron-in-core.md#the-schedule); owner, 2026-11-12; settles Q416)
 
 - ✅ RD188 Every manager of a holder adds, edits, enables and deletes its schedules; messages always come from `#bus`; the acting manager becomes the creator after their own may-send; a queue's or pubsub's schedule warnings go to the daemon journal ([the schedule](cron-in-core.md#the-schedule); owner, 2026-11-12; settles Q415 and Q418)

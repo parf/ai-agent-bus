@@ -49,7 +49,7 @@ Owner, 2026-10-30, superseding the earlier installer and signing choices ([RD178
 | Release path | Verify each HTTPS-downloaded archive against that release’s `SHA256SUMS`, then its `MANIFEST.sha256`; produce the platform and command packages with `npm pack`. No draft waiting for a signature |
 | Layout | npm owns its package files and command shims; explicit full-node setup stages a checked release and uses the existing releases/current layout and rollback |
 
-The installed command stays `agent-bus`. `src/npm/pack.py` emits the split platform and command manifests under the approved names. The three tracked `@agent-bus/` manifests are private development projects and stay unpublished. The [publication record](done/release-1.0-publication.md#registry-publication) owns the live registry result.
+The installed command stays `agent-bus`. `src/npm/pack.py` emits the split platform and command manifests under the approved names. The TypeScript client library is the exception, published ahead of the release as unscoped `ai-agent-bus-sdk` at the bus's shared version, built by `src/clients/typescript/build.mjs` and published by the owner ([RD190](DECISIONS.md#recorded-decisions)). The other tracked `@agent-bus/` manifests are private development projects and stay unpublished. The [publication record](done/release-1.0-publication.md#registry-publication) owns the live registry result.
 
 ### Install acceptance
 
