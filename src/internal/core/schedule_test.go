@@ -371,3 +371,77 @@ func TestScheduleWarningsLandInTheHolderAgentsLog(t *testing.T) {
 		t.Fatalf("the holder's warnings: %q", text)
 	}
 }
+
+// Adding a schedule to an AI session's name answers with a warning (Q389).
+func TestASessionHolderIsWarnedThatItsSchedulesGoWithIt(t *testing.T) {
+	b, _, _ := schedFixture(t)
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#claude/x@h", Owner: "alice@h", Tags: []string{"ai-cli", "claude"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, warn, err := b.ScheduleAdd("alice@h", "#claude/x@h", ScheduleRequest{In: "1m", Target: "out@h", Body: "x"}); err != nil || !strings.Contains(warn, "AI session's name") {
+		t.Fatalf("a session holder: %q %v", warn, err)
+	}
+	if _, warn, err := b.ScheduleAdd("alice@h", "#svc@h", ScheduleRequest{In: "1m", Target: "out@h", Body: "x"}); err != nil || warn != "" {
+		t.Fatalf("an ordinary holder was warned: %q %v", warn, err)
+	}
+}
+
+// Each drop is named as #cron named it: a target that went away is
+// target_gone, a full one send_refused.
+func TestDropsAreNamedTargetGoneAndSendRefused(t *testing.T) {
+	b, st, clock := schedFixture(t)
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindQueue, Name: "tiny@h", Owner: "admin@h", Allow: []string{"alice@h"}, Bound: 1, Full: protocol.OverflowStrict}); err != nil {
+		t.Fatal(err)
+	}
+	gone, _, err := b.ScheduleAdd("alice@h", "#svc@h", ScheduleRequest{In: "1m", Target: "out@h", Body: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, _, err := b.ScheduleAdd("alice@h", "#svc@h", ScheduleRequest{In: "1m", Target: "tiny@h", Body: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "tiny@h", Body: "fills it"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Unregister("out@h", "admin@h"); err != nil {
+		t.Fatal(err)
+	}
+	clock.step(time.Minute)
+	b.schedulePass()
+	got := map[string]string{}
+	list, _ := st.ScheduleOutcomes(gone.Record, "")
+	for _, o := range list {
+		got[o.Schedule] = o.Outcome
+	}
+	if got[gone.ID] != "target_gone" || got[full.ID] != "send_refused" {
+		t.Fatalf("outcomes %v, want target_gone for %s and send_refused for %s", got, gone.ID, full.ID)
+	}
+}
+
+// A firing lives until the next slot, at least a minute, at most a day; a
+// one-shot a day. A User is no target.
+func TestFiringTimeToLiveAndTargetKinds(t *testing.T) {
+	b, _, clock := schedFixture(t)
+	for _, req := range []ScheduleRequest{{Expr: "*/5 * * * *", Target: "out@h", Body: "every"}, {Expr: "* * * * * *", Target: "out@h", Body: "second"}, {In: "1m", Target: "out@h", Body: "once"}} {
+		if _, _, err := b.ScheduleAdd("alice@h", "#svc@h", req); err != nil {
+			t.Fatal(err)
+		}
+	}
+	clock.step(5 * time.Minute)
+	b.schedulePass()
+	want := map[string]string{"every": "300s", "second": "60s", "once": "24h"}
+	for _, e := range scheduled(t, b, "out@h") {
+		if w, ok := want[e.Body]; ok && e.TTL != w && e.Schedule.Missed == 0 {
+			t.Errorf("%s: ttl %q, want %q", e.Body, e.TTL, w)
+		}
+		delete(want, e.Body)
+	}
+	if len(want) != 0 {
+		t.Fatalf("not fired: %v", want)
+	}
+	// #svc@h may send to bob@h (its Allow admits him), so only the kind rule refuses.
+	if _, _, err := b.ScheduleAdd("#svc@h", "#svc@h", ScheduleRequest{In: "1m", Target: "bob@h", Body: "x"}); err == nil || !strings.Contains(err.Error(), "queue or an agent") {
+		t.Fatalf("a User as target: %v", err)
+	}
+}

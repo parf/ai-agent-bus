@@ -341,6 +341,16 @@ func (b *Bus) ScheduleAdd(caller, holder string, req ScheduleRequest) (ScheduleV
 	if warn != "" {
 		b.scheduleWarn(r, "warning", "schedule %s: %s", id, warn)
 	}
+	// An AI session's name comes and goes with the session (Q389): its
+	// schedules go with it, so say so at the only moment it matters.
+	if shortLived(r) {
+		note := "this record is an AI session's name; its schedules go with it when the name is renamed or removed"
+		if warn != "" {
+			warn += "; " + note
+		} else {
+			warn = note
+		}
+	}
 	b.wakeSchedules()
 	v.ID, v.Record = id, r.ID
 	return ScheduleView{Schedule: v, Holder: r.Name}, warn, nil
@@ -860,4 +870,15 @@ func (b *Bus) schedulePass() time.Duration {
 		wait = time.Minute
 	}
 	return wait
+}
+
+// shortLived is a holder whose name lasts as long as an AI session: the
+// launchers register those agents with the ai-cli tag (docs/06-launchers.md).
+func shortLived(r protocol.Record) bool {
+	for _, t := range r.Tags {
+		if t == "ai-cli" {
+			return true
+		}
+	}
+	return false
 }

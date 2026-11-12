@@ -109,9 +109,9 @@ test("without a hash in help the visitor's own image ask decides, and its outcom
 
 test("every agent shows the universal placeholder, with its own picture asked for on top when served", () => {
   const live = render(AgentPicture({ name: "#pictured/one@h", hash: sha(avif) }));
-  expect(live).toMatch(/^<span class="pic-stack"><img class="agent-picture" src="\/agent-placeholder\.webp" alt="" width="40" height="40"\/?><img class="agent-picture" src="\/agent-image\?name=%23pictured%2Fone%40h&amp;h=[0-9a-f]{64}"/);
+  expect(live).toMatch(/^<span class="pic-stack"><img class="agent-picture" src="\/agent-placeholder(?:\.[0-9a-f]+)?\.webp" alt="" width="40" height="40"\/?><img class="agent-picture" src="\/agent-image\?name=%23pictured%2Fone%40h&amp;h=[0-9a-f]{64}"/);
   const nohash = render(AgentPicture({ name: "#plain@h", hash: "", size: 24 }));
-  expect(nohash).toMatch(/^<span class="pic-stack pic-small"><img class="agent-picture" src="\/agent-placeholder\.webp"[^>]*width="24"[^>]*><img class="agent-picture" src="\/agent-image\?name=%23plain%40h" [^>]*loading="lazy"/);
+  expect(nohash).toMatch(/^<span class="pic-stack pic-small"><img class="agent-picture" src="\/agent-placeholder(?:\.[0-9a-f]+)?\.webp"[^>]*width="24"[^>]*><img class="agent-picture" src="\/agent-image\?name=%23plain%40h" [^>]*loading="lazy"/);
   const offline = render(AgentPicture({ name: "#gone@h", hash: "", live: false }));
   expect(offline.match(/<img /g)).toHaveLength(1);
   expect(offline).toContain("agent-placeholder");
