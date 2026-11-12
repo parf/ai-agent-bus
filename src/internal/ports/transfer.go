@@ -12,6 +12,7 @@ type StoredKV struct {
 // Registry records are held stable by core during this read.
 type TransferState struct {
 	KV          []StoredKV
+	Schedules   []Schedule
 	Credentials []Credential
 }
 type TransferStore interface {

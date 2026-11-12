@@ -36,6 +36,25 @@ func (s *Store) ExportState(ids []uint32, names []string) (ports.TransferState, 
 			}
 		}
 	}
+	for _, id := range ids {
+		rows, err := tx.Query(`SELECT body FROM schedules WHERE record_id = ? ORDER BY id`, id)
+		if err != nil {
+			return out, err
+		}
+		for rows.Next() {
+			v, err := scanSchedule(rows)
+			if err != nil {
+				rows.Close()
+				return out, err
+			}
+			out.Schedules = append(out.Schedules, v)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return out, err
+		}
+	}
 	for _, name := range names {
 		rows, err := tx.Query("SELECT name,current,previous,issued,used,user_id,agent_id FROM credentials WHERE name = ?", name)
 		if err != nil {

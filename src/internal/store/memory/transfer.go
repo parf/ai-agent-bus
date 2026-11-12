@@ -17,6 +17,11 @@ func (s *State) ExportState(ids []uint32, names []string) (ports.TransferState, 
 			out.KV = append(out.KV, ports.StoredKV{RecordID: k.record, Kind: k.kind, Name: k.name, Value: cloneKV(v)})
 		}
 	}
+	for _, v := range s.schedules {
+		if selected[v.Record] {
+			out.Schedules = append(out.Schedules, v)
+		}
+	}
 	for _, name := range names {
 		if c, ok := s.tokens.creds[name]; ok {
 			out.Credentials = append(out.Credentials, c)

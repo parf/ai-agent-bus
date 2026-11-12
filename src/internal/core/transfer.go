@@ -10,6 +10,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/schedule"
 )
 
 type RecordKV struct {
@@ -18,11 +19,18 @@ type RecordKV struct {
 	Name   string        `json:"name"`
 	Value  ports.KVValue `json:"value"`
 }
+
+// RecordSchedule is one schedule in a backup, named by its holder.
+type RecordSchedule struct {
+	Record   string         `json:"record"`
+	Schedule ports.Schedule `json:"schedule"`
+}
 type RecordBackup struct {
 	Format      int                `json:"format"`
 	Records     []protocol.Record  `json:"records"`
 	Users       []protocol.User    `json:"users"`
 	KV          []RecordKV         `json:"kv"`
+	Schedules   []RecordSchedule   `json:"schedules"`
 	Credentials []ports.Credential `json:"credentials"`
 }
 type ImportReport struct {
@@ -122,6 +130,12 @@ func (b *Bus) ExportRecords(caller string, selection RecordSelection) (RecordBac
 	for _, v := range state.KV {
 		out.KV = append(out.KV, RecordKV{Record: byID[v.RecordID], Kind: v.Kind, Name: v.Name, Value: v.Value})
 	}
+	// Schedules are system state: they travel with their holder (Q411).
+	for _, v := range state.Schedules {
+		holder := byID[v.Record]
+		v.Record, v.InFlight = 0, 0
+		out.Schedules = append(out.Schedules, RecordSchedule{Record: holder, Schedule: v})
+	}
 	sort.Slice(out.KV, func(i, j int) bool {
 		a, c := out.KV[i], out.KV[j]
 		if a.Record != c.Record {
@@ -208,6 +222,14 @@ func rewriteBackup(data RecordBackup, realms map[string]string) (RecordBackup, m
 		out.KV[i].Record, e = rewrite(out.KV[i].Record)
 		if e != nil {
 			return data, nil, e
+		}
+	}
+	for i := range out.Schedules {
+		v := &out.Schedules[i]
+		for _, name := range []*string{&v.Record, &v.Schedule.Target, &v.Schedule.Creator} {
+			if *name, e = rewrite(*name); e != nil {
+				return data, nil, e
+			}
 		}
 	}
 	for i := range out.Credentials {
@@ -502,6 +524,10 @@ func (b *Bus) ImportRecords(caller string, data RecordBackup, choices ImportChoi
 		id := b.records[v.Record].ID
 		kv[id] = append(kv[id], ports.StoredKV{RecordID: id, Kind: v.Kind, Name: v.Name, Value: v.Value})
 	}
+	schedules, e := b.importSchedules(data.Schedules, records, keep)
+	if e != nil {
+		return report, e
+	}
 	for n, c := range creds {
 		pair, e := b.pairFor(n)
 		if e != nil {
@@ -531,7 +557,7 @@ func (b *Bus) ImportRecords(caller string, data RecordBackup, choices ImportChoi
 	if b.staging == nil {
 		return report, nil
 	}
-	if e = b.commitTransfer(creds, kv); e != nil {
+	if e = b.commitTransfer(creds, kv, schedules); e != nil {
 		return report, e
 	}
 	return report, nil
@@ -545,4 +571,59 @@ func compactStrings(in []string) []string {
 		}
 	}
 	return out
+}
+
+// importSchedules checks a backup's schedules and gives each imported holder
+// its complete set. A holder kept as it was keeps its own. An imported
+// schedule fires only while its creator passes every firing's checks here.
+// Caller holds b.mu.
+func (b *Bus) importSchedules(in []RecordSchedule, records map[string]protocol.Record, keep map[string]bool) (map[uint32][]ports.Schedule, error) {
+	out := map[uint32][]ports.Schedule{}
+	for n := range records {
+		if !keep[n] {
+			out[b.records[n].ID] = nil
+		}
+	}
+	seen := map[string]bool{}
+	counts := map[string]ports.ScheduleCount{}
+	now := b.clock().UTC()
+	for _, rs := range in {
+		if _, ok := records[rs.Record]; !ok {
+			return nil, fmt.Errorf("schedule record is absent from backup")
+		}
+		v := rs.Schedule
+		if len(v.ID) != 12 || seen[v.ID] {
+			return nil, fmt.Errorf("invalid or duplicate schedule id")
+		}
+		seen[v.ID] = true
+		if v.Body == "" || len(v.Body) > schedule.MaxBody || !utf8.ValidString(v.Body) || v.Target == "" || v.Creator == "" {
+			return nil, fmt.Errorf("invalid schedule %s", v.ID)
+		}
+		c := counts[rs.Record]
+		if v.Once {
+			c.Once++
+		} else {
+			c.Recurring++
+			e, err := schedule.Parse(v.Expr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid schedule %s: %v", v.ID, err)
+			}
+			if next, ok := e.Next(now); ok {
+				v.Next = next.Unix()
+			} else {
+				v.Next = 0
+			}
+		}
+		counts[rs.Record] = c
+		if c.Recurring > ScheduleMaxRecurring || c.Once > ScheduleMaxOnce {
+			return nil, ErrScheduleLimit
+		}
+		if keep[rs.Record] {
+			continue
+		}
+		id := b.records[rs.Record].ID
+		v.Record, v.InFlight, v.Streak = id, 0, 0
+		out[id] = append(out[id], v)
+	}
+	return out, nil
 }

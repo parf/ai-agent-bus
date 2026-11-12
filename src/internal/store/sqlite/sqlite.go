@@ -553,6 +553,23 @@ func (s *Store) Commit(c ports.Change) error {
 			}
 		}
 	}
+	for id, list := range c.ImportSchedules {
+		for _, t := range []string{"schedules", "schedule_outcomes"} {
+			if _, err := tx.Exec("DELETE FROM "+t+" WHERE record_id = ?", id); err != nil {
+				return err
+			}
+		}
+		for _, v := range list {
+			v.Record = id
+			body, err := json.Marshal(v)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.Exec(`INSERT INTO schedules (id, record_id, once, enabled, next, in_flight, body) VALUES (?, ?, ?, ?, ?, ?, ?)`, v.ID, id, boolInt(v.Once), boolInt(v.Enabled), v.Next, v.InFlight, body); err != nil {
+				return err
+			}
+		}
+	}
 	for _, credential := range c.ImportCredentials {
 		if _, err := tx.Exec(`INSERT INTO credentials (name,current,previous,issued,used,user_id,agent_id) VALUES (?,?,?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET current=excluded.current,previous=excluded.previous,issued=excluded.issued,used=excluded.used,user_id=excluded.user_id,agent_id=excluded.agent_id`, credential.Name, credential.Current, credential.Previous, formatTime(credential.Issued), formatTime(credential.Used), credential.UserID, credential.AgentID); err != nil {
 			return err

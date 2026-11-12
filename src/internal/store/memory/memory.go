@@ -230,6 +230,13 @@ func (s *State) Commit(c ports.Change) error {
 			s.kv[kvKey{kind: entry.Kind, record: id, name: entry.Name}] = cloneKV(entry.Value)
 		}
 	}
+	for id, list := range c.ImportSchedules {
+		s.dropSchedules(id)
+		for _, v := range list {
+			v.Record = id
+			s.schedules[v.ID] = v
+		}
+	}
 	s.tokens.apply(c.Credentials)
 	for _, credential := range c.ImportCredentials {
 		s.tokens.creds[credential.Name] = credential

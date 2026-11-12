@@ -202,9 +202,9 @@ func (b *Bus) setAccounts(accounts map[string]string) {
 // commit writes the staged entities as one transaction. On failure they are
 // put back, so the error is the whole outcome: nothing changed. Without a
 // store (tests, embedding) the write simply stands. Caller holds b.mu.
-func (b *Bus) commit() error { return b.commitTransfer(nil, nil) }
+func (b *Bus) commit() error { return b.commitTransfer(nil, nil, nil) }
 
-func (b *Bus) commitTransfer(values map[string]ports.Credential, kv map[uint32][]ports.StoredKV) error {
+func (b *Bus) commitTransfer(values map[string]ports.Credential, kv map[uint32][]ports.StoredKV, schedules map[uint32][]ports.Schedule) error {
 	s := b.staging
 	b.staging = nil
 	if s == nil {
@@ -219,7 +219,7 @@ func (b *Bus) commitTransfer(values map[string]ports.Credential, kv map[uint32][
 		return ErrExhausted
 	}
 	c := b.change(s)
-	c.ImportKV, c.ImportCredentials = kv, values
+	c.ImportKV, c.ImportSchedules, c.ImportCredentials = kv, schedules, values
 	var retired []uint32
 	for name, old := range s.records {
 		if current, exists := b.records[name]; old != nil && (!exists || current.ID != old.ID) {
