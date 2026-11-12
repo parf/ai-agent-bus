@@ -33,7 +33,7 @@ import (
 )
 
 // schema is the only database layout this daemon reads and writes.
-const schema = 11
+const schema = 12
 
 var tables = []string{
 	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -53,6 +53,8 @@ var tables = []string{
 	eventLogsTable,
 	eventAlertsTable,
 }
+
+func init() { tables = append(tables, scheduleTables...) }
 
 // bigfilesTable is the bigfile index: one row per bigfile held in a file, the
 // source of truth for which exist (Plans/R1.0-Release/bigfile.md#trust-and-durability).
@@ -177,6 +179,14 @@ func (s *Store) prepare(fresh bool) error {
 		}
 		if err := tx.Commit(); err != nil {
 			return err
+		}
+		version = schema
+	}
+	// 1.0's schema 11 gains the schedule tables and nothing else changes
+	// (Plans/R1.0-Release/cron-in-core.md#storage).
+	if version == 11 {
+		if err := s.addSchedules(); err != nil {
+			return fmt.Errorf("database %s: add schedules: %w", s.path, err)
 		}
 		version = schema
 	}
@@ -488,6 +498,9 @@ func (s *Store) Commit(c ports.Change) error {
 			return err
 		}
 		if err := dropEventAlerts(tx, name, keep); err != nil {
+			return err
+		}
+		if err := dropSchedules(tx, name, keep); err != nil {
 			return err
 		}
 		if r == nil {

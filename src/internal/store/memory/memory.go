@@ -114,6 +114,8 @@ type State struct {
 	activity  []byte
 	days      map[[2]string]ports.ActivityDay
 	kv        map[kvKey]ports.KVValue
+	schedules map[string]ports.Schedule
+	outcomes  map[uint32][]ports.ScheduleOutcome
 	// Enter, when set, is closed as the first commit starts, which then waits
 	// for Release: a test's way to hold a write open.
 	Enter, Release chan struct{}
@@ -122,13 +124,15 @@ type State struct {
 
 func NewState() *State {
 	return &State{
-		accounts: map[string]string{},
-		users:    map[string]protocol.User{},
-		records:  map[string]protocol.Record{},
-		queues:   map[string]ports.Queue{},
-		days:     map[[2]string]ports.ActivityDay{},
-		kv:       map[kvKey]ports.KVValue{},
-		tokens:   NewTokens(),
+		accounts:  map[string]string{},
+		users:     map[string]protocol.User{},
+		records:   map[string]protocol.Record{},
+		queues:    map[string]ports.Queue{},
+		days:      map[[2]string]ports.ActivityDay{},
+		kv:        map[kvKey]ports.KVValue{},
+		schedules: map[string]ports.Schedule{},
+		outcomes:  map[uint32][]ports.ScheduleOutcome{},
+		tokens:    NewTokens(),
 	}
 }
 
@@ -201,6 +205,7 @@ func (s *State) Commit(c ports.Change) error {
 	for name, r := range c.Records {
 		if old, had := s.records[name]; had && (r == nil || r.ID != old.ID) {
 			s.dropKV(old.ID)
+			s.dropSchedules(old.ID)
 			s.dropSubscriptions(old.ID)
 			s.dropSubscriptionsBy(name)
 			s.dropEventLog(old.ID)
