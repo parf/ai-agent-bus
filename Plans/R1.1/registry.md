@@ -14,9 +14,8 @@ live replication protocol.
   key-holding writer's record carries its signature, which a peer checks before
   taking it; a static-token record is trusted on the strength of the node that
   accepted it.
-- **Upstreams are not replicated.** An upstream `agent-busd` has its own
-  registry and we usually lack full access to it; chaining queries it and
-  caches answers, nothing more
-  ([federation § chaining](../R1.2/federation.md#chaining)).
+- **Upstreams are not replicated.** A mounted upstream bus is queried live
+  as one of its users, never copied
+  ([upstream mount](../R1.0-Release/federation.md#upstream-mount)).
 
 Unresolved details: [questions](../R1.3/QUESTIONS.md#peer-registry), where №Q5 moved on 2026-11-06.

@@ -7,7 +7,6 @@ of the stage are marked in [the catalogue](services.md#the-catalogue). Tools bui
 
 | Topic | Canonical knowledge |
 |---|---|
-| Federation | [Chaining](federation.md#chaining), moved from R1 on 2026-10-17 |
 | Bundled agents | [Bundled agents](services.md#bundled-agents) |
 | Discord | [Agent plan](discord.md#discord-agent-b27a), moved from R1.1 on 2026-11-05; [task](TODO.md#discord) |
 | Runner hardening (M.14) | [Proposal](runner-hardening.md#runner-hardening-proposal), moved from R1.1 on 2026-11-06; [acceptance](TODO.md#runner-hardening) |

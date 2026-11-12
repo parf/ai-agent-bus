@@ -58,7 +58,6 @@ Peer authenticity and clocks moved to [R1.3](R1.3/QUESTIONS.md#peer-registry); m
 
 | Major change from R1.1 | Proposed result | Owning design |
 |---|---|---|
-| Federation | Discovery and calls can reach upstream agents | [Chaining](R1.2/federation.md#chaining) |
 | Runner hardening | Deferred runner safety and isolation work | [Hardening proposal](R1.2/runner-hardening.md#runner-hardening-proposal), moved from R1.1 |
 | Additional chat integrations | Discord and Google Chat; Google Chat requires a corporate Workspace account | [Discord](R1.2/discord.md#discord-agent-b27a), [Google Chat](R1.2/google-chat.md#google-chat-agent-b27b) |
 | **Bundled useful agents** | Teams can deploy existing tools instead of first writing every integration themselves | [Catalogue](R1.2/services.md#the-catalogue) |

@@ -8,6 +8,32 @@ Only unresolved choices live here. Accepted answers and their threads are in
 [decisions](DECISIONS.md#recorded-decisions). Pick an option, or answer the
 suggestion with `✅ 💡` or `🚫 💡`.
 
+## Federation
+
+Owner proposal, 2026-11-12: [upstream mount](federation.md#upstream-mount), undecided.
+
+- ❓ Q403 Which release ships the upstream mount
+  - Context: owner, 2026-11-12: "its for 1.0 - but leave it as undecided"; chaining is retired ([RD179](DECISIONS.md#recorded-decisions))
+  - ( ) R1
+  - ( ) R1.1
+  - ( ) R1.2
+- ❓ Q404 Is a remote name longer than the 64-character local limit unreachable, or given a local alias
+  - Context: `#g:` adds the prefix length; long remote session names can exceed 64
+  - ( ) Unreachable, reported as hidden in the listing; aliasing later
+  - ( ) Mount-defined aliases from the start
+- ❓ Q405 Which local callers may use a mount by default
+  - ( ) Its Owner only; others by the mount record's ACL
+  - ( ) Every local user
+- ❓ Q406 Who holds a remote lock taken through the mount
+  - Context: the remote sees every local caller as the same user, so two local workers taking one remote lock look like one holder; that breaks mutual exclusion unless the proxy separates them
+  - ( ) The proxy records the local holder and refuses a second local caller while the remote hold lasts
+  - ( ) Each local caller gets its own remote identity (needs the two-way proxy agents, Q407)
+  - ( ) Locks are not forwarded
+- ❓ Q407 Is the two-way proxy part of the mount's first form
+  - Context: [two-way proxy](federation.md#two-way-proxy): a local agent opts in, and the proxy user registers a 1-to-1 stand-in for it on the remote
+  - ( ) One-way first; two-way as a later step
+  - ( ) Both in the first form
+
 ## Upgrading pre-1.0 data
 
 - ✅ 🔴 Q338 How does a pre-1.0 store reach 1.0.x

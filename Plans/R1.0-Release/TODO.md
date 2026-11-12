@@ -134,8 +134,7 @@ Still open for R1, besides what the rows below say: the first npm publication
 at the release (P.1, [Q300](DECISIONS.md#recorded-decisions)). B.31 moved to
 [R1.1](../R1.1/TODO.md#imap-large-transfer). RT11 is closed: RW4/RW8 moved to
 [R1.1](../R1.1/TODO.md#runner-web-additions) ([Q311](DECISIONS.md#recorded-decisions)).
-Federation is [R1.2](../R1.2/federation.md#chaining); its R1.1 prerequisites
-no longer block this release.
+Federation is the [upstream mount](federation.md#upstream-mount); its release is open ([Q403](QUESTIONS.md#federation)).
 
 ## Dependencies
 

@@ -27,6 +27,12 @@ History only; these rows are never a current contract. See [current decisions](.
 | A record is not removed while its name still owns others, unless that name is a registered user | [unregistering](../../docs/01-identity-and-authority.md#unregistering) | 2026-09-15 — Removing a name's only standing while it owns records strands each of them under an owner nothing answers for; refusing names what is in the way, and a user survives losing a record because the user is still somebody |
 | Keep non-user identities visible and distinguish them from registered users | [person records](../../docs/01-identity-and-authority.md#users-and-profiles) | 2026-09-15 — Cleanup needs visible evidence rather than a directory that hides debris |
 
+## Federation
+
+| Decision topic | Substance | Why |
+|---|---|---|
+| Chaining: a daemon trusts an upstream daemon; lookups fall through local → upstream, signed AUTH answers, pinned upstream keys, the realm as namespace (RD89, RD91, №Q20) | [R1 decisions](../R1.0-Release/DECISIONS.md#recorded-decisions); the design text is in Git history of `Plans/R1.2/federation.md` before 2026-11-12 | retired 2026-11-12 by the owner for the [upstream mount](../R1.0-Release/federation.md#upstream-mount) (RD179): no daemon trust or signing prerequisites, and remote realms cannot collide |
+
 ## Access and credentials
 
 | Decision topic | Substance | Why |

@@ -27,10 +27,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 ## Federation
 
-The owner moved federation here from R1 on 2026-10-17 (№Q137) and selected
-the realm as the chaining namespace (№Q20). Substance:
-[chaining](federation.md#chaining). The dated decisions and complete original
-threads remain in [R1's decision record](../R1.0-Release/DECISIONS.md#recorded-decisions).
+Chaining was retired on 2026-11-12 and replaced by the [upstream mount](../R1.0-Release/federation.md#upstream-mount) ([RD179](../R1.0-Release/DECISIONS.md#recorded-decisions)); history is in the [decision archive](../done/decisions-archive.md#federation).
 
 ## Declared record state
 

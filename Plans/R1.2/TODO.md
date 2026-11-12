@@ -40,8 +40,8 @@ Owner, 2026-10-30: after the Windows launchers exist in Go ([WIN.3](../R1.1/TODO
 
 `RF` labels federation work moved from R1; it allocates no question IDs.
 
-- ⏸️ RF1 Federation chaining across distinct nodes
-  - State: moved from R1 on the owner's instruction, 2026-10-17 (№Q137); the earlier hold is not lifted by this move
+- ⛔ RF1 Federation chaining across distinct nodes
+  - State: superseded on 2026-11-12 by the [upstream mount](../R1.0-Release/federation.md#upstream-mount), whose release is [Q403](../R1.0-Release/QUESTIONS.md#federation); moved from R1 on 2026-10-17 (№Q137)
   - Depends: the owner taking federation off hold; R1.1 signed AUTH generations, pinned peer keys and registry contracts; the namespace choice is settled (№Q20)
   - Acceptance: exercise discovery and calls across distinct daemon nodes, including local shadowing and unresolved fallthrough; a single-node exercise does not satisfy this task
   - Mutant: disable the upstream lookup and the cross-node call must fail
