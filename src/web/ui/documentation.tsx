@@ -24,8 +24,8 @@ export const PAGE_DOCUMENTATION:Record<string,Doc[]>={
  runners:[{label:"Runners",target:"runner/operations.md#reading-status"},{label:"Runner access",target:"runner/security.md#who-may-manage-the-runner"}],
  locks:[{label:"Locks",target:"01-identity-and-authority.md#shared-locks"}],
  kv:[{label:"Key-value stores",target:"03-records-kv.md#rules"},{label:"Bigfiles",target:"03-records-kv.md#bigfiles"},{label:"JSON operations",target:"03-records-kv.md#json-operations"}],
- crons:[{label:"Schedules",target:"09-daemon-api.md#schedules"},tags],
- ats:[{label:"Schedules",target:"09-daemon-api.md#schedules"},tags],
+ crons:[{label:"Schedules",target:"03-records-schedules.md#schedules"},tags],
+ ats:[{label:"Schedules",target:"03-records-schedules.md#schedules"},tags],
  activity:[{label:"Activity history",target:"05-discovery.md#activity-history"},{label:"Message fields",target:"04-messaging.md#message-fields"}],
  diagnostics:[{label:"Diagnostics",target:"05-discovery.md#overview-and-diagnostics"},{label:"Logs",target:"administration.md#logs"}],
 };
