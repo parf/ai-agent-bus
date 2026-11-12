@@ -1,7 +1,7 @@
 {
   "description": "Keep recurring work and follow-ups on time without staying connected. Schedule repeated or one-time messages and review their outcomes. Start with sub add or later; delivery uses this agent's identity and needs the destination's permission.",
-  "version": "1.0.0",
-  "released": "2026-11-07",
+  "version": "1.0.1",
+  "released": "2026-11-12",
   "command": "./cron.py",
   "form": "args",
   "serves": "itself",

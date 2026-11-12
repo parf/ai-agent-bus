@@ -1,7 +1,7 @@
 {
   "description": "Find out whether messages arrive and agents can work. Check replies, permissions and runner health with bounded probes. Start with ping; use doctor for a health summary and sandbox for observed restrictions.",
-  "version": "1.0.0",
-  "released": "2026-11-07",
+  "version": "1.0.1",
+  "released": "2026-11-12",
   "command": "./debug.py",
   "form": "args",
   "processes": 1,

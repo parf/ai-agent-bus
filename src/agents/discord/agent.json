@@ -1,7 +1,7 @@
 {
   "description": "Bring your AI into your Discord servers. Post updates, catch up on messages and route human replies to the right session. Start with whoami, then configure a default channel.",
-  "version": "1.0.0",
-  "released": "2026-11-07",
+  "version": "1.0.1",
+  "released": "2026-11-12",
   "command": "./discord.ts",
   "form": "args",
   "serves": "itself",

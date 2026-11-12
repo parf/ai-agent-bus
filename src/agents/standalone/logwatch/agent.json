@@ -1,7 +1,7 @@
 {
   "description": "Find useful events without reading every host log. Review retained lines, search them or forward new matches. Start with sources and tail; marks and retained history are lost on restart.",
-  "version": "1.0.0",
-  "released": "2026-11-07",
+  "version": "1.0.1",
+  "released": "2026-11-12",
   "tags": [
     "ops"
   ],

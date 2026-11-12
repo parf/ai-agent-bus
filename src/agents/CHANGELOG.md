@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes to the bundled agents in `src/agents/`, newest first.
 The pack has its own SemVer in `src/agents/VERSION`, separate from the bus version.
 
+## 1.0.7 — 2026-11-11
+
+Every bundled agent ships its picture in one house style and answers the image ask (IMG.1)
+
 ## 1.0.6 — 2026-11-07
 
 Each bundled agent now carries its own version (1.0.0; rag 0.4.2) and released date in agent.json and its own CHANGELOG.md; the shared metadata no longer falls back to the pack version (AV.1)
