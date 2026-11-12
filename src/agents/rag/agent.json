@@ -1,6 +1,6 @@
 {
   "description": "Store namespaced documents and retrieve evidence by keyword, meaning or both. Start with free capabilities, then configure prompts and upsert records with their source path.",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "released": "2026-11-12",
   "command": "./rag.py",
   "form": "args",

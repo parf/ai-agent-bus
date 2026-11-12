@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes to the bundled agents in `src/agents/`, newest first.
 The pack has its own SemVer in `src/agents/VERSION`, separate from the bus version.
 
+## 1.0.9 — 2026-11-12
+
+Packaged agents ship the picture their agent.json names; agents bundling the Python client gain its schedule calls; #cron and #at are retired
+
 ## 1.0.8 — 2026-11-11
 
 Every bundled agent gets a colorful picture of its own

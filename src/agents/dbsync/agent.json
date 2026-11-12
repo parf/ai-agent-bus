@@ -1,6 +1,6 @@
 {
   "description": "Turn the rows of one database table that are new or changed into messages. Reads through a read-only DB agent under its own name, holds no database credential, tells each subscribed agent about each row, and marks a row done only after that agent confirms it. Start with help, then status.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "released": "2026-11-12",
   "command": "./dbsync.py",
   "form": "args",

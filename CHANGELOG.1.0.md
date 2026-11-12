@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.58 — 2026-11-12
+
+Cron and at move into the daemon: every agent, queue and pub/sub keeps its own schedules, fired from #bus (agent-bus schedule, MCP, six clients, Crons and Ats pages); #bus is admitted by every target and sends only where its principal may; #cron and #at are retired
+
 ## 1.0.57 — 2026-11-11
 
 Colorful agent pictures; #bus, runners and AI sessions have their own pictures and every agent without one shows a universal placeholder; agent lists show every live agent picture

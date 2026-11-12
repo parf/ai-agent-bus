@@ -1,6 +1,6 @@
 {
   "description": "Connect outside events and services without sharing their credentials. Receive authenticated events or send a body to a configured destination. Start with routes to see available names; post sends once and returns the response.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "released": "2026-11-12",
   "command": "./webhook.py",
   "form": "args",
