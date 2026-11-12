@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/imap.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "f36982aa80d3802fc6917bef82fdb1a604a79b9e299d532eb2e5cce8c4911e17",
     "methods": {
       "sync": {
         "type": "string",
@@ -567,7 +569,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "host": {

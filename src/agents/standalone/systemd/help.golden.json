@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/systemd.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "569b28525f56fe7cc08681b1c6e3e9983e7dcd2f7431c06c2e25d70b7a96caff",
     "methods": {
       "list": {
         "type": "string",
@@ -185,7 +187,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "units": {

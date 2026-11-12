@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/filescan.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "c57e0ee03ad478884b81737b454fedcfb679cd72b8e3608ce1e05d06af7f35a8",
     "methods": {
       "help": {
         "type": "string",
@@ -175,7 +177,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "dir": {

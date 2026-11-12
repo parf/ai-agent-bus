@@ -9,6 +9,7 @@
   "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/debug.md",
+  "image": "agent.webp",
   "methods": {
     "selftest": {
       "help": "Check replies and this agent's ability to store a value and take a lock. Each step reports success or failure; only one selftest runs at a time.",

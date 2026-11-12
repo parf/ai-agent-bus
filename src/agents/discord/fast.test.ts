@@ -5,9 +5,10 @@ import { parse } from './parse.ts';
 import { chunks } from './api.ts';
 import { helpData } from '../shared/metadata.ts';
 import manifest from './agent.json';
+import { fileURLToPath } from 'node:url';
 const envDist=await Bun.file(new URL('./env.dist',import.meta.url)).text();
 test('Discord fast manifest help declares the implemented calls and Secret names without values',()=>{
- const help:any=helpData(manifest,'help-json',envDist);
+ const help:any=helpData(manifest,'help-json',envDist,[],fileURLToPath(new URL('.',import.meta.url)));
  expect(Object.keys(help.methods).sort()).toEqual(['channel','channels','delete','edit','post','react','read','sub.add','sub.delete','sub.list','thread','whoami'].sort());
  expect(help.secrets.map((s:any)=>s.name)).toEqual(['DISCORD_BOT_TOKEN','DISCORD_API_URL','DISCORD_GATEWAY_URL']);
  expect(help.methods['sub.edit']).toBeUndefined();

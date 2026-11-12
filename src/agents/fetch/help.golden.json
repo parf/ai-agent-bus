@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/fetch.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "f61c32ea2d9a0830cf87425b93961264b3292f8820ac29884c1e7da40efbad70",
     "methods": {
       "get": {
         "type": "string",
@@ -63,7 +65,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "allow": {

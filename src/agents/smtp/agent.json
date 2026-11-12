@@ -11,6 +11,7 @@
   "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/smtp.md",
+  "image": "agent.webp",
   "body_formats": ["json"],
   "methods": {
     "send": {

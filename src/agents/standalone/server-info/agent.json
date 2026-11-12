@@ -7,6 +7,7 @@
   "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/server-info.md",
+  "image": "agent.webp",
   "methods": {
     "all": {
       "help": "Review every section available to the agent's Linux account. Disk health and hardware sensor sections require root.",

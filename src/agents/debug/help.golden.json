@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/debug.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "39c9639f32daccd4b50ffaaee787f95a7feee392f6e839e7d322a5be33b3f756",
     "methods": {
       "selftest": {
         "type": "string",
@@ -133,7 +135,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {},
     "secrets": [],

@@ -20,6 +20,7 @@
   "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/Plans/R1.1/discord-user-guide.md",
+  "image": "agent.webp",
   "methods": {
     "post": {
       "help": "Tell a Discord channel what your assistant did; without a channel, use Configuration default. Answers with channel and message ids. In text, select a channel with an alias, #name or id:<number>; a leading number stays in the message.",

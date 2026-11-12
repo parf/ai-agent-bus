@@ -11,6 +11,7 @@
   "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/git.md",
+  "image": "agent.webp",
   "methods": {
     "list": {
       "help": "Find the repository names this instance is configured to use.",

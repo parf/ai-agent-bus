@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/src/agents/db/guide.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "6cd641e3e1c0b3c48b62f8afad08dd488f9a0028ded2d7cd69dadcfb52b71d69",
     "methods": {
       "query": {
         "type": "string",
@@ -27,7 +29,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "engine": {

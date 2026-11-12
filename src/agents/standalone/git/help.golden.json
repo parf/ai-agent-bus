@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/git.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "ee16ed3642bd09788208d1f42f35bcdfa0e8d11fd33677fe0300df7ab79075b3",
     "methods": {
       "list": {
         "type": "string",
@@ -250,7 +252,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "repos": {

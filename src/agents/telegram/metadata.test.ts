@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import { parseCall, KEYS } from "./parse.ts";
 import manifest from "./agent.json";
 import { helpData, secrets, helpAnswer, type Manifest } from "../shared/metadata.ts";
+import { fileURLToPath } from "node:url";
+// The agent folder, where its picture is.
+const dir = fileURLToPath(new URL(".", import.meta.url));
 import { describe } from "./help.ts";
 
 test("manifest help matches the parser and every handler", () => {
@@ -21,7 +24,7 @@ test("manifest help matches the parser and every handler", () => {
   }
   const generated = JSON.parse(describe(true, "help", true));
   expect(Object.keys(generated.methods).sort()).toEqual(methods);
-  expect(generated.asks).toEqual(["help", "help-config", "help-secret", "help-json"]);
+  expect(generated.asks).toEqual(["help", "help-config", "help-secret", "help-json", "image"]);
   expect(generated.version).toBe(manifest.version);
   expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
   expect(manifest.license).toBe("LicenseRef-PolyForm-Strict-1.0.0");
@@ -30,8 +33,8 @@ test("manifest help matches the parser and every handler", () => {
 test("secret help exposes declarations and comments, never values", () => {
   const result = helpData(manifest, "help-secret", "# required key\nTOKEN= # required\n# optional key\nURL=https://secret-sentinel.invalid\n");
   expect(JSON.stringify(result)).not.toContain("secret-sentinel");
-  expect(helpData(manifest, "help-json", "# optional\nTOKEN=secret-sentinel\n", ["owner"])).toHaveProperty("methods");
-  expect(JSON.stringify(helpData(manifest, "help-json", "# optional\nTOKEN=secret-sentinel\n", ["owner"]))).not.toContain("secret-sentinel");
+  expect(helpData(manifest, "help-json", "# optional\nTOKEN=secret-sentinel\n", ["owner"], dir)).toHaveProperty("methods");
+  expect(JSON.stringify(helpData(manifest, "help-json", "# optional\nTOKEN=secret-sentinel\n", ["owner"], dir))).not.toContain("secret-sentinel");
   expect(result).toEqual({ secrets: [{ name: "TOKEN", help: "required key", required: true, has_default: false }, { name: "URL", help: "optional key", required: false, has_default: true }] });
   const source = readFileSync(new URL("./env.dist", import.meta.url), "utf8");
   for (const key of secrets(source)) expect(key.help.length).toBeGreaterThan(0);

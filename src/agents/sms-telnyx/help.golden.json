@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/sms.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "3e57c7fef261e3b5460e99612cd06f5bbecbd130f261277de06474098568e184",
     "methods": {
       "send": {
         "type": "string",
@@ -31,7 +33,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "from": {

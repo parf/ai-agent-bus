@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/qdrant.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "14d0a1e5b05102a78e3f759d209fc626fe8bd2afbdb8462534026b95e7250cbf",
     "methods": {
       "request": {
         "type": "string",
@@ -47,7 +49,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "url": {

@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/slack.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "1d722b895512b191d6c759b3f39ae8c5f34472a147bb5b9ee915623ed2c752a7",
     "methods": {
       "post": {
         "type": "string",
@@ -287,7 +289,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "users": {

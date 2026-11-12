@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/smtp.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "fc390256bab4fc5000c6c9bb527a0e84adebfb2de435c861ebda2b63e475d26d",
     "methods": {
       "send": {
         "type": "string",
@@ -59,7 +61,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "sender": {

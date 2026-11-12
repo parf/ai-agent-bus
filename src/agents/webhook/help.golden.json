@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/webhook.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "d1d89ea5b43c6cc6e8553f214fbfd4a1149a9a5f411e79e4c0becf309a596b3b",
     "methods": {
       "post": {
         "type": "string",
@@ -37,7 +39,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {},
     "secrets": [

@@ -19,6 +19,7 @@
   "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/slack.md",
+  "image": "agent.webp",
   "methods": {
     "post": {
       "help": "Send a message to a channel, or reply in a thread. The answer is a message link when available, otherwise the channel and timestamp.",

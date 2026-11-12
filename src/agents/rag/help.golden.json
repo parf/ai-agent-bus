@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/rag.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "7c22211a543b70e43c87a5b910f732d77248f67f82c238c7c5a2bcaa98ce5320",
     "methods": {
       "upsert": {
         "type": "string",
@@ -603,7 +605,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "qdrant": {

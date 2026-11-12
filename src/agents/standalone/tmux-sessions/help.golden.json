@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/tmux-sessions.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "fbe27a1559e0035ea4ce27efac6c522c1e973bcc342009b075a8975a2da9d87c",
     "methods": {
       "start": {
         "type": "string",
@@ -72,7 +74,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "session": {

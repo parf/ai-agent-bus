@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/logwatch.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "e750cff404002123f5ec91ab3a693afb26f0a1cead24057982fb1b1420d7ac90",
     "methods": {
       "tail": {
         "type": "string",
@@ -144,7 +146,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "sources": {

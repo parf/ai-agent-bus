@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/voyage.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "025e6a06b455e638b6d99fe3d16b952fbee9ecf586e13bb17bd6de5f03e3110d",
     "methods": {
       "embed": {
         "type": "string",
@@ -43,7 +45,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "model": {

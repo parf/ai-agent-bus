@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/eventlog.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "2b3d7f1fb6a3613816c5d797f76b07a5812009c4f0b8111862303fff19a14035",
     "methods": {
       "write": {
         "type": "string",
@@ -209,7 +211,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "rings": {

@@ -14,6 +14,7 @@
   "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/systemd.md",
+  "image": "agent.webp",
   "methods": {
     "list": {
       "help": "Find loaded units, including inactive ones. Optionally select a unit type.",

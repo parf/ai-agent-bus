@@ -561,5 +561,6 @@
     }
   },
   "deadline": "120s",
-  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/rag.md"
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/rag.md",
+  "image": "agent.webp"
 }

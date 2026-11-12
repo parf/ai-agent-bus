@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/Plans/R1.1/discord-user-guide.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "be9ebc386eebbbced1a020d7d129380dc8c45c9ae432778c88aa0e4fc6913a6a",
     "methods": {
       "post": {
         "type": "string",
@@ -210,7 +212,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "guilds": {

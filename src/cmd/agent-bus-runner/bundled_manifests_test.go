@@ -23,7 +23,8 @@ func TestEveryBundledManifestPassesRunnerReload(t *testing.T) {
 		if entry.IsDir() && (entry.Name() == "node_modules" || entry.Name() == ".git") {
 			return fs.SkipDir
 		}
-		if entry.IsDir() || entry.Name() != "agent.json" {
+		// The picture a manifest names is checked at load, so it travels with it.
+		if entry.IsDir() || (entry.Name() != "agent.json" && entry.Name() != "agent.webp") {
 			return nil
 		}
 		data, err := agentmeta.ReadFile(path)
@@ -41,7 +42,9 @@ func TestEveryBundledManifestPassesRunnerReload(t *testing.T) {
 		if err := os.WriteFile(destination, data, 0o644); err != nil {
 			return err
 		}
-		manifests = append(manifests, rel)
+		if entry.Name() == "agent.json" {
+			manifests = append(manifests, rel)
+		}
 		return nil
 	})
 	if err != nil {

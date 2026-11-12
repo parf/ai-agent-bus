@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/dbsync.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "030331c0939b651684bb5fc5d25e1be7c9f653a58d07cbaf6c46392910a5a6e8",
     "methods": {
       "help": {
         "type": "string",
@@ -109,7 +111,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "db": {

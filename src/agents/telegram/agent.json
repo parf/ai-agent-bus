@@ -18,6 +18,7 @@
   "author": "Sergey Porfiriev",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/telegram.md",
+  "image": "agent.webp",
   "methods": {
     "post": {
       "help": "Send a message; without a channel it goes to the configured default. The answer is the chat and message ID.",

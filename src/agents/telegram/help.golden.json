@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/telegram.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "929e226a371a7324524a343b9fa5d2fbae6186709139a6d7675f5498b199f330",
     "methods": {
       "post": {
         "type": "string",
@@ -227,7 +229,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "default": {
