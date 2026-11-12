@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** scheduling lives in two runner agents, `#cron` and `#at`, so an agent cannot own its schedules, the web cannot show them, and a firing needs a runner process up.
 - **Outcome:** the daemon keeps **schedules** the way it keeps KV: attached to a record, used by its Owner, Maintainers and own Agent, fired from `#bus`, shown on **Crons** and **Ats** pages and agent pages. `#cron` and `#at` are then removed.
-- **Status:** design settled with the owner (Q379–Q390 on 2026-11-06; Q409–Q414 on 2026-11-12); R1 task [RT35](TODO.md#cron-and-at-in-the-core); nothing built. Open: [Q415–Q418](#open-questions).
+- **Status:** design settled with the owner (Q379–Q390 on 2026-11-06; Q409–Q414 and Q417 on 2026-11-12); R1 task [RT35](TODO.md#cron-and-at-in-the-core); nothing built. Open: [Q415, Q416, Q418](#open-questions).
 
 ## Contents
 
@@ -61,7 +61,7 @@ Owner, 2026-11-06 ~14:00: "#cron and #at must be converted from agents to bus co
 | 14 | one attempt per firing; claimed never repeated; `send_unknown`, `admission_refused`, `target_gone`, `send_refused`; no retry | the same names and rules | |
 | 15 | creator's may-send at add and before every send; the target must also admit `#cron` | creator's may-send at add and before every firing, checked with the send; `#bus` is always admitted ([Q410](#q410)); 5 refusals in a row disable ([Q409](#q409)) | no Allow entry for the sender; disable |
 | 16 | target: an existing agent or queue `#cron` can see; never `#cron` itself | an existing agent or queue the creator may send to, including the creator's own; never `#bus` | the creator, not the helper, must reach it |
-| 17 | anyone admitted to `#cron` schedules; each lists and deletes their own; staff see others' entries without bodies | the holder's Owner, Maintainers and own Agent, who see every schedule on it with bodies ([Q383](#q383)) | a person needs a holder ([Q417](#q417)); managers see bodies |
+| 17 | anyone admitted to `#cron` schedules; each lists and deletes their own; staff see others' entries without bodies | the holder's Owner, Maintainers and own Agent, who see every schedule on it with bodies ([Q383](#q383)) | a person keeps schedules on an agent or queue they manage, such as their session ([Q417](#q417)); managers see bodies |
 | 18 | per instance: 100 recurring (20 per creator), 1000 one-shots (100 per creator) | per holder: 100 recurring, 10 000 one-shots ([Q384](#q384)); node limits [Q416](#q416) | |
 | 19 | time to live: to the next slot, at least 60 s, at most 24 h; 24 h for a one-shot | the same, also capped by the target queue's own limit; a catch-up gets a one-shot's | |
 | 20 | at most 200 creator-and-target questions per pass, the rest `deferred` | an in-process check per firing | `deferred` gone |
@@ -76,7 +76,7 @@ Owner, 2026-11-06 ~14:00: "#cron and #at must be converted from agents to bus co
 | Property | Rule |
 |---|---|
 | Kind | one object; **recurring** (an expression) or **one-shot** (a time); Crons and Ats are two views of it |
-| Holder | an Agent, queue or pubsub ([Q382](#q382)); a person's own User record is [Q417](#q417) |
+| Holder | an Agent, queue or pubsub ([Q382](#q382)), never a User record ([Q417](#q417)); it stores the schedule, the target is what it triggers |
 | Who manages and sees | the holder's Owner, Maintainers and own Agent, KV's `resourceManages` check ([Q383](#q383)); nobody else learns a schedule exists |
 | Creator | the caller that added it; fires only while the creator is active, still manages the holder and may send to the target. Who becomes creator when another manager enables or runs it is [Q415](#q415) |
 | Target | an existing agent or queue the creator may send to, the holder itself included; never `#bus` |
@@ -256,6 +256,9 @@ Settled with the owner; anchors kept for links. Q381 was withdrawn and stays unu
 <a id="q413"></a>
 - ✅ Q413 Unread or refused firings to one target before a warning → 3. Owner, 2026-11-12: "ok"
 
+<a id="q417"></a>
+- ✅ Q417 May a person's User record hold schedules → no: a holder only stores a schedule, and a person keeps one on an agent or queue they manage, such as their own session. Owner, 2026-11-12: "users schedule makes no sense - what will it trigger? what for"
+
 <a id="q414"></a>
 - ✅ Q414 Who removes `#cron` and `#at` from the live node → the Claude session that builds it, at the deploy that ships schedules. Owner, 2026-11-12: "you"
 
@@ -273,11 +276,6 @@ Settled with the owner; anchors kept for links. Q381 was withdrawn and stays unu
   - ( ) A cap per holder Owner across all holders, 100 000 one-shots and 1 000 recurring; outcomes kept 7 days per holder instead of the last 100 🌟
   - ( ) Per-holder caps only, last 100 outcomes, as planned
 
-<a id="q417"></a>
-- ❓ Q417 May a person's own User record hold schedules
-  - Context: today anyone admitted to `#cron` schedules; with Q382's holders a person who owns no agent, queue or pubsub cannot. A User record already holds KV and has an inbox
-  - ( ) Yes: a User record holds schedules, managed by that person 🌟
-  - ( ) No: a person creates a queue first
 
 <a id="q418"></a>
 - ❓ Q418 Where a queue's or pubsub's schedule warnings go
