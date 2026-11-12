@@ -65,7 +65,7 @@ async fn schedule_limits_travel_and_a_stranger_reads_one_as_missing() {
     let got = &added["schedule"];
     assert_eq!(
         json!([got["kind"], got["enabled"], got["max_runs"], got["max_late"], got["until"], added["warning"]]),
-        json!(["recurring", false, 3, "5m0s", "2099-01-01T00:00:00Z", ""])
+        json!(["recurring", false, 3, "5m", "2099-01-01T00:00:00Z", null])
     );
     let id = got["id"].as_str().unwrap();
     assert!(matches!(

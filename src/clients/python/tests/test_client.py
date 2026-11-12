@@ -191,8 +191,8 @@ class LiveClient(unittest.TestCase):
                           max_runs=3, max_late="5m", disabled=True)
         got = added["schedule"]
         self.assertEqual((got["kind"], got["enabled"], got["max_runs"], got["max_late"], got["until"]),
-                         ("recurring", False, 3, "5m0s", "2099-01-01T00:00:00Z"))
-        self.assertEqual(added["warning"], "")
+                         ("recurring", False, 3, "5m", "2099-01-01T00:00:00Z"))
+        self.assertNotIn("warning", added)
         with self.assertRaises(Refusal) as stranger:
             self.caller.record("#worker@fixture").schedules.get(got["id"])
         self.assertEqual(stranger.exception.status, 404)

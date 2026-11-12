@@ -765,7 +765,7 @@ public final class BusTest {
             Map<String, Object> added = sched.add(Schedules.Spec.to("#j-other@localhost", "tick").expr("*/5 * * * *")
                     .until("2099-01-01T00:00:00Z").maxRuns(3).maxLate("5m").disabled(true));
             @SuppressWarnings("unchecked") Map<String, Object> got = (Map<String, Object>) added.get("schedule");
-            check("an add's limits travel", List.of("recurring", false, 3L, "5m0s", "2099-01-01T00:00:00Z", "").equals(java.util.Arrays.asList(
+            check("an add's limits travel", java.util.Arrays.asList("recurring", false, 3L, "5m", "2099-01-01T00:00:00Z", null).equals(java.util.Arrays.asList(
                     got.get("kind"), got.get("enabled"), got.get("max_runs"), got.get("max_late"), got.get("until"), added.get("warning"))), added);
             String id = (String) got.get("id");
             Throwable e = thrown(() -> client("bob@localhost").record("#j-svc@localhost").schedules().get(id));

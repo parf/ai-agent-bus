@@ -9,7 +9,7 @@ const base = { target: Q, body: "report", creator: you, runs: 0, sent: 0, droppe
 const schedules: { id: string; holder: string; enabled: boolean; [field: string]: unknown }[] = [
   { ...base, id: "c-ok", holder: A, holder_kind: "agent", kind: "recurring", expr: "0 9 * * 1-5", enabled: true, next: at(9), last: at(8), last_outcome: "sent", runs: 3, sent: 3 },
   { ...base, id: "c-failed", holder: Q, holder_kind: "queue", kind: "recurring", expr: "*/5 * * * *", enabled: false, disabled: "failure", last: at(7), last_outcome: "admission_refused", runs: 5, dropped: 5, refused_in_a_row: 5 },
-  { ...base, id: "c-hand", holder: P, holder_kind: "pubsub", kind: "recurring", expr: "0 0 * * *", enabled: false, disabled: "hand", until: "2026-12-31T00:00:00Z", max_runs: 4, max_late: "5m0s" },
+  { ...base, id: "c-hand", holder: P, holder_kind: "pubsub", kind: "recurring", expr: "0 0 * * *", enabled: false, disabled: "hand", until: "2026-12-31T00:00:00Z", max_runs: 4, max_late: "5m" },
   { ...base, id: "c-gone", holder: A, holder_kind: "agent", kind: "recurring", expr: "0 12 * * *", enabled: true, next: at(12), last: at(6), last_outcome: "target_gone", runs: 1, dropped: 1 },
   { ...base, id: "o-1", holder: A, holder_kind: "agent", kind: "once", at: at(15), enabled: true, next: at(15) },
 ];
@@ -248,7 +248,7 @@ test("Edit starts from the schedule as it stands and posts every field to the da
   expect(form).toContain('value="0 0 * * *"');
   expect(form).toContain('value="2026-12-31T00:00:00Z"');
   expect(form).toContain('value="4"');
-  expect(form).toContain('value="5m0s"');
+  expect(form).toContain('value="5m"');
   expect(form).toMatch(/name="disabled" value="on" checked/);
   expect(form).toMatch(/<option value="expr" selected>/);
   let r = await post("/schedule-edit", { id: "c-hand", kind: "recurring", how: "in", when: "2h", target: Q, body: "x\r\ny", until: "", max_runs: "", max_late: "" });

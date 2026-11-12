@@ -302,10 +302,10 @@ A record's store has three kinds, `string`, `int` and `json`; `kind` defaults to
 
 | Route | Takes | Answers |
 |---|---|---|
-| `POST /schedule/add` | `{record, expr \| in \| at, target, body, until?, max_runs?, max_late?, disabled?}`: `expr` is five cron fields, or six with a leading second; `in` a delay such as `90s`; `at` `HH:MM` in UTC or an RFC 3339 instant | `{schedule, warning}`; `warning` is set at 80 % of a cap |
-| `POST /schedule/edit` | `{id, …}` as add, without `record` | `{schedule}`; the caller becomes its creator |
+| `POST /schedule/add` | `{record, expr \| in \| at, target, body, until?, max_runs?, max_late?, disabled?}`: `expr` is five cron fields, or six with a leading second; `in` a delay such as `90s`; `at` `HH:MM` in UTC or an RFC 3339 instant; `target` an agent or queue | `{schedule, warning?}`; `warning` at 80 % of a cap |
+| `POST /schedule/edit` | `{id, …}` as add, without `record`; it replaces the whole schedule, so omitted options are cleared and an omitted `disabled` enables it | `{schedule}`; the caller becomes its creator |
 | `POST /schedule/enable` · `POST /schedule/disable` | `{id}` | `{schedule}`; enabling makes the caller its creator |
-| `POST /schedule/run` | `{id}` | `{outcome}`: one firing now; the next slot does not move |
+| `POST /schedule/run` | `{id}` | `{outcome}`: one firing now; the next slot does not move; `409 busy` while a firing is in flight |
 | `POST /schedule/delete` | `{id}` | `{id, deleted}` |
 | `GET /schedule` | query `id` | the schedule with its `outcomes`, newest first, and `upcoming`, its next five slots |
 | `GET /schedule/list` | query `record`, or none | `{schedules}`: one record's, or every schedule on a record the caller manages |

@@ -518,7 +518,11 @@ func (b *Bus) ScheduleRun(caller, id string) (ports.ScheduleOutcome, error) {
 		return ports.ScheduleOutcome{}, err
 	}
 	now := b.clock().UTC()
-	return b.fire(r, v, now.Unix(), now, true), nil
+	o := b.fire(r, v, now.Unix(), now, true)
+	if o.Outcome == "not_claimed" {
+		return o, fmt.Errorf("%w: a firing of this schedule is in flight; try again", ErrBusy)
+	}
+	return o, nil
 }
 
 // scheduleWarn writes a schedule's warning or alert into its holder agent's

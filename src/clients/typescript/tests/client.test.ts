@@ -580,7 +580,7 @@ for(const row of conformanceCases('bigfile') as unknown as StateCase[]) test(`sh
 test('schedule limits travel, and a stranger reads one as missing',async()=>{
  const worker=bus('#worker@fixture'),caller=bus('#caller@fixture'),sched=worker.record('#worker@fixture').schedules;
  const {schedule,warning}=await sched.add({expr:'*/5 * * * *',target:'#caller@fixture',body:'tick',until:'2099-01-01T00:00:00Z',max_runs:3,max_late:'5m',disabled:true});
- expect([schedule.kind,schedule.enabled,schedule.max_runs,schedule.max_late,schedule.until,warning]).toEqual(['recurring',false,3,'5m0s','2099-01-01T00:00:00Z','']);
+ expect([schedule.kind,schedule.enabled,schedule.max_runs,schedule.max_late,schedule.until,warning]).toEqual(['recurring',false,3,'5m','2099-01-01T00:00:00Z',undefined]);
  await expect(caller.record('#worker@fixture').schedules.get(schedule.id)).rejects.toMatchObject({status:404});
  const edited=await sched.edit(schedule.id,{in:'90s',target:'#caller@fixture',body:'once'});
  expect([edited.kind,edited.max_runs,edited.enabled]).toEqual(['once',undefined,true]);

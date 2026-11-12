@@ -583,8 +583,8 @@ section('schedules', function () use ($me) {
     $added = $sched->add('#php-other@localhost', 'tick', expr: '*/5 * * * *', until: '2099-01-01T00:00:00Z',
         maxRuns: 3, maxLate: '5m', disabled: true);
     $got = $added['schedule'];
-    check("an add's limits travel", [$got['kind'], $got['enabled'], $got['max_runs'], $got['max_late'], $got['until'], $added['warning']]
-        === ['recurring', false, 3, '5m0s', '2099-01-01T00:00:00Z', ''], json_encode($added));
+    check("an add's limits travel", [$got['kind'], $got['enabled'], $got['max_runs'], $got['max_late'], $got['until'], $added['warning'] ?? null]
+        === ['recurring', false, 3, '5m', '2099-01-01T00:00:00Z', null], json_encode($added));
     $e = thrown(fn() => client('bob@localhost')->record('#php-svc@localhost')->schedules->get($got['id']));
     check('a stranger reads it as missing: NotFound', $e instanceof NotFound, $e ? get_class($e) : 'none');
     $edited = $sched->edit($got['id'], '#php-other@localhost', 'once', in: '90s');

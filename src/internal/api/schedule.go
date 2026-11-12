@@ -4,6 +4,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/core"
@@ -67,12 +68,27 @@ func toAnswer(v core.ScheduleView) scheduleAnswer {
 		a.Upcoming = append(a.Upcoming, stamp(t))
 	}
 	if v.MaxLate > 0 {
-		a.MaxLate = (time.Duration(v.MaxLate) * time.Second).String()
+		a.MaxLate = compact(v.MaxLate)
 	}
 	for _, o := range v.Outcomes {
 		a.Outcomes = append(a.Outcomes, outcomeOf(o))
 	}
 	return a
+}
+
+// compact writes seconds the way a caller writes a duration: 90s, 5m, 2h, 1h30m.
+func compact(sec int64) string {
+	out := ""
+	for _, u := range []struct {
+		n    int64
+		unit string
+	}{{3600, "h"}, {60, "m"}, {1, "s"}} {
+		if sec >= u.n {
+			out += strconv.FormatInt(sec/u.n, 10) + u.unit
+			sec %= u.n
+		}
+	}
+	return out
 }
 
 func outcomeOf(o ports.ScheduleOutcome) outcomeAnswer {
@@ -131,12 +147,20 @@ func (s *Server) scheduleAdd(w http.ResponseWriter, r *http.Request, caller prot
 		s.reply(w, nil, err)
 		return
 	}
-	s.reply(w, map[string]any{"schedule": toAnswer(v), "warning": warn}, nil)
+	answer := map[string]any{"schedule": toAnswer(v)}
+	if warn != "" {
+		answer["warning"] = warn
+	}
+	s.reply(w, answer, nil)
 }
 
 func (s *Server) scheduleEdit(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in scheduleIn
 	if !s.readStrict(w, r, &in) {
+		return
+	}
+	if in.Record != "" {
+		s.refuse(w, http.StatusBadRequest, "malformed", "an edit names the schedule by id; its record does not change")
 		return
 	}
 	v, err := s.bus.ScheduleEdit(caller.String(), in.ID, in.request())
