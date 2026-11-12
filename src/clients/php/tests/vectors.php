@@ -1,6 +1,6 @@
 <?php
 // The shared state, identity and refusal vectors (src/testdata/client-conformance:
-// kv, locks, identity, refusals; not bigfile) through this client. Required by run.php,
+// kv, locks, schedule, identity, refusals; not bigfile) through this client. Required by run.php,
 // which supplies check(), thrown(), fake(), client() and the daemon.
 declare(strict_types=1);
 
@@ -133,6 +133,64 @@ section('shared kv vectors', function () {
                     break;
                 default:
                     check("$at: known op", false, $step['op']);
+            }
+        }
+        vectorFixtureStop($fixture);
+    }
+});
+
+section('shared schedule vectors', function () {
+    foreach (vectorRows('schedule') as $case) {
+        $fixture = vectorFixture();
+        $info = $fixture[2];
+        $owner = Bus::connect($info['addr'], $info['tokens']['owner@fixture'], 'owner@fixture', 10.0);
+        $worker = Bus::connect($info['addr'], $info['tokens']['#worker@fixture'], '#worker@fixture', 10.0);
+        $sched = $owner->record('jobs@fixture')->schedules;
+        $id = '';
+        foreach ($case['steps'] as $i => $step) {
+            $op = $step['op'];
+            $at = "{$case['id']} step $i $op";
+            $expect = $step['expect'] ?? [];
+            if ($op === 'inbox') {
+                check("$at: as worker", ($step['as'] ?? '') === 'worker');
+                $m = $worker->consume(new ConsumeOptions(wait: 5));
+                $seen = $m ? ['from' => $m->from, 'topic' => $m->topic, 'tag' => $m->tag, 'body' => $m->body] : [];
+                foreach ($expect as $k => $want) { check("$at: $k", ($seen[$k] ?? null) === $want, json_encode($seen)); }
+                continue;
+            }
+            $spec = fn(callable $f) => $f($step['target'] ?? '', $step['body'] ?? '', expr: $step['expr'] ?? null,
+                in: $step['in'] ?? null, at: $step['at'] ?? null);
+            $call = match ($op) {
+                'add' => fn() => $spec(fn(...$a) => $sched->add(...$a))['schedule'],
+                'edit' => fn() => $spec(fn(...$a) => $sched->edit($id, ...$a)),
+                'get' => fn() => $sched->get($id),
+                'enable' => fn() => $sched->enable($id),
+                'disable' => fn() => $sched->disable($id),
+                'run' => fn() => $sched->run($id),
+                'delete' => fn() => $sched->delete($id),
+                'list' => fn() => !empty($step['all']) ? $owner->schedules() : $sched->list(),
+                default => null,
+            };
+            if ($call === null) { check("$at: known op", false, $op); continue; }
+            [$ok, $got] = vectorStep($at, $step, $call);
+            if (!$ok) { continue; }
+            switch ($op) {
+                case 'list':
+                    $want = array_map(fn($w) => $w === '$schedule' ? $id : $w, $expect['ids']);
+                    check("$at: ids", array_column($got, 'id') === $want, json_encode(array_column($got, 'id')));
+                    break;
+                case 'run':
+                    check("$at: outcome", $got['outcome'] === $expect['outcome'], json_encode($got));
+                    break;
+                case 'delete':
+                    check("$at: deleted", $got === $expect['deleted'], var_export($got, true));
+                    break;
+                default:
+                    if ($op === 'add') { $id = $got['id']; }
+                    foreach ($expect as $k => $want) {
+                        $value = $k === 'outcomes' ? array_column($got['outcomes'] ?? [], 'outcome') : ($got[$k] ?? null);
+                        check("$at: $k", $value === $want, json_encode($value));
+                    }
             }
         }
         vectorFixtureStop($fixture);

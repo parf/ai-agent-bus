@@ -10,6 +10,7 @@ final class Record
 {
     public readonly Kv $kv;
     public readonly Locks $locks;
+    public readonly Schedules $schedules;
     /** The JSON text, cached; null when nothing is cached. */
     private ?string $config = null;
     private ?Secret $secret = null;
@@ -19,6 +20,7 @@ final class Record
     {
         $this->kv = new Kv($t, $name);
         $this->locks = new Locks($t, $name);
+        $this->schedules = new Schedules($t, $name);
     }
 
     /** The record as the caller may see it. */

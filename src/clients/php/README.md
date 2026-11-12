@@ -14,7 +14,7 @@
 ## What you get
 
 - ✅ **Call and serve:** `$bus->call($to, $body, new CallOptions(timeout: 10))` returns an `Answer`; `$bus->serve($handler)` answers messages one at a time.
-- ✅ **Targets:** `$bus->record($name)` gives that record's `kv`, `locks`, `config()` and `secret()`; `$bus->me()->config()` reads your own Configuration.
+- ✅ **Targets:** `$bus->record($name)` gives that record's `kv`, `locks`, `schedules`, `config()` and `secret()`; `$bus->me()->config()` reads your own Configuration.
 - ✅ **Your own name works:** a call to yourself from inside a handler is answered by that handler.
 - ✅ **Pools:** `ServeOptions(share: true)` makes several processes one serving pool.
 - ✅ **Typed errors:** `Refusal` subclasses by HTTP status; `Transport`, `Timeout` and `UncertainOutcome` otherwise.
@@ -53,6 +53,15 @@ Run `php serve.php` in the mailer shell, then `php call.php` in the caller shell
 ```text
 sent to bob@example.com
 1
+```
+
+## Schedules
+
+`$record->schedules` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`, answering the daemon's JSON as arrays; `$bus->schedules()` lists every one on a record you manage. Give one of `expr:`, `in:` or `at:`. Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
+
+```php
+$added = $bus->record('#caller@localhost')->schedules->add('#caller@localhost', 'nightly report', expr: '0 3 * * *');
+echo $added['schedule']['next'], ' ', $added['warning'], "\n";
 ```
 
 ## Event logs

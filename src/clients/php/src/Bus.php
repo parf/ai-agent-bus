@@ -104,6 +104,13 @@ final class Bus
 
     public function record(string $name): Record { $this->check(); return new Record($this->t, $name); }
 
+    /** Every schedule on a record the caller manages. */
+    public function schedules(): array
+    {
+        $this->check();
+        return $this->t->json('GET', '/schedule/list')['schedules'] ?? [];
+    }
+
     /** The records the caller may see, optionally of one kind. */
     public function list(?string $kind = null): array
     {

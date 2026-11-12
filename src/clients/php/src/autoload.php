@@ -10,7 +10,7 @@ spl_autoload_register(static function (string $class): void {
         'Done' => 'Message', 'TimedOut' => 'Message',
         'SendOptions' => 'Options', 'ConsumeOptions' => 'Options', 'CallOptions' => 'Options', 'ServeOptions' => 'Options',
         'Kv' => 'Kv', 'Kind' => 'Kv', 'How' => 'Kv', 'Op' => 'Kv', 'OpResult' => 'Kv',
-        'Locks' => 'Locks', 'Lease' => 'Locks',
+        'Locks' => 'Locks', 'Lease' => 'Locks', 'Schedules' => 'Schedules',
     ];
     if (!str_starts_with($class, 'AgentBus\\')) { return; }
     $short = substr($class, 9);

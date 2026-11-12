@@ -578,6 +578,22 @@ section('kv', function () use ($me) {
     check('the allow list does not grant the store', $e instanceof Forbidden || $e instanceof NotFound, $e ? get_class($e) : 'none');
 });
 
+section('schedules', function () use ($me) {
+    $sched = $me->record('#php-svc@localhost')->schedules;
+    $added = $sched->add('#php-other@localhost', 'tick', expr: '*/5 * * * *', until: '2099-01-01T00:00:00Z',
+        maxRuns: 3, maxLate: '5m', disabled: true);
+    $got = $added['schedule'];
+    check("an add's limits travel", [$got['kind'], $got['enabled'], $got['max_runs'], $got['max_late'], $got['until'], $added['warning']]
+        === ['recurring', false, 3, '5m0s', '2099-01-01T00:00:00Z', ''], json_encode($added));
+    $e = thrown(fn() => client('bob@localhost')->record('#php-svc@localhost')->schedules->get($got['id']));
+    check('a stranger reads it as missing: NotFound', $e instanceof NotFound, $e ? get_class($e) : 'none');
+    $edited = $sched->edit($got['id'], '#php-other@localhost', 'once', in: '90s');
+    check('an edit replaces the time and limits', $edited['kind'] === 'once' && !isset($edited['max_runs']) && $edited['enabled'] === true,
+        json_encode($edited));
+    check("the caller's every-schedule list has it", in_array($got['id'], array_column($me->schedules(), 'id'), true));
+    check('delete says it was there', $sched->delete($got['id']));
+});
+
 section('locks', function () use ($me, $dir) {
     $locks = $me->record('#php-svc@localhost')->locks;
     $lease = $locks->acquire('build', 30);
