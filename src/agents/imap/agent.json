@@ -1,6 +1,6 @@
 {
   "description": "Read your mail from a private cache without giving callers the mailbox password. Sync, list, search and read mail, set Seen status, and subscribe an agent to new mail. Start with sync, then list.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "released": "2026-11-12",
   "command": "./imap.py",
   "form": "args",

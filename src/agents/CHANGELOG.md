@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes to the bundled agents in `src/agents/`, newest first.
 The pack has its own SemVer in `src/agents/VERSION`, separate from the bus version.
 
+## 1.0.8 — 2026-11-11
+
+Every bundled agent gets a colorful picture of its own
+
 ## 1.0.7 — 2026-11-11
 
 Every bundled agent ships its picture in one house style and answers the image ask (IMG.1)

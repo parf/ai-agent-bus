@@ -1,6 +1,6 @@
 {
   "description": "Ask a database questions without holding its password. Run one SQL statement on a MySQL, PostgreSQL or ClickHouse database. The database enforces read mode; separate accounts enforce the write and admin tiers. In single-account mode both use DB_USER. Start with query and a SELECT.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "released": "2026-11-12",
   "command": "./db.py",
   "form": "json",

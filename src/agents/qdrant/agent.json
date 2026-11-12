@@ -1,6 +1,6 @@
 {
   "description": "Search and manage a Qdrant vector store without holding its key. Call the Qdrant API within your read, write or admin role. Start with request GET /collections.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "released": "2026-11-12",
   "command": "./qdrant.py",
   "form": "json",

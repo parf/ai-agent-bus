@@ -1,6 +1,6 @@
 {
   "description": "Send one text message without handing callers the Telnyx key. The body is {to,text} or <to> <text>. An unknown result is never retried; start with send.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "released": "2026-11-12",
   "command": "./sms.py",
   "form": "json",

@@ -1,6 +1,6 @@
 {
   "description": "Send an email through a configured account without handing callers its password. Submit one message and learn whether it was accepted, partly accepted, refused or unknown; TLS is verified. Start with send.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "released": "2026-11-12",
   "command": "./smtp.py",
   "form": "json",

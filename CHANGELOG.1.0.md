@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.57 — 2026-11-11
+
+Colorful agent pictures; #bus, runners and AI sessions have their own pictures and every agent without one shows a universal placeholder; agent lists show every live agent picture
+
 ## 1.0.56 — 2026-11-11
 
 Agent pictures: each bundled agent ships agent.webp, help names its hash, the new image ask returns it, and the web shows it on agent pages and lists (IMG.1); the Claude channel plugin moves to src/plugin
