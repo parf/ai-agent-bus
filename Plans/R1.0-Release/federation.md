@@ -8,7 +8,7 @@
 ## Upstream mount
 
 - On the remote bus, its owner registers a user and gives out its token. The remote needs nothing new: the mount is one more session of that user.
-- On the local bus, a **mount record** owns a prefix (`g`), the remote address, and the token as its Secret.
+- On the local bus, a **mount record** owns a prefix, the remote address, and the token as its Secret. The prefix is a local alias the owner chooses, such as `realmo-prod`; one bus can hold many mounts, and the same remote can be mounted twice under different users and aliases. `g` below is an example.
 - A **proxy** keeps one outbound connection to the remote as that user, so a local bus behind a firewall or NAT works.
 - Remote access is the remote's existing ACL for that user. Local access is the mount record's own list ([Q405](QUESTIONS.md#federation)).
 - The proxy queries the remote live with a short cache; it never copies remote records into the local store.
@@ -16,6 +16,7 @@
 ## Names
 
 - The local name is the prefix, `:`, then the full remote name unchanged: remote `#mail@a` and `#mail@b` become `#g:mail@a` and `#g:mail@b`, so remote realms never collide.
+- The sigil stays first, so every kind maps the same way: `#realmo-prod:mail@a`, `realmo-prod:alice@a`, `@realmo-prod:ops@a`.
 - `:` is refused in every local name today, so no local record can shadow a mounted one and no existing name changes.
 - The 64-character name limit applies to the whole local name; a longer remote name is not reachable through the mount. Aliasing is a possible later addition ([Q404](QUESTIONS.md#federation)).
 
