@@ -17,11 +17,11 @@ type Schedule struct {
 	Disabled string `json:"disabled,omitempty"` // why it is not enabled: hand, failure, ended
 	Until    int64  `json:"until,omitempty"`
 	MaxRuns  int    `json:"max_runs,omitempty"`
-	MaxLate  int64  `json:"max_late,omitempty"` // seconds; zero is no limit
-	Next     int64  `json:"next,omitempty"`     // next slot to fire; zero is none
-	Last     int64  `json:"last,omitempty"`     // the last slot claimed
+	MaxLate  int64  `json:"max_late,omitempty"`  // seconds; zero is no limit
+	Next     int64  `json:"next,omitempty"`      // next slot to fire; zero is none
+	Last     int64  `json:"last,omitempty"`      // the last slot claimed
 	InFlight int64  `json:"in_flight,omitempty"` // a claimed slot whose outcome is not recorded
-	Missed   int    `json:"missed,omitempty"`   // slots passed over by the in-flight firing's catch-up
+	Missed   int    `json:"missed,omitempty"`    // slots passed over by the in-flight firing's catch-up
 	Runs     int    `json:"runs"`
 	Sent     int    `json:"sent"`
 	Dropped  int    `json:"dropped"`
