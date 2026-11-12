@@ -1,5 +1,19 @@
 # DONE — R1
 
+## RT35 and RT36 schedules in the core
+
+Built 2026-11-12 by `#claude/usr-local-src-ai-agent-bus` on `claude/RT35` ([plan](cron-in-core.md#cron-and-at-in-the-core), [user page](../../docs/03-records-schedules.md#schedules)).
+
+| Area | Result |
+|---|---|
+| RT36 | `#bus` is admitted by every target; `SendFor` checks the principal's may-send in the delivery's lock hold; subscription copies and redirected answers use it |
+| Store | per-record schedules and outcomes beside KV; schema 12 adds the tables to a 1.0 database at open; carried by record export and import |
+| Parser | Go cron parser with a seconds field, agreeing with the retired Python parser on 60 next-fire rows and 17 refusals |
+| Engine | one claimed firing at a time from `#bus`, creator standing and may-send under the send's lock, five refusals disable, downtime catch-up, run now, `max_late`, expiry warnings to the holder agent's log |
+| Surfaces | HTTP, `agent-bus schedule`, eight MCP tools, all six clients with a shared fire-once vector, Crons and Ats pages, a schedule page and the Schedules card |
+| Removed | `#cron`, `#at`, `scheduler.py`, `cronexpr.py`, their docs, shards and package entries |
+| Checks | focused only (owner, 2026-11-12): core, api, store, schedule, CLI, setup and runner packages; client suites Python, Go, Rust 47/0, Java 552/0, PHP 588/0; web schedule 12/12 and contract 112/0; no mutants, no normal or slow gate |
+
 ## Clean R1 inputs
 
 - Prerelease field/flag/route aliases, unbound credentials, schema/state converters and obsolete package adapters are removed. First-party callers, fixtures, help and documentation use the canonical forms. Current-format updates and atomic recovery remain supported.

@@ -645,17 +645,13 @@ Shipped in 1.0.x, so recorded as R1 work (owner, 2026-11-11).
 
 ## `#bus` is always admitted
 
-- ☐ RT36 [`#bus` is always admitted](bus-admission.md#the-rule): every target admits `#bus`; each send on someone's behalf checks that principal's may-send in the same lock hold
-  - Acceptance: an agent-event copy and a redirected answer reach a target whose Allow does not name `#bus`; a redirected answer to a record the asker may not send to is refused; a mutant that skips the principal check fails a named assertion (A ⚠️, two readers)
-  - Before: RT35 step 3
+- ✅ RT36 [`#bus` is always admitted](bus-admission.md#the-rule): built on `claude/RT35`, [result](DONE.md#rt35-and-rt36-schedules-in-the-core); mutants not run (owner, 2026-11-12: no mutants outside a release)
 
 ## Cron and at in the core
 
-Moved from R1.1 by the owner, 2026-11-12. The design is settled (Q379–Q390, Q409–Q418); nothing is built.
+Moved from R1.1 by the owner, 2026-11-12; design settled (Q379–Q390, Q409–Q418).
 
-- ☐ RT35 [Cron and at in the core](cron-in-core.md#cron-and-at-in-the-core): one daemon-owned schedule object replaces the `#cron` and `#at` agents
-  - Steps: [steps by subsystem](cron-in-core.md#steps-by-subsystem) 1–10, each its own branch; ⚠️ steps 1, 3 and 9 need a mutant per boundary and two readers; the owner reads the storage format before step 1 and the wire format before step 3
-  - Acceptance: every row of the [parity list](cron-in-core.md#parity-list-today-and-its-core-equivalent) has a core call and a fixture that fails without it; only then are `#cron` and `#at` removed, and `src/` and `docs/` no longer name them
+- ✅ RT35 [Cron and at in the core](cron-in-core.md#cron-and-at-in-the-core): built on `claude/RT35`, [result](DONE.md#rt35-and-rt36-schedules-in-the-core); the live node's `#cron` and `#at` are removed at the deploy that ships it (Q414)
 
 ## Web scale follow-up from MVP
 

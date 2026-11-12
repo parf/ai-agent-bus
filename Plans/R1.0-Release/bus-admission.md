@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a target must list `#bus` in its Allow to get agent-event copies, an answer redirected by `reply-to`, and, with schedules, scheduled messages; a missed entry silently loses them.
 - **Rule:** owner, 2026-11-12: "bus should be always allowed to send to anyone", "its the core rule". Every target admits `#bus`; whatever `#bus` sends on someone's behalf needs that someone's own may-send to the target.
-- **Status:** decided ([RD186](DECISIONS.md#recorded-decisions)); not built; task [RT36](TODO.md#bus-is-always-admitted).
+- **Status:** built 2026-11-12 ([RT36](TODO.md#bus-is-always-admitted)); the current rule is in [answers](../../docs/02-access.md#answers).
 
 ## The rule
 

@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** scheduling lives in two runner agents, `#cron` and `#at`, so an agent cannot own its schedules, the web cannot show them, and a firing needs a runner process up.
 - **Outcome:** the daemon keeps **schedules** the way it keeps KV: attached to a record, used by its Owner, Maintainers and own Agent, fired from `#bus`, shown on **Crons** and **Ats** pages and agent pages. `#cron` and `#at` are then removed.
-- **Status:** design settled with the owner (Q379–Q390 on 2026-11-06; Q409–Q418 on 2026-11-12); R1 task [RT35](TODO.md#cron-and-at-in-the-core); nothing built.
+- **Status:** built 2026-11-12 ([RT35](TODO.md#cron-and-at-in-the-core), [result](DONE.md#rt35-and-rt36-schedules-in-the-core)); the user page is [schedules](../../docs/03-records-schedules.md#schedules).
 
 ## Contents
 
