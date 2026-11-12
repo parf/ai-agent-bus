@@ -245,6 +245,7 @@ type Bus struct {
 	schedMu      sync.Mutex
 	schedWake    chan struct{}
 	schedStarted bool
+	schedExpired []expiredFiring
 	admin        string
 	// ownerRestored means a current snapshot, rather than setup, supplied
 	// admin. ownerRestoreErr is retained until startup validates that durable
@@ -1944,6 +1945,11 @@ func (b *Bus) prune(in *inbox, now time.Time) {
 	for _, e := range in.queue {
 		if !e.Expires.IsZero() && now.After(e.Expires) {
 			in.expired++
+			// A schedule's message expiring unread is its holder's to hear
+			// about; the engine reports it outside this lock.
+			if e.Schedule != nil && len(b.schedExpired) < 1000 {
+				b.schedExpired = append(b.schedExpired, expiredFiring{id: e.Schedule.ID, target: e.To})
+			}
 			continue
 		}
 		kept = append(kept, e)

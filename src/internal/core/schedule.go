@@ -735,11 +735,37 @@ func (b *Bus) ServeSchedules(done <-chan struct{}) {
 	}
 }
 
+// expiredFiring is a scheduled message that expired unread in its target.
+type expiredFiring struct{ id, target string }
+
+// reportExpired warns each holder whose scheduled message expired unread.
+func (b *Bus) reportExpired(store ports.ScheduleStore) {
+	b.mu.Lock()
+	expired := b.schedExpired
+	b.schedExpired = nil
+	b.unlock()
+	for _, x := range expired {
+		v, ok, err := store.ScheduleGet(x.id)
+		if err != nil || !ok {
+			continue
+		}
+		b.mu.Lock()
+		r, live := b.holderByID(v.Record)
+		b.unlock()
+		if live {
+			b.scheduleWarn(r, "warning", "schedule %s: a message expired unread in %s", x.id, x.target)
+		}
+	}
+}
+
 // schedulePass fires what is due now and says how long to sleep.
 func (b *Bus) schedulePass() time.Duration {
 	b.mu.Lock()
 	store, _ := b.store.(ports.ScheduleStore)
 	b.unlock()
+	if store != nil {
+		b.reportExpired(store)
+	}
 	if store == nil {
 		return time.Minute
 	}

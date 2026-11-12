@@ -337,3 +337,37 @@ func TestScheduleCapsAndRefusals(t *testing.T) {
 		}
 	}
 }
+
+// A scheduled message that expires unread, and a refused firing, are
+// warnings in the holder agent's own log.
+func TestScheduleWarningsLandInTheHolderAgentsLog(t *testing.T) {
+	b, _, clock := schedFixture(t)
+	v, _, err := b.ScheduleAdd("alice@h", "#svc@h", ScheduleRequest{Expr: "0 9 * * *", Target: "out@h", Body: "unread"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = clock
+	// A firing already past its time to live waits in out@h; the next read
+	// there prunes it.
+	b.mu.Lock()
+	in := b.ensure("out@h")
+	in.queue = append(in.queue, protocol.Envelope{ID: "x", From: DaemonAgent, To: "out@h", Body: "unread", Expires: time.Now().Add(-time.Second), Schedule: &protocol.ScheduleStamp{ID: v.ID, By: "alice@h"}})
+	b.unlock()
+	if got := scheduled(t, b, "out@h"); len(got) != 0 {
+		t.Fatalf("an expired firing was read: %+v", got)
+	}
+	b.schedulePass()
+	res, err := b.EventRead("alice@h", "#svc@h", "warning")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := ""
+	for _, ring := range res.Rings {
+		for _, e := range ring {
+			text += e.Text + "\n"
+		}
+	}
+	if !strings.Contains(text, "expired unread in out@h") {
+		t.Fatalf("the holder's warnings: %q", text)
+	}
+}
