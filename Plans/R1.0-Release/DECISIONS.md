@@ -2,9 +2,11 @@
 
 ## Recorded decisions
 
+- ✅ RD181 The upstream mount targets a 1.0.x release; building starts only on the owner's go-ahead, while parts of the design are still open ([upstream mount](federation.md#upstream-mount); owner, 2026-11-12; settles Q403)
+
 - ✅ RD180 A remote name too long for the local 64-character limit is reached through an alias on its mount: a map from the long remote name to a short local name ([names](federation.md#names); owner, 2026-11-12; settles Q404)
 
-- ✅ RD179 Federation is an upstream mount: the local bus logs into a remote bus as one ordinary user and shows its records under a `:` prefix, `#g:mail@a`; daemon-to-daemon chaining is retired, and the realm stops being the federation namespace ([upstream mount](federation.md#upstream-mount); owner, 2026-11-12; replaces RD89, RD91 and the №Q20 chaining namespace; release open in [Q403](QUESTIONS.md#federation))
+- ✅ RD179 Federation is an upstream mount: the local bus logs into a remote bus as one ordinary user and shows its records under a `:` prefix, `#g:mail@a`; daemon-to-daemon chaining is retired, and the realm stops being the federation namespace ([upstream mount](federation.md#upstream-mount); owner, 2026-11-12; replaces RD89, RD91 and the №Q20 chaining namespace; release in RD181)
 
 - **AI-assisted setup is final-release work** — owner, 2026-11-03: an AI Markdown install/config/update workflow stays in R1. Owner update, 2026-11-03: Web Face AI chat moves to [R1.1](../R1.1/ai-setup.md#web-face-chat).
   - Home: [AI-assisted setup](ai-setup.md#release-scope).

@@ -12,11 +12,6 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 Owner proposal, 2026-11-12: [upstream mount](federation.md#upstream-mount), undecided.
 
-- ❓ Q403 Which release ships the upstream mount
-  - Context: owner, 2026-11-12: "its for 1.0 - but leave it as undecided"; chaining is retired ([RD179](DECISIONS.md#recorded-decisions))
-  - ( ) R1
-  - ( ) R1.1
-  - ( ) R1.2
 - ❓ Q405 Which local callers may use a mount by default
   - ( ) Its Owner only; others by the mount record's ACL
   - ( ) Every local user
