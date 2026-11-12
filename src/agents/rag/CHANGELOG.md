@@ -1,5 +1,9 @@
 # RAG changelog
 
+## 0.4.3
+
+Ships its picture, `agent.webp`: help names it with its hash, the `image` ask returns it, and the web shows it on the agent page and in lists.
+
 ## 0.4.2
 
 Large Markdown files: `upsert` takes a `bigfile` reference up to 1 MiB, chunked by heading with per-chunk hashes, vector reuse for unchanged text, and heading-path and line citations; `get` with `check:true` answers a free completeness check. Existing records keep answering unchanged.

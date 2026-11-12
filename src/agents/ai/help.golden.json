@@ -8,6 +8,8 @@
     "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/ai.md",
     "version": "<version>",
     "released": "<released>",
+    "image": "agent.webp",
+    "image_sha256": "22bc3d386a7517868c7a89e31e3c05ab48d5806696ea6949dc146c4b66b4f1fc",
     "methods": {
       "ask": {
         "type": "string",
@@ -113,7 +115,8 @@
       "help",
       "help-config",
       "help-secret",
-      "help-json"
+      "help-json",
+      "image"
     ],
     "config": {
       "model": {
