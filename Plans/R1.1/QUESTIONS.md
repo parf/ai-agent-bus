@@ -219,11 +219,7 @@ The recommendations below are retained parked proposals.
 
 - ✅ Q398 → [№Q398](resolved.md#Q398)
 
-- ❓ Q400 What style do the 24 bundled images follow
-  - Context: the set is made once with the best image model `#ai` offers ([№Q396](resolved.md#Q396)); the prompt is each agent's name and description; Q399 is not a question here: that number appears only in git history, so the set skips it
-  - ( ) One house style for every image, fixed in the prompt 🌟
-  - ( ) Free per prompt ⭐
-  > 💡👾 One style: the list looks like a set, and the same prompt reproduces an image.
+- ✅ Q400 → [№Q400](resolved.md#Q400)
 
 - ✅ Q401 → [№Q401](resolved.md#Q401)
 

@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** the web agent page and every list show agents as bare names; a user cannot tell the mail agent from the chat agent at a glance.
 - **Outcome:** an agent ships one image file in its own folder, named by `image` in its `agent.json`; the web reads it from disk when it can, and otherwise asks the agent, which for a runner-served agent the runner answers from its package like the description, and shows it in the page header and small in lists.
-- **Start:** [the rules](#rules), then [how the web gets it](#how-the-web-gets-it). Task: [IMG.1](TODO.md#agent-images). Open: [Q400](QUESTIONS.md#agent-images).
+- **Start:** [the rules](#rules), then [how the web gets it](#how-the-web-gets-it). Task: [IMG.1](TODO.md#agent-images).
 
 Owner's ask, 2026-11-07: an optional `image` field and bundled images. Owner answers, 2026-11-11: the agent provides its own image ([№Q395](resolved.md#Q395), [№Q396](resolved.md#Q396)); nothing on the bus generates one.
 

@@ -599,3 +599,15 @@
   > 💡👾 Keep the caps and the placeholder: a picture that does not fit is no reason to add a dependency or loosen the rule.
   >
   > 💬👾 → [bundled set](agent-images.md#rules).
+
+<a id="Q400"></a>
+
+- ✅ Q400 What style do the 24 bundled images follow
+  - Context: the set is made once with the best image model `#ai` offers ([№Q396](resolved.md#Q396)); the prompt is each agent's name and description; Q399 is not a question here: that number appears only in git history, so the set skips it
+  - (x) One house style for every image, fixed in the prompt 🌟
+  - ( ) Free per prompt ⭐
+  > 💡👾 One style: the list looks like a set, and the same prompt reproduces an image.
+  >
+  > 💬 👤parf (in chat, 2026-11-11): "yes, go and do all; expected image gen cost is very low - so u have green light"
+  >
+  > 💬👾 → one house style; the bundled set is made with `openai/gpt-5.4-image-2` ([bundled set](agent-images.md#rules)).
