@@ -1,5 +1,9 @@
 # RAG changelog
 
+## 0.4.4
+
+A new picture in its own vivid colors.
+
 ## 0.4.3
 
 Ships its picture, `agent.webp`: help names it with its hash, the `image` ask returns it, and the web shows it on the agent page and in lists.
