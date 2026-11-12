@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- ✅ RD184 Cron and at in the core moves from R1.1 to R1 as task RT35; its design decisions are unchanged ([cron and at in the core](cron-in-core.md#cron-and-at-in-the-core); owner, 2026-11-12)
+
 - ✅ RD183 The daemon treats a mounted record as local: its ordinary ACL, lock and key-value rules apply, so local lock holders stay distinct and the remote sees the mount's user ([upstream mount](federation.md#upstream-mount); owner, 2026-11-12; settles Q406)
 
 - ✅ RD182 Each mounted name is a local record with its own full ACL under the ordinary rules; no mount-wide access shortcut ([upstream mount](federation.md#upstream-mount); owner, 2026-11-12; settles Q405)

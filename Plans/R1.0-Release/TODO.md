@@ -643,6 +643,14 @@ Shipped in 1.0.x, so recorded as R1 work (owner, 2026-11-11).
 - ✅ T-35 Glyph-led launcher tab titles (1.0.3, 1.0.8): [completed](done/t35-and-call-body.md#launcher-tab-titles)
 - ✅ `agent-bus call --body` prints only the reply body (1.0.14): [completed](done/t35-and-call-body.md#cli-reply-body)
 
+## Cron and at in the core
+
+Moved from R1.1 by the owner, 2026-11-12. The design is settled (Q379–Q390); nothing is built.
+
+- ☐ RT35 [Cron and at in the core](cron-in-core.md#cron-and-at-in-the-core): one daemon-owned schedule object replaces the `#cron` and `#at` agents
+  - Steps: [steps by subsystem](cron-in-core.md#steps-by-subsystem) 1–9, each its own branch; steps 1 (C ⚠️) and 2b (A ⚠️) need a mutant per boundary and two readers
+  - Acceptance: every row of the [parity list](cron-in-core.md#parity-list-today-and-its-core-equivalent) has a core call and a passing fixture; only then are `#cron` and `#at` removed and nothing in the repo names them
+
 ## Web scale follow-up from MVP
 
 - ✅ F.13.6 follow-up — growing pages and directory reads

@@ -17,6 +17,7 @@ the tools stage is [R1.2](../R1.2/README.md#scope).
 | Clean installation and canonical inputs | [Prerelease compatibility removal](legacy-removal.md#scope); part of R1, with current-format updates retained |
 | AI-assisted installation and agent setup | [Pending final-release work](ai-setup.md#release-scope): Markdown workflow; Web Face chat is [R1.1](../R1.1/ai-setup.md#web-face-chat) |
 | Federation | [Upstream mount](federation.md#upstream-mount), targets 1.0.x, not started until the owner's go-ahead ([RD181](DECISIONS.md#recorded-decisions)); chaining retired 2026-11-12 |
+| Cron and at in the core | [Schedule in the daemon](cron-in-core.md#cron-and-at-in-the-core), moved from R1.1 on 2026-11-12; [RT35](TODO.md#cron-and-at-in-the-core) |
 | Shared locks | [Shared locks](done/locks.md#shared-locks) |
 | Key-value store | [Key-value store](done/kv.md#per-record-storage) |
 | MCP Resource records | [Resource records](done/resources.md#resource-records) |

@@ -2,6 +2,8 @@
 
 📌 **TL;DR:** The owner wants `#cron` and `#at` to stop being agents and become bus core: any agent keeps its own crons and ats, the web gets **Crons** and **Ats** pages like **KV** with tag filtering and counts on all three, and every agent page shows its schedules the way it shows its KV. All of today's behaviour stays, and the rate floor drops to one second. One schedule object and one `schedule` set of calls serve both: an *at* is a one-shot schedule. This is the approach for the owner to approve: the parity list of what the two agents do now and its core equivalent, what a schedule as a daemon-owned object is, the web, the steps by subsystem and the choices in [Questions](#questions). Nothing is built and no format is chosen.
 
+Moved from R1.1 to R1 by the owner on 2026-11-12; task [RT35](TODO.md#cron-and-at-in-the-core).
+
 Owner, 2026-11-06 ~14:00: "#cron and #at must be converted from agents to bus core functionality; any agent can setup own crons/at at will. Create separate doc, come with ideas and questions. Our web interfaces should have new items - crons / ats (left) - show all / filter - similar as we do for KV (please add tag filtering/counting for all 3), and show on agent pages - again - same way as we do for KV. Create README TODO Questions doc (maybe combined doc, because its mostly internal re-structure). All our existing functionality will be supported."
 
 Owner, 2026-11-06 14:05, on three details:
