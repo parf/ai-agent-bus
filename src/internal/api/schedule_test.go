@@ -36,9 +36,12 @@ func TestScheduleCallsCrossTheAPI(t *testing.T) {
 		t.Fatalf("add: %d %s", code, out)
 	}
 	var added struct {
-		Schedule struct{ ID, Holder, Kind, Next, Creator string }
+		Schedule struct {
+			ID, Holder, Kind, Next, Creator string
+			HolderKind                      string `json:"holder_kind"`
+		}
 	}
-	if err := json.Unmarshal([]byte(out), &added); err != nil || added.Schedule.ID == "" || added.Schedule.Holder != "jobs@h" || added.Schedule.Kind != "recurring" || !strings.HasSuffix(added.Schedule.Next, "T09:00:00Z") || added.Schedule.Creator != "admin@h" {
+	if err := json.Unmarshal([]byte(out), &added); err != nil || added.Schedule.ID == "" || added.Schedule.Holder != "jobs@h" || added.Schedule.Kind != "recurring" || !strings.HasSuffix(added.Schedule.Next, "T09:00:00Z") || added.Schedule.Creator != "admin@h" || added.Schedule.HolderKind != "queue" {
 		t.Fatalf("add answered %s", out)
 	}
 	id := added.Schedule.ID

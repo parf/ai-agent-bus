@@ -353,7 +353,7 @@ func (b *Bus) ScheduleAdd(caller, holder string, req ScheduleRequest) (ScheduleV
 	}
 	b.wakeSchedules()
 	v.ID, v.Record = id, r.ID
-	return ScheduleView{Schedule: v, Holder: r.Name}, warn, nil
+	return ScheduleView{Schedule: v, Holder: r.Name, HolderKind: r.Kind}, warn, nil
 }
 
 // ScheduleEdit replaces a schedule's time, target and message; the caller
@@ -384,7 +384,7 @@ func (b *Bus) ScheduleEdit(caller, id string, req ScheduleRequest) (ScheduleView
 		return ScheduleView{}, err
 	}
 	b.wakeSchedules()
-	return ScheduleView{Schedule: v, Holder: r.Name}, nil
+	return ScheduleView{Schedule: v, Holder: r.Name, HolderKind: r.Kind}, nil
 }
 
 // ScheduleEnable enables or disables a schedule. Enabling makes the caller its
@@ -429,7 +429,7 @@ func (b *Bus) ScheduleEnable(caller, id string, on bool) (ScheduleView, error) {
 		return ScheduleView{}, err
 	}
 	b.wakeSchedules()
-	return ScheduleView{Schedule: out, Holder: r.Name}, nil
+	return ScheduleView{Schedule: out, Holder: r.Name, HolderKind: r.Kind}, nil
 }
 
 // ScheduleDelete removes a schedule; a firing already in flight may still deliver.
