@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- ✅ RD186 `#bus` is always admitted by every target; whatever it sends on someone's behalf needs that principal's may-send, checked with the send; event subscriptions and redirected answers stop requiring `#bus` in the target's Allow ([the rule](bus-admission.md#the-rule); owner, 2026-11-12: "its the core rule")
+
 - ✅ RD185 Schedules: 5 refusals in a row disable one; `#bus` is always allowed to send to anyone, and the creator's may-send guards each firing; record export and import carry schedules as system state; warnings and alerts go to the agent's built-in warnings; 3 unread or refused firings to one target warn; the building Claude session removes `#cron` and `#at` from the live node ([cron and at in the core](cron-in-core.md#questions); owner, 2026-11-12; settles Q409–Q414)
 
 - ✅ RD184 Cron and at in the core moves from R1.1 to R1 as task RT35; its design decisions are unchanged ([cron and at in the core](cron-in-core.md#cron-and-at-in-the-core); owner, 2026-11-12)

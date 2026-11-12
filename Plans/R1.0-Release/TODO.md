@@ -643,6 +643,12 @@ Shipped in 1.0.x, so recorded as R1 work (owner, 2026-11-11).
 - ✅ T-35 Glyph-led launcher tab titles (1.0.3, 1.0.8): [completed](done/t35-and-call-body.md#launcher-tab-titles)
 - ✅ `agent-bus call --body` prints only the reply body (1.0.14): [completed](done/t35-and-call-body.md#cli-reply-body)
 
+## `#bus` is always admitted
+
+- ☐ RT36 [`#bus` is always admitted](bus-admission.md#the-rule): every target admits `#bus`; each send on someone's behalf checks that principal's may-send in the same lock hold
+  - Acceptance: an agent-event copy and a redirected answer reach a target whose Allow does not name `#bus`; a redirected answer to a record the asker may not send to is refused; a mutant that skips the principal check fails a named assertion (A ⚠️, two readers)
+  - Before: RT35 step 3
+
 ## Cron and at in the core
 
 Moved from R1.1 by the owner, 2026-11-12. The design is settled (Q379–Q390, Q409–Q414); open: Q415–Q418; nothing is built.
