@@ -54,9 +54,9 @@
       {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}},
       {"as": "worker", "op": "call", "body": "sub list", "expect": {"subscriptions.0.sent": 1, "subscriptions.0.dropped": 1}},
       {"as": "owner", "op": "manage", "name": "jobs@fixture", "changes": {"allow": ["#worker@fixture"]}},
-      {"as": "agent", "op": "call", "body": "write #caller@fixture alert bus sender refused", "expect": {"entry.text": "bus sender refused", "deliveries.matched": 1, "deliveries.sent": 0, "deliveries.dropped": 1}},
-      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"empty": true}},
-      {"as": "worker", "op": "call", "body": "sub list", "expect": {"subscriptions.0.sent": 1, "subscriptions.0.dropped": 2}},
+      {"as": "agent", "op": "call", "body": "write #caller@fixture alert bus needs no allow entry", "expect": {"entry.text": "bus needs no allow entry", "deliveries.matched": 1, "deliveries.sent": 1, "deliveries.dropped": 0}},
+      {"as": "owner", "op": "inbox", "inbox": "jobs@fixture", "expect": {"from": "#bus", "to": "jobs@fixture", "body.text": "bus needs no allow entry"}},
+      {"as": "worker", "op": "call", "body": "sub list", "expect": {"subscriptions.0.sent": 2, "subscriptions.0.dropped": 1}},
       {"as": "worker", "op": "call", "body": "sub delete $subscription", "expect": {"deleted": true}}
     ]
   },
