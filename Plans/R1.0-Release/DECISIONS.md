@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- ✅ RD188 Every manager of a holder adds, edits, enables and deletes its schedules; messages always come from `#bus`; the acting manager becomes the creator after their own may-send; a queue's or pubsub's schedule warnings go to the daemon journal ([the schedule](cron-in-core.md#the-schedule); owner, 2026-11-12; settles Q415 and Q418)
+
 - ✅ RD187 A User record never holds schedules; a person keeps one on an agent or queue they manage ([the schedule](cron-in-core.md#the-schedule); owner, 2026-11-12; settles Q417)
 
 - ✅ RD186 `#bus` is always admitted by every target; whatever it sends on someone's behalf needs that principal's may-send, checked with the send; event subscriptions and redirected answers stop requiring `#bus` in the target's Allow ([the rule](bus-admission.md#the-rule); owner, 2026-11-12: "its the core rule")

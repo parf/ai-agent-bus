@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** scheduling lives in two runner agents, `#cron` and `#at`, so an agent cannot own its schedules, the web cannot show them, and a firing needs a runner process up.
 - **Outcome:** the daemon keeps **schedules** the way it keeps KV: attached to a record, used by its Owner, Maintainers and own Agent, fired from `#bus`, shown on **Crons** and **Ats** pages and agent pages. `#cron` and `#at` are then removed.
-- **Status:** design settled with the owner (Q379–Q390 on 2026-11-06; Q409–Q414 and Q417 on 2026-11-12); R1 task [RT35](TODO.md#cron-and-at-in-the-core); nothing built. Open: [Q415, Q416, Q418](#open-questions).
+- **Status:** design settled with the owner (Q379–Q390 on 2026-11-06; Q409–Q415, Q417 and Q418 on 2026-11-12); R1 task [RT35](TODO.md#cron-and-at-in-the-core); nothing built. Open: [Q416](#open-questions).
 
 ## Contents
 
@@ -78,11 +78,11 @@ Owner, 2026-11-06 ~14:00: "#cron and #at must be converted from agents to bus co
 | Kind | one object; **recurring** (an expression) or **one-shot** (a time); Crons and Ats are two views of it |
 | Holder | an Agent, queue or pubsub ([Q382](#q382)), never a User record ([Q417](#q417)); it stores the schedule, the target is what it triggers |
 | Who manages and sees | the holder's Owner, Maintainers and own Agent, KV's `resourceManages` check ([Q383](#q383)); nobody else learns a schedule exists |
-| Creator | the caller that added it; fires only while the creator is active, still manages the holder and may send to the target. Who becomes creator when another manager enables or runs it is [Q415](#q415) |
+| Creator | the manager who last added, edited or enabled it, after their own may-send to the target ([Q415](#q415)); it fires only while the creator is active, still manages the holder and may send to the target |
 | Target | an existing agent or queue the creator may send to, the holder itself included; never `#bus` |
 | Tag | `by <creator>`, as today; the creator does not choose it |
 | Body | required, 1 to 16384 bytes |
-| Controls | enable (default), disable, run now, delete; `until` and `max_runs`; max lateness, off by default; no edit: delete and add again, as today |
+| Controls | enable (default), disable, run now, edit, delete, by any manager of the holder ([Q415](#q415)); `until` and `max_runs`; max lateness, off by default |
 | End | a one-shot leaves once its outcome is recorded; a recurring schedule past `until` or `max_runs` is disabled and kept |
 | Caps | per holder: 100 recurring and 10 000 pending one-shots; over a cap refused by name; a warning at 80 % |
 | Lifetime | removed with its holder, kept on owner transfer, silent while the holder is inactive; a short-lived holder answers the add with a warning ([Q389](#q389)) |
@@ -93,7 +93,7 @@ Owner, 2026-11-06 ~14:00: "#cron and #at must be converted from agents to bus co
 
 One engine goroutine in the daemon, started and stopped in `runBus` (`src/cmd/agent-busd/bus.go`) beside the minute clock and snapshot ticker.
 
-1. **Wake:** a timer to the earliest next fire time, reset when a schedule is added, enabled, disabled or deleted, and re-evaluated at least once a minute so a wall-clock step or suspend is noticed.
+1. **Wake:** a timer to the earliest next fire time, reset when a schedule is added, edited, enabled, disabled or deleted, and re-evaluated at least once a minute so a wall-clock step or suspend is noticed.
 2. **Pick:** read a bounded batch of due firings from the next-fire index.
 3. **Claim, one firing at a time:** a transaction records the firing as claimed and advances the next fire time to the first slot later than the last claimed one. A crash leaves at most this one firing unsent; on restart it is recorded `send_unknown` and never repeated.
 4. **Check and send, under one bus lock hold:** the holder is live, the creator is active and still manages the holder, the creator may send to the target, and max lateness, if set, is not exceeded; then one send from `#bus`, which every target admits ([Q410](#q410)): topic `schedule`, tag `by <creator>`, creator and schedule id stamped, reply route to the creator, row 19's time to live.
@@ -108,7 +108,7 @@ One engine goroutine in the daemon, started and stopped in `runBus` (`src/cmd/ag
 | Wall clock moves back | nothing fires twice: only slots later than the last claimed one |
 | Holder inactive | recurring slots pass silently; a one-shot due meanwhile fires on return as a past-due one-shot |
 | Engine behind | firings due more than a minute and unsent alert the node owner; the start-up catch-up does not count |
-| `run now` | one extra firing through steps 3–5; the next slot does not move |
+| `run now` | one extra firing through steps 3–5, checked against the caller's may-send as well; the next slot does not move |
 | Unclean daemon stop | a `sent` message may be lost with its queue's unflushed minute, like any send ([durability](../../docs/04-messaging.md#durability)) |
 
 ## Storage
@@ -127,7 +127,7 @@ Schedules are daemon state, not KV values; KV is only the model for who uses the
 
 ## Calls
 
-One `schedule` set of calls on every surface: **add**, **list** (one holder's, or every schedule the caller may use, like `KVStores`), **get**, **enable**, **disable**, **run**, **delete**. Time forms on add: an expression of five or six fields; `in <delay>`; `at <HH:MM>` (UTC); `at <RFC 3339 instant>`; optional `until`, `max_runs` and max lateness.
+One `schedule` set of calls on every surface: **add**, **list** (one holder's, or every schedule the caller may use, like `KVStores`), **get**, **edit**, **enable**, **disable**, **run**, **delete**. Time forms on add: an expression of five or six fields; `in <delay>`; `at <HH:MM>` (UTC); `at <RFC 3339 instant>`; optional `until`, `max_runs` and max lateness.
 
 | Surface | Where | Model |
 |---|---|---|
@@ -155,7 +155,7 @@ Same machinery as KV (`src/web/pages/kv.tsx`, `src/web/ui/kv.tsx`); the daemon d
 
 ## Warnings and alerts
 
-Settled in [Q390](#q390) and [Q412](#q412): every schedule warning and alert goes into the **holder agent's built-in warnings and alerts** (agent events, RT34), which its subscribers already receive; the daemon journal also records each. Daemon code cannot write a record's events today (only the agent or an admin may), so step 3 adds a daemon-side writer. Where a queue's or pubsub's schedules report is [Q418](#q418).
+Settled in [Q390](#q390) and [Q412](#q412): every schedule warning and alert goes into the **holder agent's built-in warnings and alerts** (agent events, RT34), which its subscribers already receive; the daemon journal also records each. Daemon code cannot write a record's events today (only the agent or an admin may), so step 3 adds a daemon-side writer. A queue's or pubsub's schedules report to the daemon journal ([Q418](#q418)).
 
 | Level | What |
 |---|---|
@@ -198,7 +198,7 @@ Steps 1 and 2 run together; 5–8 in parallel after 4. About 17 h of agent time,
 | Risk | Guard |
 |---|---|
 | `#bus` reaches every target | it sends only what a creator who may send there scheduled, checked in the same lock hold as the send |
-| A manager firing on another's authority | creator standing re-checked every firing; [Q415](#q415) |
+| A manager firing on another's authority | each add, edit or enable makes the acting manager the creator, after their may-send ([Q415](#q415)); standing re-checked every firing |
 | A busy node with many one-second schedules | the per-schedule floor; the engine-late alert; [Q416](#q416) |
 | A double send after a crash | one claim per firing before its send; unknown outcomes never retried |
 | Parser drift | the shared fixture table until the Python parser is deleted |
@@ -259,16 +259,17 @@ Settled with the owner; anchors kept for links. Q381 was withdrawn and stays unu
 <a id="q417"></a>
 - ✅ Q417 May a person's User record hold schedules → no: a holder only stores a schedule, and a person keeps one on an agent or queue they manage, such as their own session. Owner, 2026-11-12: "users schedule makes no sense - what will it trigger? what for"
 
+<a id="q415"></a>
+- ✅ Q415 Who manages a schedule and on whose authority it fires → every manager of the holder (Owner, Maintainers, own Agent) adds, edits, enables, disables and deletes any of its schedules; the message always comes from `#bus`; whoever last added, edited or enabled it becomes its creator, after their own may-send to the target ([RD186](DECISIONS.md#recorded-decisions)). Owner, 2026-11-12: "events always came from bus; maintainer should be allowed to add/remove/edit them"
+
+<a id="q418"></a>
+- ✅ Q418 Where a queue's or pubsub's schedule warnings go → the daemon journal. Owner, 2026-11-12: "daemon journal"
+
 <a id="q414"></a>
 - ✅ Q414 Who removes `#cron` and `#at` from the live node → the Claude session that builds it, at the deploy that ships schedules. Owner, 2026-11-12: "you"
 
 ### Open questions
 
-<a id="q415"></a>
-- ❓ Q415 When a manager other than the creator enables or runs a schedule, whose authority does it fire on
-  - Context: a Maintainer could otherwise fire the Owner's schedule at a target the Maintainer cannot reach
-  - ( ) The caller becomes the creator, after its own may-send to the target 🌟
-  - ( ) The creator stays; the caller must also pass may-send to the target
 
 <a id="q416"></a>
 - ❓ Q416 Node-wide limits and outcome retention
@@ -277,8 +278,3 @@ Settled with the owner; anchors kept for links. Q381 was withdrawn and stays unu
   - ( ) Per-holder caps only, last 100 outcomes, as planned
 
 
-<a id="q418"></a>
-- ❓ Q418 Where a queue's or pubsub's schedule warnings go
-  - Context: built-in warnings exist only on Agent records ([Q412](#q412))
-  - ( ) The creator's agent warnings when the creator is an agent; the daemon journal otherwise 🌟
-  - ( ) Only Agents hold schedules after all; queues and pubsubs drop out of Q382
