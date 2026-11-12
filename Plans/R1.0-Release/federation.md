@@ -3,15 +3,15 @@
 📌 **TL;DR:**
 - **Problem:** agents on another agent-bus cannot be used from this one without running a second client per agent.
 - **Proposal:** an **upstream mount**: this bus logs into a remote bus as one ordinary remote user and shows what that user can use under a local prefix, `#g:mail@a`.
-- **Status:** owner design in progress, 2026-11-12 ([RD179](DECISIONS.md#recorded-decisions)); targets a 1.0.x release, but no build starts until the owner says it is ready; open choices are [Q405–Q407](QUESTIONS.md#federation).
+- **Status:** owner design in progress, 2026-11-12 ([RD179](DECISIONS.md#recorded-decisions)); targets a 1.0.x release, but no build starts until the owner says it is ready; open choices are [Q406 and Q407](QUESTIONS.md#federation).
 
 ## Upstream mount
 
 - On the remote bus, its owner registers a user and gives out its token. The remote needs nothing new: the mount is one more session of that user.
 - On the local bus, a **mount record** owns a prefix, the remote address, and the token as its Secret. The prefix is a local alias the owner chooses, such as `realmo-prod`; one bus can hold many mounts, and the same remote can be mounted twice under different users and aliases. `g` below is an example.
 - A **proxy** keeps one outbound connection to the remote as that user, so a local bus behind a firewall or NAT works.
-- Remote access is the remote's existing ACL for that user. Local access is the mount record's own list ([Q405](QUESTIONS.md#federation)).
-- The proxy queries the remote live with a short cache; it never copies remote records into the local store.
+- Remote access is the remote's existing ACL for that user. Locally, each mounted name is a local record with its own full [ACL](../../docs/02-access.md#acl), under the same rules as every other record; a local caller needs both the local grant and the remote user's access.
+- The proxy queries the remote live with a short cache for listing, help and answers; locally only each mounted record's ACL and alias are stored.
 
 ## Names
 

@@ -12,9 +12,6 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 Owner proposal, 2026-11-12: [upstream mount](federation.md#upstream-mount), undecided.
 
-- ❓ Q405 Which local callers may use a mount by default
-  - ( ) Its Owner only; others by the mount record's ACL
-  - ( ) Every local user
 - ❓ Q406 Who holds a remote lock taken through the mount
   - Context: the remote sees every local caller as the same user, so two local workers taking one remote lock look like one holder; that breaks mutual exclusion unless the proxy separates them
   - ( ) The proxy records the local holder and refuses a second local caller while the remote hold lasts

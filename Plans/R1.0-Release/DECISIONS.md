@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- ✅ RD182 Each mounted name is a local record with its own full ACL under the ordinary rules; no mount-wide access shortcut ([upstream mount](federation.md#upstream-mount); owner, 2026-11-12; settles Q405)
+
 - ✅ RD181 The upstream mount targets a 1.0.x release; building starts only on the owner's go-ahead, while parts of the design are still open ([upstream mount](federation.md#upstream-mount); owner, 2026-11-12; settles Q403)
 
 - ✅ RD180 A remote name too long for the local 64-character limit is reached through an alias on its mount: a map from the long remote name to a short local name ([names](federation.md#names); owner, 2026-11-12; settles Q404)
