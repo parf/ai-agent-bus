@@ -1,5 +1,5 @@
 //! Native Rust adapter for the shared state, identity and refusal vectors in
-//! src/testdata/client-conformance (kv, locks, identity, refusals, events; not bigfile).
+//! src/testdata/client-conformance (kv, locks, schedule, identity, refusals, events; not bigfile).
 //! Event cases: shared_event_vectors / shared_event_subscription_vectors.
 //! Executed examples: native_event_example / native_event_subscription_example.
 use agent_bus::*;
@@ -246,6 +246,89 @@ async fn shared_lock_vectors() {
                     }
                 }
                 other => panic!("unknown vector op {other}"),
+            }
+        }
+    }
+}
+
+fn schedule_spec(step: &Value) -> ScheduleSpec {
+    let opt = |k: &str| step[k].as_str().map(String::from);
+    ScheduleSpec {
+        expr: opt("expr"),
+        in_: opt("in"),
+        at: opt("at"),
+        target: text(step, "target").into(),
+        body: text(step, "body").into(),
+        ..Default::default()
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn shared_schedule_vectors() {
+    for case in cases("schedule") {
+        let (_fixture, v) = fixture();
+        let owner = connect(&v, "owner@fixture").await;
+        let worker = connect(&v, "#worker@fixture").await;
+        let sched = owner.record("jobs@fixture").unwrap().schedules();
+        let mut id = String::new();
+        for (i, step) in case["steps"].as_array().unwrap().iter().enumerate() {
+            let at = format!("{} step {i} {}", text(&case, "id"), text(step, "op"));
+            let expect = &step["expect"];
+            let got = match text(step, "op") {
+                "add" => refusal(sched.add(&schedule_spec(step)).await, step, &at).map(|mut a| a["schedule"].take()),
+                "edit" => refusal(sched.edit(&id, &schedule_spec(step)).await, step, &at),
+                "get" => refusal(sched.get(&id).await, step, &at),
+                "enable" => refusal(sched.enable(&id).await, step, &at),
+                "disable" => refusal(sched.disable(&id).await, step, &at),
+                "run" => {
+                    if let Some(o) = refusal(sched.run(&id).await, step, &at) {
+                        assert_eq!(o["outcome"], expect["outcome"], "{at}");
+                    }
+                    continue;
+                }
+                "delete" => {
+                    if let Some(d) = refusal(sched.delete(&id).await, step, &at) {
+                        assert_eq!(json!(d), expect["deleted"], "{at}");
+                    }
+                    continue;
+                }
+                "list" => {
+                    let rows = if step["all"] == json!(true) { owner.schedules().await } else { sched.list().await };
+                    if let Some(rows) = refusal(rows, step, &at) {
+                        let ids: Vec<Value> = rows.iter().map(|r| r["id"].clone()).collect();
+                        let want: Vec<Value> = expect["ids"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .map(|w| if w == "$schedule" { json!(id) } else { w.clone() })
+                            .collect();
+                        assert_eq!(ids, want, "{at}");
+                    }
+                    continue;
+                }
+                "inbox" => {
+                    assert_eq!(text(step, "as"), "worker", "{at}");
+                    let options = ConsumeOptions { wait: Duration::from_secs(5), ..Default::default() };
+                    let m = worker.consume(options).await.unwrap().unwrap_or_else(|| panic!("{at}: no firing"));
+                    let seen = json!({"from": m.from(), "topic": m.topic(), "tag": m.tag(), "body": m.body()});
+                    for (k, want) in expect.as_object().unwrap() {
+                        assert_eq!(&seen[k], want, "{at} {k}");
+                    }
+                    continue;
+                }
+                other => panic!("unknown vector op {other}"),
+            };
+            let Some(got) = got else { continue };
+            if text(step, "op") == "add" {
+                id = text(&got, "id").into();
+            }
+            for (k, want) in expect.as_object().unwrap() {
+                let value = if k == "outcomes" {
+                    json!(got["outcomes"].as_array().cloned().unwrap_or_default().iter().map(|o| o["outcome"].clone()).collect::<Vec<_>>())
+                } else {
+                    got[k].clone()
+                };
+                assert_eq!(&value, want, "{at} {k}");
             }
         }
     }

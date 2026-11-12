@@ -46,6 +46,38 @@ async fn connect(v: &Value, name: &str) -> Bus {
         .unwrap()
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn schedule_limits_travel_and_a_stranger_reads_one_as_missing() {
+    let (_fixture, v) = fixture();
+    let worker = connect(&v, "#worker@fixture").await;
+    let caller = connect(&v, "#caller@fixture").await;
+    let sched = worker.record("#worker@fixture").unwrap().schedules();
+    let spec = ScheduleSpec {
+        expr: Some("*/5 * * * *".into()),
+        target: "#caller@fixture".into(),
+        body: "tick".into(),
+        until: Some("2099-01-01T00:00:00Z".into()),
+        max_runs: Some(3),
+        max_late: Some("5m".into()),
+        disabled: true,
+        ..Default::default()
+    };
+    let added = sched.add(&spec).await.unwrap();
+    let got = &added["schedule"];
+    assert_eq!(
+        json!([got["kind"], got["enabled"], got["max_runs"], got["max_late"], got["until"], added["warning"]]),
+        json!(["recurring", false, 3, "5m0s", "2099-01-01T00:00:00Z", ""])
+    );
+    let id = got["id"].as_str().unwrap();
+    assert!(matches!(
+        caller.record("#worker@fixture").unwrap().schedules().get(id).await,
+        Err(BusError::Refusal { status: 404, .. })
+    ));
+    let once = ScheduleSpec { in_: Some("90s".into()), target: "#caller@fixture".into(), body: "once".into(), ..Default::default() };
+    let edited = sched.edit(id, &once).await.unwrap();
+    assert_eq!(json!([edited["kind"], edited["max_runs"], edited["enabled"]]), json!(["once", null, true]));
+    assert!(worker.schedules().await.unwrap().iter().any(|s| s["id"] == id));
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_daemon_registry_private_storage_and_nested_serving() {
     let (_fixture, v) = fixture();
     let owner = connect(&v, "owner@fixture").await;

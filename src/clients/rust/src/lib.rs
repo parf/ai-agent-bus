@@ -503,6 +503,13 @@ impl Bus {
             inner,
         })
     }
+    /// Every schedule on a record the caller manages.
+    pub async fn schedules(&self) -> Result<Vec<Value>> {
+        let v = self
+            .json(Method::GET, "/schedule/list", &[], None, None)
+            .await?;
+        storage::schedule_rows(v)
+    }
     pub fn own_record(&self) -> Record {
         self.record(self.name()).expect("verified name")
     }

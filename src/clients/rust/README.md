@@ -14,7 +14,7 @@
 ## What you get
 
 - ✅ **Call and serve:** `bus.call(to, body, CallOptions)` returns a reply or a completion; `bus.serve(handler, ServeOptions, cancel)` answers with a bounded pool of tasks, and `on_reply` reads the answers to your own sends.
-- ✅ **Targets:** `bus.record(name)` selects a record and gives its `kv()` and `locks()`; `bus.own_record()` is your own.
+- ✅ **Targets:** `bus.record(name)` selects a record and gives its `kv()`, `locks()` and `schedules()`; `bus.own_record()` is your own.
 - ✅ **Your own name works:** a call to yourself is answered by your own handler.
 - ✅ **Safe secrets:** logging is redacted; `.bytes()` is explicit access.
 
@@ -62,6 +62,16 @@ async fn main() -> agent_bus::Result<()> {
 
 ```text
 pong hello
+```
+
+## Schedules
+
+`record.schedules()` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`, answering the daemon's JSON; `bus.schedules()` lists every one on a record you manage. A `ScheduleSpec` gives one of `expr`, `in_` or `at`. Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
+
+```rust
+let spec = ScheduleSpec { expr: Some("0 3 * * *".into()), target: "#worker@localhost".into(), body: "nightly report".into(), ..Default::default() };
+let added = bus.own_record().schedules().add(&spec).await?;
+println!("{} {}", added["schedule"]["next"], added["warning"]);
 ```
 
 ## Private agent-log example

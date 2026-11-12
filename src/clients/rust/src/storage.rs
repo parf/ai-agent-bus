@@ -87,6 +87,9 @@ impl Record {
     pub fn locks(&self) -> RecordLocks {
         RecordLocks(self.clone())
     }
+    pub fn schedules(&self) -> RecordSchedules {
+        RecordSchedules(self.clone())
+    }
     pub async fn config(&self) -> Result<Option<Arc<Value>>> {
         self.bus.ensure_open()?;
         let cell = self.inner.config.lock().unwrap().clone();
@@ -297,6 +300,92 @@ impl RecordKv {
                 None,
             )
             .await
+    }
+}
+/// What a schedule add or edit takes: one of `expr`, `in_` or `at`
+/// (docs/09-daemon-api.md#schedules). The daemon judges every field.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct ScheduleSpec {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expr: Option<String>,
+    #[serde(rename = "in", skip_serializing_if = "Option::is_none")]
+    pub in_: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub at: Option<String>,
+    pub target: String,
+    pub body: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub until: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_runs: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_late: Option<String>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub disabled: bool,
+}
+/// A record's crons and one-shot sends, kept and fired by the daemon. Answers
+/// are the daemon's JSON: a schedule, `{schedule, warning}` for an add, an outcome for a run.
+#[derive(Clone)]
+pub struct RecordSchedules(Record);
+impl RecordSchedules {
+    async fn post(&self, path: &str, body: Value) -> Result<Value> {
+        self.0
+            .bus
+            .json(Method::POST, path, &[], Some(body), None)
+            .await
+    }
+    fn with(spec: &ScheduleSpec, key: &str, value: &str) -> Value {
+        let mut v = json!(spec);
+        v[key] = json!(value);
+        v
+    }
+    pub async fn add(&self, spec: &ScheduleSpec) -> Result<Value> {
+        self.post("/schedule/add", Self::with(spec, "record", self.0.name()))
+            .await
+    }
+    pub async fn list(&self) -> Result<Vec<Value>> {
+        let v = self
+            .0
+            .bus
+            .json(
+                Method::GET,
+                "/schedule/list",
+                &[("record", self.0.name())],
+                None,
+                None,
+            )
+            .await?;
+        schedule_rows(v)
+    }
+    pub async fn get(&self, id: &str) -> Result<Value> {
+        self.0
+            .bus
+            .json(Method::GET, "/schedule", &[("id", id)], None, None)
+            .await
+    }
+    pub async fn edit(&self, id: &str, spec: &ScheduleSpec) -> Result<Value> {
+        Ok(self.post("/schedule/edit", Self::with(spec, "id", id)).await?["schedule"].take())
+    }
+    pub async fn enable(&self, id: &str) -> Result<Value> {
+        Ok(self.post("/schedule/enable", json!({"id":id})).await?["schedule"].take())
+    }
+    pub async fn disable(&self, id: &str) -> Result<Value> {
+        Ok(self.post("/schedule/disable", json!({"id":id})).await?["schedule"].take())
+    }
+    /// One firing now; a lost answer is `UncertainOutcome` and is never retried.
+    pub async fn run(&self, id: &str) -> Result<Value> {
+        Ok(self.post("/schedule/run", json!({"id":id})).await?["outcome"].take())
+    }
+    pub async fn delete(&self, id: &str) -> Result<bool> {
+        self.post("/schedule/delete", json!({"id":id})).await?["deleted"]
+            .as_bool()
+            .ok_or_else(|| BusError::Protocol("missing deleted flag".into()))
+    }
+}
+pub(crate) fn schedule_rows(mut v: Value) -> Result<Vec<Value>> {
+    match v["schedules"].take() {
+        Value::Array(rows) => Ok(rows),
+        _ => Err(BusError::Protocol("expected a schedules list".into())),
     }
 }
 #[derive(Clone, Debug)]
