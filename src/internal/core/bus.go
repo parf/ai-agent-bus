@@ -240,7 +240,12 @@ type Bus struct {
 	prunedOn activity.Date
 	nodeDays activity.Ledger
 	records  map[string]protocol.Record
-	admin    string
+	// schedMu serialises schedule adds, so the owner caps count once;
+	// schedWake tells the engine a schedule changed.
+	schedMu      sync.Mutex
+	schedWake    chan struct{}
+	schedStarted bool
+	admin        string
 	// ownerRestored means a current snapshot, rather than setup, supplied
 	// admin. ownerRestoreErr is retained until startup validates that durable
 	// authority before serving anything.
@@ -287,6 +292,7 @@ func New() *Bus {
 		nextRecordID:   1,
 		nextUserID:     1,
 		recordByID:     map[uint32]string{},
+		schedWake:      make(chan struct{}, 1),
 		userByID:       map[uint32]string{},
 		started:        time.Now(),
 		clock:          time.Now,
@@ -1361,7 +1367,7 @@ func (b *Bus) MaySend(from, to string) error {
 // Send delivers one message to one inbox. A waiting consume takes it
 // directly; otherwise it queues.
 func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
-	return b.send(e, "", "")
+	return b.send(e, sendOpts{})
 }
 
 // SendFor delivers a message #bus sends on a principal's behalf: a
@@ -1378,7 +1384,7 @@ func (b *Bus) SendFor(principal string, e protocol.Envelope) (protocol.Envelope,
 	if from, err := canon(e.From); err != nil || from != DaemonAgent {
 		return protocol.Envelope{}, fmt.Errorf("%w: only #bus sends on a principal's behalf", ErrNotAllow)
 	}
-	return b.send(e, "", who)
+	return b.send(e, sendOpts{onBehalf: who})
 }
 
 // AnswerAsker sends #bus's answer to an ask that #bus consumed from its own
@@ -1408,15 +1414,26 @@ func (b *Bus) AnswerAsker(ask protocol.Envelope, body string) (protocol.Envelope
 	}
 	answer := protocol.Envelope{From: DaemonAgent, To: back.Name, Topic: back.Topic, Tag: back.Tag, Re: ask.ID, Body: body}
 	if answering != "" {
-		return b.send(answer, answering, "")
+		return b.send(answer, sendOpts{answering: answering})
 	}
 	// Redirected elsewhere: the asker's own reach decides (RD186).
-	return b.send(answer, "", asker)
+	return b.send(answer, sendOpts{onBehalf: asker})
 }
 
 // send is Send; answering names the asker that #bus answers through
 // AnswerAsker, and is empty for every other send.
-func (b *Bus) send(e protocol.Envelope, answering, onBehalf string) (protocol.Envelope, error) {
+// sendOpts are the daemon's own choices for one send: answering is the asker
+// #bus answers on its own route; onBehalf is the principal #bus sends for;
+// guard, when set, runs first under the same lock hold and refuses the send
+// with its error; stamp is the schedule a scheduled message comes from.
+type sendOpts struct {
+	answering, onBehalf string
+	guard               func() error
+	stamp               *protocol.ScheduleStamp
+}
+
+func (b *Bus) send(e protocol.Envelope, o sendOpts) (protocol.Envelope, error) {
+	answering, onBehalf := o.answering, o.onBehalf
 	to, err := canon(e.To)
 	if err != nil {
 		return protocol.Envelope{}, err
@@ -1427,6 +1444,11 @@ func (b *Bus) send(e protocol.Envelope, answering, onBehalf string) (protocol.En
 	}
 	b.mu.Lock()
 	defer b.unlock()
+	if o.guard != nil {
+		if err := o.guard(); err != nil {
+			return protocol.Envelope{}, err
+		}
+	}
 	var rec protocol.Record
 	switch {
 	case answering != "" && from == DaemonAgent && to == answering:
@@ -1481,6 +1503,12 @@ func (b *Bus) send(e protocol.Envelope, answering, onBehalf string) (protocol.En
 	// Provenance is the daemon's: a caller stating where a message came
 	// through, or how far it travelled, grants it nothing.
 	e.OriginalTo, e.Forwards = "", 0
+	// A schedule stamp is the daemon's alone: only a scheduled send carries one.
+	e.Schedule = nil
+	if o.stamp != nil && from == DaemonAgent {
+		stamp := *o.stamp
+		e.Schedule = &stamp
+	}
 	// So are roles: worked out here, at the record the sender addressed, and
 	// carried unchanged through every forward and copy
 	// (Plans/R1.0-Release/roles.md#roles-are-for-agents).

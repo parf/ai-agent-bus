@@ -260,7 +260,13 @@ func runBus(c config) {
 	}
 	clockDone := make(chan struct{})
 	go everyMinute(clockDone, time.Now, time.After, onMinute(callHistory, bus))
+	// The schedule engine fires every record's crons and ats from #bus
+	// (Plans/R1.0-Release/cron-in-core.md#firing).
+	schedDone, schedStopped := make(chan struct{}), make(chan struct{})
+	go func() { defer close(schedStopped); bus.ServeSchedules(schedDone) }()
 	<-stop
+	close(schedDone)
+	<-schedStopped
 	// Join the periodic writer before the final clean checkpoint; no later
 	// tick may replace it with an unclean snapshot during shutdown.
 	stopSnapshots()

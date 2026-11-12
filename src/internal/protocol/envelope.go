@@ -48,6 +48,10 @@ type Envelope struct {
 	// now, not when it bounces.
 	// See docs/04-messaging.md#reply-routing.
 	ReplyTo *ReplyTo `json:"reply_to,omitempty"`
+	// Schedule says this message is a schedule's firing, sent by #bus on its
+	// creator's behalf; the daemon stamps it and refuses it from a sender
+	// (Plans/R1.0-Release/cron-in-core.md#firing).
+	Schedule *ScheduleStamp `json:"schedule,omitempty"`
 	// OriginalTo names the destination a forwarded or published message came
 	// through, and Forwards counts its forwarding steps; both are the
 	// daemon's, never a caller's (docs/constitution.md#-channels).
@@ -405,4 +409,14 @@ type Resource struct {
 type ReaderHost struct {
 	Name     string    `json:"name"`
 	LastRead time.Time `json:"last_read"`
+}
+
+// ScheduleStamp names the schedule a message fired from: its id, its creator,
+// the slot it fired for, how late it fired and how many slots it passed over.
+type ScheduleStamp struct {
+	ID     string    `json:"id"`
+	By     string    `json:"by"`
+	Slot   time.Time `json:"slot"`
+	LateBy string    `json:"late_by,omitempty"`
+	Missed int       `json:"missed,omitempty"`
 }
