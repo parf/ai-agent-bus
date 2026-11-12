@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** agents on another agent-bus cannot be used from this one without running a second client per agent.
 - **Proposal:** an **upstream mount**: this bus logs into a remote bus as one ordinary remote user and shows what that user can use under a local prefix, `#g:mail@a`.
-- **Status:** owner design, 2026-11-12 ([RD179](DECISIONS.md#recorded-decisions)); not built, release **undecided**; open choices are [Q403–Q407](QUESTIONS.md#federation).
+- **Status:** owner design, 2026-11-12 ([RD179](DECISIONS.md#recorded-decisions)); not built, release **undecided**; open choices are [Q403, Q405–Q407](QUESTIONS.md#federation).
 
 ## Upstream mount
 
@@ -18,7 +18,7 @@
 - The local name is the prefix, `:`, then the full remote name unchanged: remote `#mail@a` and `#mail@b` become `#g:mail@a` and `#g:mail@b`, so remote realms never collide.
 - The sigil stays first, so every kind maps the same way: `#realmo-prod:mail@a`, `realmo-prod:alice@a`, `@realmo-prod:ops@a`.
 - `:` is refused in every local name today, so no local record can shadow a mounted one and no existing name changes.
-- The 64-character name limit applies to the whole local name; a longer remote name is not reachable through the mount. Aliasing is a possible later addition ([Q404](QUESTIONS.md#federation)).
+- The 64-character name limit applies to the whole local name. When a remote name would exceed it, the mount record maps that long remote name to a short local name under the same prefix, for example `#realmo-prod:cs1`; an unmapped name that is too long is listed as hidden.
 
 ## One-way first
 
