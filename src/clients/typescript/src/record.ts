@@ -8,8 +8,8 @@ export class KVNotFound extends BusError { constructor(message:string) { super(4
 const int64 = (n:bigint|number): bigint => { if (typeof n === 'number' && !Number.isSafeInteger(n)) throw new TypeError('use bigint for exact integers'); const value = BigInt(n); if (value < -(1n<<63n) || value >= (1n<<63n)) throw new TypeError('integer must fit int64'); return value; };
 const kindCheck = (kind:KVKind) => { if (!['string','int','json'].includes(kind)) throw new TypeError('kind is string, int or json'); };
 export class RecordHandle {
-  readonly bigfile:RecordBigfile; readonly kv: RecordKV; readonly locks: RecordLocks;
-  constructor(readonly bus:Bus,readonly name:string) { this.bigfile=new RecordBigfile(this); this.kv = new RecordKV(this); this.locks = new RecordLocks(this); }
+  readonly bigfile:RecordBigfile; readonly kv: RecordKV; readonly locks: RecordLocks; readonly schedules: RecordSchedules;
+  constructor(readonly bus:Bus,readonly name:string) { this.bigfile=new RecordBigfile(this); this.kv = new RecordKV(this); this.locks = new RecordLocks(this); this.schedules = new RecordSchedules(this); }
   lookup(options:Operation = {}): Promise<any> { return this.bus.request('GET','/lookup',undefined,{ ...options,query:{name:this.name} }); }
   manage(changes:{[key:string]:unknown},options:Operation = {}): Promise<any> { if ('name' in changes) throw new TypeError('management cannot change target name'); return this.bus.request('POST','/manage',{name:this.name,...changes},options); }
   unregister(options:Operation = {}): Promise<any> { return this.bus.request('POST','/unregister',{name:this.name},options); }
@@ -53,4 +53,23 @@ export class RecordLocks {
   release(name:string,options:Operation = {}): Promise<any> { return this.record.bus.request('POST','/release',this.body(name),options); }
   async forceRelease(name:string,options:Operation = {}): Promise<string|undefined> { return (await this.record.bus.request('POST','/release-force',this.body(name),options)).holder; }
   async holders(options:Operation = {}): Promise<Array<{name:string;holder:string;expires:string}>> { const result = await this.record.bus.request('GET','/holders',undefined,{...options,query:{record:this.record.name}}); return Object.entries(result.locks).map(([name,value]) => ({name,...value as {holder:string;expires:string}})); }
+}
+// A record's crons and one-shot sends, kept and fired by the daemon (docs/09-daemon-api.md#schedules).
+// Give one of expr, in or at; the daemon judges every field and its refusal is a BusError.
+export type ScheduleSpec = {expr?:string;in?:string;at?:string;target:string;body:string;until?:string;max_runs?:number;max_late?:string;disabled?:boolean};
+export type ScheduleOutcome = {at:string;slot:string;outcome:string;detail?:string};
+export type Schedule = {id:string;holder:string;kind:'recurring'|'once';expr?:string;at?:string;target:string;body:string;creator:string;enabled:boolean;
+  disabled?:string;until?:string;max_runs?:number;max_late?:string;next?:string;last?:string;runs:number;sent:number;dropped:number;
+  refused_in_a_row?:number;created:string;changed:string;outcomes?:ScheduleOutcome[]};
+export class RecordSchedules {
+  constructor(private record:RecordHandle) {}
+  async add(spec:ScheduleSpec,options:Operation = {}): Promise<{schedule:Schedule;warning:string}> { return this.record.bus.request('POST','/schedule/add',{record:this.record.name,...spec},options); }
+  async list(options:Operation = {}): Promise<Schedule[]> { return (await this.record.bus.request('GET','/schedule/list',undefined,{...options,query:{record:this.record.name}})).schedules; }
+  get(id:string,options:Operation = {}): Promise<Schedule> { return this.record.bus.request('GET','/schedule',undefined,{...options,query:{id}}); }
+  async edit(id:string,spec:ScheduleSpec,options:Operation = {}): Promise<Schedule> { return (await this.record.bus.request('POST','/schedule/edit',{id,...spec},options)).schedule; }
+  async enable(id:string,options:Operation = {}): Promise<Schedule> { return (await this.record.bus.request('POST','/schedule/enable',{id},options)).schedule; }
+  async disable(id:string,options:Operation = {}): Promise<Schedule> { return (await this.record.bus.request('POST','/schedule/disable',{id},options)).schedule; }
+  // One firing now; a lost answer is UncertainOutcome and is never retried.
+  async run(id:string,options:Operation = {}): Promise<ScheduleOutcome> { return (await this.record.bus.request('POST','/schedule/run',{id},options)).outcome; }
+  async delete(id:string,options:Operation = {}): Promise<boolean> { return (await this.record.bus.request('POST','/schedule/delete',{id},options)).deleted; }
 }

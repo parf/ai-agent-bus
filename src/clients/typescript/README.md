@@ -14,7 +14,7 @@
 ## What you get
 
 - ✅ **Call and serve:** `call()` returns `answer`, `done` or `timeout` (with `acked`); `serve(handler, { workers })` answers with a bounded pool.
-- ✅ **Targets:** `bus.record(name)` selects a record and exposes `kv` and `locks`.
+- ✅ **Targets:** `bus.record(name)` selects a record and exposes `kv`, `locks` and `schedules`.
 - ✅ **Your own name works:** a call to yourself is answered by your own handler.
 - ✅ **Safe secrets:** secret wrappers redact string, JSON and inspect output.
 
@@ -100,6 +100,15 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 - Tests: build `src/clients/fixture` first, then run `tests/check.sh`. It runs strict TypeScript checks, Bun's real-daemon and network suite, builds the package and runs a Node HTTP, Unix and HTTPS integration smoke.
 - `AB_CLIENT_FIXTURE` selects the isolated fixture, and `AB_TYPESCRIPT_CLIENT_PATH` selects scratch sources for mutation runs.
 - The [shared protocol examples](../../testdata/client-conformance/README.md) run in the native TypeScript adapter as well. `AB_CLIENT_CONFORMANCE_CASES` selects another case directory; the default is `src/testdata/client-conformance` in this checkout.
+
+## Schedules
+
+`record.schedules` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`; `bus.schedules()` lists every one on a record you manage. A spec gives one of `expr`, `in` or `at`. Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
+
+```ts
+const { schedule, warning } = await bus.record('#worker@localhost').schedules.add({ expr: '0 3 * * *', target: '#worker@localhost', body: 'nightly report' });
+console.log(schedule.next, warning);
+```
 
 ## Bigfiles
 

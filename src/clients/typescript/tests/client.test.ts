@@ -577,6 +577,43 @@ for(const row of conformanceCases('bigfile') as unknown as StateCase[]) test(`sh
 },30000);
 
 
+test('schedule limits travel, and a stranger reads one as missing',async()=>{
+ const worker=bus('#worker@fixture'),caller=bus('#caller@fixture'),sched=worker.record('#worker@fixture').schedules;
+ const {schedule,warning}=await sched.add({expr:'*/5 * * * *',target:'#caller@fixture',body:'tick',until:'2099-01-01T00:00:00Z',max_runs:3,max_late:'5m',disabled:true});
+ expect([schedule.kind,schedule.enabled,schedule.max_runs,schedule.max_late,schedule.until,warning]).toEqual(['recurring',false,3,'5m0s','2099-01-01T00:00:00Z','']);
+ await expect(caller.record('#worker@fixture').schedules.get(schedule.id)).rejects.toMatchObject({status:404});
+ const edited=await sched.edit(schedule.id,{in:'90s',target:'#caller@fixture',body:'once'});
+ expect([edited.kind,edited.max_runs,edited.enabled]).toEqual(['once',undefined,true]);
+ expect((await worker.schedules()).map(s=>s.id)).toContain(schedule.id);
+});
+
+for(const row of conformanceCases('schedule') as unknown as StateCase[]) test(`shared schedule vector ${row.id}`,async()=>{
+ const owner=bus('owner@fixture'),worker=bus('#worker@fixture'),sched=owner.record('jobs@fixture').schedules;
+ let id='';
+ for(const [i,step] of row.steps.entries()) {
+  const where=`${row.id} step ${i} ${step.op}`,exp=step.expect??{};
+  if(step.op==='inbox') {
+   expect(step.as,where).toBe('worker');
+   const m=(await worker.consume({wait:5000}))!;
+   expect(m,where).toBeTruthy();
+   for(const [k,v] of Object.entries(exp)) expect((m as any)[k],`${where} ${k}`).toBe(v);
+   continue;
+  }
+  const spec={expr:step.expr,in:step.in,at:step.at,target:step.target,body:step.body};
+  const calls:{[key:string]:()=>Promise<any>}={
+   add:async()=>(await sched.add(spec)).schedule, edit:()=>sched.edit(id,spec), get:()=>sched.get(id),
+   enable:()=>sched.enable(id), disable:()=>sched.disable(id), run:()=>sched.run(id), delete:()=>sched.delete(id),
+   list:()=>step.all?owner.schedules():sched.list()};
+  expect(calls[step.op],where).toBeDefined();
+  const r=await refused(where,step,calls[step.op]!); if(r.refused) continue;
+  if(step.op==='add') id=r.result.id;
+  if(step.op==='list') expect((r.result as any[]).map(s=>s.id),where).toEqual(exp.ids.map((w:string)=>w==='$schedule'?id:w));
+  else if(step.op==='run') expect(r.result.outcome,where).toBe(exp.outcome);
+  else if(step.op==='delete') expect(r.result,where).toBe(exp.deleted);
+  else for(const [k,v] of Object.entries(exp)) expect(k==='outcomes'?(r.result.outcomes??[]).map((o:any)=>o.outcome):r.result[k],`${where} ${k}`).toEqual(v);
+ }
+},30000);
+
 // Ordinary native calls over the same event vectors as every other adapter.
 type EventStep = {as: 'owner'|'agent'|'third'|'worker'; op: string; body?: string; name?:string; changes?:Record<string,unknown>; inbox?:string; expect?:Record<string,unknown>; same_answer_as?:number};
 for(const file of ['events','event-subscriptions']) {

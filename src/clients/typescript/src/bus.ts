@@ -2,7 +2,7 @@ import { checkProtocol } from './protocol.js';
 import { randomUUID } from 'node:crypto';
 import { Transport, BusError, type BinaryOptions, type Operation, budget, remaining, duration, noWait, discoverSocket, IdentityMismatch, UnexpectedAnswer, BusTimeout, BusClosed, ReaderInUse, DrainTimeout, abortError } from './transport.js';
 import { Message, bindings, type Envelope } from './message.js';
-import { RecordHandle } from './record.js';
+import { RecordHandle, type Schedule } from './record.js';
 export interface ConnectOptions { addr?: string | null; token?: string; expectName?: string; timeout?: number; fingerprint?: string }
 export interface SendOptions extends Operation { topic?: string; tag?: string; ttl?: string | number; wait?: string | number; reply_to?: { name?: string; topic?: string; tag?: string }; ask?: 'help' | 'help-config' | 'help-secret' | 'help-json' | 'image' | 'mcp' | 'status' }
 export interface CallOptions extends Omit<SendOptions,'tag'|'wait'> { timeout: number; onAck?: (message: Message) => void }
@@ -93,6 +93,8 @@ export class Bus {
     if (typeof echoed !== 'string' || typeof got.may_send !== 'boolean' || echoed !== asked) throw new UnexpectedAnswer('may-send answered for another name or in an unknown shape');
     return got.may_send;
   }
+  /** Every schedule on a record the caller manages (docs/09-daemon-api.md#schedules). */
+  async schedules(options:Operation = {}): Promise<Schedule[]> { return (await this.request('GET','/schedule/list',undefined,options)).schedules; }
   record(name: string): RecordHandle { this.check(); if (!name.trim()) throw new TypeError('record name required'); const normalized = name.trim().toLowerCase(); if (!this.handles.has(normalized)) this.handles.set(normalized,new RecordHandle(this,normalized)); return this.handles.get(normalized)!; }
   register(record: {name:string;[key:string]:unknown}, options: Operation & {createOnly?: boolean} = {}): Promise<any> { return this.request('POST','/register',record,{ ...options,headers:options.createOnly === false ? {} : {'If-None-Match':'*'} }); }
   private payload(to:string,body:string,options:SendOptions): {[key:string]:unknown} {
