@@ -118,6 +118,12 @@ func TestTheShippedAgentsLoad(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(dir, "agent.json"), author, 0600); err != nil {
 			t.Fatal(err)
 		}
+		// The picture agent.json names ships beside it (the package's image).
+		if picture, err := os.ReadFile(filepath.Join(source, entry.Name(), "agent.webp")); err == nil {
+			if err := os.WriteFile(filepath.Join(dir, "agent.webp"), picture, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	list, err := load(packages, t.TempDir())
 	if err != nil {

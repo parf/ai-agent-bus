@@ -18,6 +18,9 @@ func TestStandaloneOnlyPackagesDoNotAppearAsRefusedRunnerAgents(t *testing.T) {
 			t.Fatal(err)
 		}
 		writeFile(t, filepath.Join(bundled, "standalone", name, "agent.json"), string(data))
+		if picture, err := os.ReadFile(filepath.Join("..", "..", "agents", "standalone", name, "agent.webp")); err == nil {
+			writeFile(t, filepath.Join(bundled, "standalone", name, "agent.webp"), string(picture))
+		}
 	}
 	writeFile(t, filepath.Join(bundled, packProtocolName), `{"protocol":1,"protocol_min":1}`)
 	r := &runner{ctx: context.Background(), agents: filepath.Join(root, "shared"), bundled: bundled, host: host, say: io.Discard, served: map[string]*served{}}
