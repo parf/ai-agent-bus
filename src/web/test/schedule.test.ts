@@ -6,13 +6,14 @@ import { makeHandler } from "../server.ts";
 const you = "owner@fixture", A = "#nightly@fixture", Q = "jobs@fixture", P = "news@fixture";
 const at = (h: number) => `2026-11-12T${String(h).padStart(2, "0")}:00:00Z`;
 const base = { target: Q, body: "report", creator: you, runs: 0, sent: 0, dropped: 0, created: at(1), changed: at(1) };
-const schedules = [
-  { ...base, id: "c-ok", holder: A, kind: "recurring", expr: "0 9 * * 1-5", enabled: true, next: at(9), last: at(8), runs: 3, sent: 3 },
-  { ...base, id: "c-failed", holder: Q, kind: "recurring", expr: "*/5 * * * *", enabled: false, disabled: "failure", last: at(7), runs: 5, dropped: 5, refused_in_a_row: 5 },
-  { ...base, id: "c-hand", holder: P, kind: "recurring", expr: "0 0 * * *", enabled: false, disabled: "hand" },
-  { ...base, id: "c-gone", holder: A, kind: "recurring", expr: "0 12 * * *", enabled: true, next: at(12), last: at(6), runs: 1, dropped: 1 },
-  { ...base, id: "o-1", holder: A, kind: "once", at: at(15), enabled: true, next: at(15) },
+const schedules: { id: string; holder: string; enabled: boolean; [field: string]: unknown }[] = [
+  { ...base, id: "c-ok", holder: A, holder_kind: "agent", kind: "recurring", expr: "0 9 * * 1-5", enabled: true, next: at(9), last: at(8), last_outcome: "sent", runs: 3, sent: 3 },
+  { ...base, id: "c-failed", holder: Q, holder_kind: "queue", kind: "recurring", expr: "*/5 * * * *", enabled: false, disabled: "failure", last: at(7), last_outcome: "admission_refused", runs: 5, dropped: 5, refused_in_a_row: 5 },
+  { ...base, id: "c-hand", holder: P, holder_kind: "pubsub", kind: "recurring", expr: "0 0 * * *", enabled: false, disabled: "hand", until: "2026-12-31T00:00:00Z", max_runs: 4, max_late: "5m0s" },
+  { ...base, id: "c-gone", holder: A, holder_kind: "agent", kind: "recurring", expr: "0 12 * * *", enabled: true, next: at(12), last: at(6), last_outcome: "target_gone", runs: 1, dropped: 1 },
+  { ...base, id: "o-1", holder: A, holder_kind: "agent", kind: "once", at: at(15), enabled: true, next: at(15) },
 ];
+const upcoming = [9, 10, 11, 12, 13].map(at);
 const outcomes: Record<string, { at: string; slot: string; outcome: string; detail?: string }[]> = {
   "c-ok": [{ at: at(8), slot: at(8), outcome: "sent" }],
   "c-failed": [{ at: at(7), slot: at(7), outcome: "admission_refused", detail: "not admitted" }],
@@ -52,11 +53,14 @@ beforeAll(() => {
         return Response.json({ schedules: record ? schedules.filter(s => s.holder === record) : schedules });
       case "/schedule": {
         const s = schedules.find(x => x.id === url.searchParams.get("id"));
-        return s ? Response.json({ ...s, outcomes: outcomes[s.id] }) : Response.json({ error: "not found" }, { status: 404 });
+        return s ? Response.json({ ...s, outcomes: outcomes[s.id], upcoming: s.enabled ? upcoming : undefined }) : Response.json({ error: "not found" }, { status: 404 });
       }
       case "/schedule/add":
         if (refuseAdd) return Response.json({ error: refuseAdd.error }, { status: refuseAdd.status });
         return Response.json({ schedule: { ...schedules[0], id: "new-1" }, warning });
+      case "/schedule/edit":
+        if (refuseAdd) return Response.json({ error: refuseAdd.error }, { status: refuseAdd.status });
+        return Response.json({ schedule: schedules[0] });
       case "/schedule/enable": case "/schedule/disable": return Response.json({ schedule: schedules[0] });
       case "/schedule/run": return Response.json({ outcome: { at: at(10), slot: at(10), outcome: "send_refused" } });
       case "/schedule/delete": return Response.json({ id: JSON.parse(body).id, deleted: true });
@@ -103,6 +107,16 @@ test("Crons lists only recurring schedules, each row linked to its holder and it
   const queue = rows(t).find(r => r.includes("c-failed"))!;
   expect(queue).toContain(`href="/queue?name=${encodeURIComponent(Q)}"`);
   expect(ids(await get("/ats"))).toEqual(["o-1"]);
+  // The list carries each last outcome and holder kind: no read per schedule.
+  expect(calls.filter(c => c.path === "/schedule")).toEqual([]);
+});
+
+test("a holder is linked by the kind the daemon names, even one the visitor's listing lacks", async () => {
+  schedules.push({ ...base, id: "c-unlisted", holder: "unlisted@fixture", holder_kind: "queue", kind: "recurring", expr: "0 1 * * *", enabled: true });
+  try {
+    const row = rows(await get("/crons?q=unlisted")).find(r => r.includes("c-unlisted"))!;
+    expect(row).toContain('href="/queue?name=unlisted%40fixture"');
+  } finally { schedules.pop(); }
 });
 
 test("disabled by failure is red, disabled by hand grey", async () => {
@@ -144,13 +158,17 @@ test("a schedule's page shows its message, creator, next fire and outcomes, with
   expect(t).toContain('<pre class="kv-value"><code>report</code></pre>');
   expect(t).toContain(`<dt>Creator</dt><dd><code>${you}</code></dd>`);
   expect(t).toContain("<dt>Refused in a row</dt>");
+  expect(t).not.toContain("<dt>Upcoming</dt>");
   const out = /<section[^>]*id="schedule-outcomes"[\s\S]*?<\/section>/.exec(t)![0];
   expect(out).toContain("admission refused");
   expect(out).toContain("not admitted");
   expect(t).toContain('<button type="submit" class="btn btn-secondary" name="on" value="1">');
   expect(t).toContain('formaction="/schedule-run"');
   expect(t).toMatch(/<details class="inline-confirm"><summary class="btn btn-sm btn-danger">Delete<\/summary>\s*<form method="post" action="\/schedule-delete"/);
-  expect(await get("/schedule?id=c-ok")).toContain('name="on" value="0"');
+  const ok = await get("/schedule?id=c-ok");
+  expect(ok).toContain('name="on" value="0"');
+  const next = /<dt>Upcoming<\/dt><dd><ol class="schedule-upcoming">([\s\S]*?)<\/ol>/.exec(ok)![1]!;
+  expect([...next.matchAll(/<time datetime="([^"]+)" title="\1" data-local>/g)].map(m => m[1])).toEqual(upcoming);
   await get("/schedule?id=missing", 404);
 });
 
@@ -176,6 +194,13 @@ test("Add sends the record, the time form, target and body, and shows the daemon
   expect(`${r.status} ${r.headers.get("location")}`).toBe("303 /schedule?id=new-1");
   expect(r.headers.get("set-cookie")).toContain("ab_flash=schedule-added;");
   expect(lastPost("/schedule/add")).toEqual({ record: A, expr: "0 9 * * *", target: Q, body: "a\nb" });
+  r = await post("/schedule-add", { return: "recurring", how: "expr", record: A, when: "0 9 * * *", target: Q, body: "b", until: "2026-12-31T00:00:00Z", max_runs: "3", max_late: "5m", disabled: "on" });
+  expect(lastPost("/schedule/add")).toEqual({ record: A, expr: "0 9 * * *", target: Q, body: "b", until: "2026-12-31T00:00:00Z", max_runs: 3, max_late: "5m", disabled: true });
+  calls.length = 0;
+  r = await post("/schedule-add", { return: "recurring", how: "expr", record: A, when: "0 9 * * *", target: Q, body: "b", max_runs: "two" });
+  expect(r.status).toBe(400);
+  expect(await r.text()).toContain("Max runs is a whole number above 0.");
+  expect(lastPost("/schedule/add")).toBeUndefined();
   warning = "near the cap";
   r = await post("/schedule-add", { return: "once", how: "at", record: A, when: "14:30", target: Q, body: "x" });
   expect(lastPost("/schedule/add")).toEqual({ record: A, at: "14:30", target: Q, body: "x" });
@@ -195,9 +220,11 @@ test("the Schedules card on a record page counts crons, ats and problems; a refu
   expect(card).toContain("<strong>2</strong> crons");
   expect(card).toContain("<strong>1</strong> at");
   expect(card).toContain(`href="/crons?record=${encodeURIComponent(A)}#schedule-add"`);
-  expect(card).not.toContain("with problems");
+  // c-gone's last outcome was not a send.
+  expect(card).toMatch(/<span class="count tone-bad"[^>]*>1 with problems<\/span>/);
+  expect(card).not.toContain("disabled by failure");
   const queue = /<section[^>]*id="schedules"[\s\S]*?<\/section>/.exec(await get(`/queue?name=${encodeURIComponent(Q)}`))?.[0] ?? "";
-  expect(queue).toContain('<span class="count tone-bad" title="Disabled by failure, or refused on its latest firing">1 with problems</span>');
+  expect(queue).toMatch(/<span class="count tone-bad"[^>]*>1 with problems<\/span>/);
   expect(queue).toContain('<p class="warn">1 disabled by failure.</p>');
   expect(await get(`/pubsub/channel?name=${encodeURIComponent(P)}`)).not.toContain('id="schedules"');
 });
@@ -213,4 +240,25 @@ test("the KV page filters by the record's tags, with counts per tag", async () =
   expect(stores(await get("/kv?tag=ops"))).toEqual([A, Q].sort());
   const narrowed = /<nav class="tabs" aria-label="Record tags">[\s\S]*?<\/nav>/.exec(await get("/kv?kind=agent"))![0];
   expect(narrowed).toContain('href="/kv?kind=agent&amp;tag=ops" class="tab ">ops<span class="count">1</span>');
+});
+
+test("Edit starts from the schedule as it stands and posts every field to the daemon, the refusal kept on the form", async () => {
+  const t = await get("/schedule?id=c-hand");
+  const form = /<form id="form-schedule-edit"[\s\S]*?<\/form>/.exec(t)![0];
+  expect(form).toContain('value="0 0 * * *"');
+  expect(form).toContain('value="2026-12-31T00:00:00Z"');
+  expect(form).toContain('value="4"');
+  expect(form).toContain('value="5m0s"');
+  expect(form).toMatch(/name="disabled" value="on" checked/);
+  expect(form).toMatch(/<option value="expr" selected>/);
+  let r = await post("/schedule-edit", { id: "c-hand", kind: "recurring", how: "in", when: "2h", target: Q, body: "x\r\ny", until: "", max_runs: "", max_late: "" });
+  expect(`${r.status} ${r.headers.get("location")}`).toBe("303 /schedule?id=c-hand");
+  expect(r.headers.get("set-cookie")).toContain("ab_flash=schedule-saved");
+  expect(lastPost("/schedule/edit")).toEqual({ id: "c-hand", in: "2h", target: Q, body: "x\ny" });
+  refuseAdd = { status: 400, error: "owner@fixture may not send to elsewhere@fixture" };
+  r = await post("/schedule-edit", { id: "c-hand", kind: "recurring", how: "expr", when: "0 1 * * *", target: "elsewhere@fixture", body: "kept" });
+  expect(r.status).toBe(400);
+  const page = await r.text();
+  expect(page).toContain("owner@fixture may not send to elsewhere@fixture");
+  expect(/<form id="form-schedule-edit"[\s\S]*?<\/form>/.exec(page)![0]).toContain('value="elsewhere@fixture"');
 });

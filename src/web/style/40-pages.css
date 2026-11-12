@@ -255,3 +255,4 @@ td.num .message-counts .badge { display: inline-flex; margin: 0; }
 tr.schedule-failed td { background: var(--bad-soft); }
 .count.tone-bad { background: var(--bad-soft); color: var(--bad); }
 .schedule-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.schedule-upcoming { margin: 0; padding-left: 1.2rem; }

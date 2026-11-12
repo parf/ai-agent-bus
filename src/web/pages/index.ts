@@ -63,6 +63,7 @@ route("GET", "/crons", sc.crons);
 route("GET", "/ats", sc.ats);
 route("GET", "/schedule", sc.schedule);
 route("POST", "/schedule-add", sc.postAdd);
+route("POST", "/schedule-edit", sc.postEdit);
 route("POST", "/schedule-switch", sc.postSwitch);
 route("POST", "/schedule-run", sc.postRun);
 route("POST", "/schedule-delete", sc.postDelete);

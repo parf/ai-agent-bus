@@ -1312,9 +1312,27 @@ describe("schedules", () => {
     const detail = await (await req(at, { cookie: s })).text();
     expect(detail).toContain('<pre class="kv-value"><code>nightly report</code></pre>');
     expect(detail).toContain("<dt>Creator</dt><dd><code>owner@test</code></dd>");
+    expect(row).toContain('<td data-label="Last outcome"><span class="muted">—</span></td>');
+    const next = /<dt>Upcoming<\/dt><dd><ol class="schedule-upcoming">([\s\S]*?)<\/ol>/.exec(detail)![1]!;
+    expect([...next.matchAll(/<time datetime="(\d{4}-\d\d-\d\dT02:30:00Z)"/g)]).toHaveLength(5);
+    // Edit through the face: the daemon takes every field; bob, a Maintainer, becomes its creator.
+    const edited = await req("/schedule-edit", { cookie: b, form: { id, kind: "recurring", how: "expr", when: "45 4 * * *", target: "cronq@test", body: "edited", max_runs: "9", max_late: "5m" } });
+    expect(`${edited.status} ${edited.headers.get("location")}`).toBe(`303 ${at}`);
+    const after = await (await req(at, { cookie: s })).text();
+    expect(after).toContain("<code>45 4 * * *</code>");
+    expect(after).toContain("<dt>Creator</dt><dd><code>bob</code></dd>");
+    expect(after).toContain("<dt>Max runs</dt><dd>9</dd>");
+    // A target bob may not send to is the daemon's refusal, kept on the form.
+    const refused = await req("/schedule-edit", { cookie: b, form: { id, kind: "recurring", how: "expr", when: "45 4 * * *", target: "#helper@test", body: "edited" } });
+    expect(refused.status).toBe(403);
+    const form = /<form id="form-schedule-edit"[\s\S]*?<\/form>/.exec(await refused.text())![0];
+    expect(form).toContain('value="#helper@test"');
+    expect(await (await req(at, { cookie: s })).text()).toContain("<dt>Target</dt><dd><code>cronq@test</code></dd>");
     const run = await req("/schedule-run", { cookie: s, form: { id, kind: "recurring" } });
     expect(run.headers.get("set-cookie")).toContain("ab_flash=schedule-run-sent");
     expect(await (await req(at, { cookie: s })).text()).toMatch(/id="schedule-outcomes"[\s\S]*<span class="pill tone-ok">sent<\/span>/);
+    const fired = [...(await (await req("/crons?q=cronq", { cookie: s })).text()).matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)].map(m => m[0]).find(r => r.includes(`/schedule?id=${id}`))!;
+    expect(fired).toContain('<td data-label="Last outcome"><span class="pill tone-ok">sent</span></td>');
     expect((await req("/schedule-switch", { cookie: s, form: { id, kind: "recurring", on: "0" } })).status).toBe(303);
     expect((await (await req("/crons?state=hand", { cookie: s })).text())).toContain(`/schedule?id=${id}`);
     const card = /<section[^>]*id="schedules"[\s\S]*?<\/section>/.exec(await (await req("/queue?name=cronq@test", { cookie: s })).text())?.[0] ?? "";

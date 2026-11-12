@@ -132,7 +132,7 @@ export const FLASH: Record<string, string> = {
   "email-saved": "Email saved.",
   "lock-released": "Lock released.", "kv-saved": "Value saved.", "kv-deleted": "Value deleted.", "bigfile-deleted": "Bigfile deleted.", "lock-force-released": "Lock released by force; the audit log records it.",
   "schedule-added": "Schedule added.", "schedule-added-near-cap": "Schedule added; its holder is at 80 % of a schedule cap.",
-  "schedule-enabled": "Schedule enabled; it now sends on your behalf.", "schedule-disabled": "Schedule disabled.", "schedule-deleted": "Schedule deleted.",
+  "schedule-enabled": "Schedule enabled; it now sends on your behalf.", "schedule-disabled": "Schedule disabled.", "schedule-saved": "Schedule saved; it now sends on your behalf.", "schedule-deleted": "Schedule deleted.",
   "schedule-run-sent": "Fired now: sent.", "schedule-run-admission_refused": "Fired now: the target refused it.",
   "schedule-run-target_gone": "Fired now: the target is gone.", "schedule-run-send_refused": "Fired now: the send was refused.",
   "schedule-run-send_unknown": "Fired now: whether it was sent is unknown.", "schedule-run-late": "Fired now: skipped as too late.",

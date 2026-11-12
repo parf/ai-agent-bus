@@ -10,10 +10,10 @@ import { number, validTime } from "../format.ts";
 export type ScheduleKind = "recurring" | "once";
 export type Outcome = { at: string; slot: string; outcome: string; detail?: string };
 export type Schedule = {
-  id: string; holder: string; kind: ScheduleKind; expr?: string; at?: string; target: string; body: string;
+  id: string; holder: string; holder_kind: string; kind: ScheduleKind; expr?: string; at?: string; target: string; body: string;
   creator: string; enabled: boolean; disabled?: string; until?: string; max_runs?: number; max_late?: string;
-  next?: string; last?: string; runs: number; sent: number; dropped: number; refused_in_a_row?: number;
-  created: string; changed: string; outcomes?: Outcome[];
+  next?: string; last?: string; last_outcome?: string; runs: number; sent: number; dropped: number; refused_in_a_row?: number;
+  created: string; changed: string; outcomes?: Outcome[]; upcoming?: string[];
 };
 
 /** A schedule's state as the pages filter it: enabled, or why it is not. */
@@ -25,8 +25,8 @@ export const STATE_WORD: Record<ScheduleState, string> = {
 };
 
 /** Disabled by failure, refused on its latest firings, or a last outcome that was not a send. */
-export const hasProblem = (s: Schedule, last?: Outcome) =>
-  stateOf(s) === "failure" || (s.refused_in_a_row ?? 0) > 0 || (!!last && last.outcome !== "sent");
+export const hasProblem = (s: Schedule) =>
+  stateOf(s) === "failure" || (s.refused_in_a_row ?? 0) > 0 || (!!s.last_outcome && s.last_outcome !== "sent");
 
 /** Disabled by failure is red, disabled by hand or ended grey. */
 export const StatePill = ({ s }: { s: Schedule }) => {
@@ -34,8 +34,8 @@ export const StatePill = ({ s }: { s: Schedule }) => {
   return <Pill tone={st === "enabled" ? "ok" : st === "failure" ? "bad" : "muted"} dot>{STATE_WORD[st]}</Pill>;
 };
 
-export const OutcomePill = ({ o }: { o?: Outcome }) =>
-  !o ? <Muted>—</Muted> : <Pill tone={o.outcome === "sent" ? "ok" : "bad"}>{o.outcome.replace(/_/g, " ")}</Pill>;
+export const OutcomePill = ({ outcome }: { outcome?: string }) =>
+  !outcome ? <Muted>—</Muted> : <Pill tone={outcome === "sent" ? "ok" : "bad"}>{outcome.replace(/_/g, " ")}</Pill>;
 
 /** An instant in the viewer's own zone once the page script runs, UTC until then; the raw UTC is its title. */
 export const When = ({ iso }: { iso?: string }) => {
@@ -58,7 +58,7 @@ export const ScheduleCard = ({ record, list }: { record: string; list: Schedule[
   const problems = list.filter(s => hasProblem(s)).length;
   const q = (kind: ScheduleKind) => `${listHref(kind)}?q=${encodeURIComponent(record)}`;
   return <Card title="Schedules" icon="calendar-clock" id="schedules" actions={<>
-    {problems ? <span class="count tone-bad" title="Disabled by failure, or refused on its latest firing">{number(problems)} with problems</span> : null}
+    {problems ? <span class="count tone-bad" title="Disabled by failure, refused on its latest firings, or a last outcome that was not a send">{number(problems)} with problems</span> : null}
     <a class="btn btn-secondary btn-sm" href={`/crons?${new URLSearchParams({ record })}#schedule-add`}>Add</a></>}>
     {list.length ? <p class="kv-counts">
       {crons ? <a href={q("recurring")}><strong>{number(crons)}</strong> {crons === 1 ? "cron" : "crons"}</a> : null}
