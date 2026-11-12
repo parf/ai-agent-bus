@@ -192,11 +192,11 @@ func (s subBus) Kind(target string) (string, string, error) {
 // Send is one non-waiting send from #bus: a full, revoked or unreachable
 // target is a refusal, anything else an unknown outcome. It returns at once if
 // the attempt's time is already gone and delivers nothing after returning.
-func (s subBus) Send(ctx context.Context, target, body, topic, tag string) error {
+func (s subBus) Send(ctx context.Context, who, target, body, topic, tag string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	_, err := s.b.Send(protocol.Envelope{From: DaemonAgent, To: target, Topic: topic, Tag: tag, Body: body})
+	_, err := s.b.SendFor(who, protocol.Envelope{From: DaemonAgent, To: target, Topic: topic, Tag: tag, Body: body})
 	switch {
 	case err == nil:
 		return nil
@@ -336,9 +336,8 @@ func (b *Bus) SubAdd(caller, source, target, level, filter string) (subscription
 	return row, nil
 }
 
-// subTargetTakesBus refuses, when a subscription is made, a target that can never receive its copies:
-// #bus itself, and any target whose Allow does not admit #bus; a Personal agent may list #bus (Q328).
-// A target that does not exist, or is the wrong kind, is left to the engine's own answer.
+// subTargetTakesBus refuses #bus itself as a subscription target. Every other
+// target admits #bus; the author's own reach decides each copy (RD186).
 func (b *Bus) subTargetTakesBus(caller, target string) error {
 	name, err := canon(target)
 	if err != nil {
@@ -346,14 +345,6 @@ func (b *Bus) subTargetTakesBus(caller, target string) error {
 	}
 	if name == DaemonAgent {
 		return eventlog.Refusal{Code: "invalid_target", Text: "#bus cannot be a subscription target."}
-	}
-	// Do not disclose target admission to a caller who cannot reach it.
-	// The engine keeps the same answer as for an absent target.
-	if err := b.MaySend(caller, name); err != nil {
-		return nil
-	}
-	if err := b.MaySend(DaemonAgent, name); errors.Is(err, ErrNotAllow) {
-		return eventlog.Refusal{Code: "invalid_target", Text: "The target does not admit #bus: list #bus in its Allow."}
 	}
 	return nil
 }

@@ -1328,6 +1328,19 @@ func (b *Bus) answerTarget(to string) (protocol.Record, error) {
 	return rec, nil
 }
 
+// behalfTarget is sendTarget for #bus sending on a principal's behalf: #bus
+// itself is always admitted, and the principal must be active and may send
+// to the target. Caller holds b.mu.
+func (b *Bus) behalfTarget(principal, to string) (protocol.Record, error) {
+	if err := b.acting(principal); err != nil {
+		return protocol.Record{}, fmt.Errorf("%s is not active: %w", principal, ErrNotAllow)
+	}
+	if _, err := b.sendTarget(principal, to); err != nil {
+		return protocol.Record{}, err
+	}
+	return b.answerTarget(to)
+}
+
 // MaySend checks the authenticated caller's target permission without sending.
 // It is not a reservation of queue capacity or validation of a message body.
 func (b *Bus) MaySend(from, to string) error {
@@ -1348,7 +1361,24 @@ func (b *Bus) MaySend(from, to string) error {
 // Send delivers one message to one inbox. A waiting consume takes it
 // directly; otherwise it queues.
 func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
-	return b.send(e, "")
+	return b.send(e, "", "")
+}
+
+// SendFor delivers a message #bus sends on a principal's behalf: a
+// subscription copy, a scheduled message, an answer redirected by reply-to.
+// Every target admits #bus, so its Allow is not asked for #bus; the principal
+// must be active and may send to the target itself, checked in the same lock
+// hold as the delivery, so #bus never carries anything to a target the
+// principal could not reach (docs/02-access.md#answers).
+func (b *Bus) SendFor(principal string, e protocol.Envelope) (protocol.Envelope, error) {
+	who, err := canon(principal)
+	if err != nil || who == DaemonAgent {
+		return protocol.Envelope{}, fmt.Errorf("%w: #bus sends only on behalf of a named principal", ErrNotAllow)
+	}
+	if from, err := canon(e.From); err != nil || from != DaemonAgent {
+		return protocol.Envelope{}, fmt.Errorf("%w: only #bus sends on a principal's behalf", ErrNotAllow)
+	}
+	return b.send(e, "", who)
 }
 
 // AnswerAsker sends #bus's answer to an ask that #bus consumed from its own
@@ -1376,12 +1406,17 @@ func (b *Bus) AnswerAsker(ask protocol.Envelope, body string) (protocol.Envelope
 	if name, err := canon(back.Name); err == nil && name == asker {
 		answering = asker
 	}
-	return b.send(protocol.Envelope{From: DaemonAgent, To: back.Name, Topic: back.Topic, Tag: back.Tag, Re: ask.ID, Body: body}, answering)
+	answer := protocol.Envelope{From: DaemonAgent, To: back.Name, Topic: back.Topic, Tag: back.Tag, Re: ask.ID, Body: body}
+	if answering != "" {
+		return b.send(answer, answering, "")
+	}
+	// Redirected elsewhere: the asker's own reach decides (RD186).
+	return b.send(answer, "", asker)
 }
 
 // send is Send; answering names the asker that #bus answers through
 // AnswerAsker, and is empty for every other send.
-func (b *Bus) send(e protocol.Envelope, answering string) (protocol.Envelope, error) {
+func (b *Bus) send(e protocol.Envelope, answering, onBehalf string) (protocol.Envelope, error) {
 	to, err := canon(e.To)
 	if err != nil {
 		return protocol.Envelope{}, err
@@ -1393,14 +1428,20 @@ func (b *Bus) send(e protocol.Envelope, answering string) (protocol.Envelope, er
 	b.mu.Lock()
 	defer b.unlock()
 	var rec protocol.Record
-	if answering != "" && from == DaemonAgent && to == answering {
+	switch {
+	case answering != "" && from == DaemonAgent && to == answering:
 		rec, err = b.answerTarget(to)
-	} else {
+	case onBehalf != "" && from == DaemonAgent:
+		rec, err = b.behalfTarget(onBehalf, to)
+	default:
 		rec, err = b.sendTarget(from, to)
 	}
 	if err != nil {
 		// An answer is a send, so the asker's Allow governs it; say so, since the
 		// answerer did nothing but answer (docs/02-access.md#answers).
+		if onBehalf != "" && e.Re != "" && errors.Is(err, ErrNotAllow) {
+			return protocol.Envelope{}, fmt.Errorf("#bus may not answer %s on %s's behalf: a redirected answer goes only where the asker may send: %w", to, onBehalf, ErrNotAllow)
+		}
 		if e.Re != "" && errors.Is(err, ErrNotAllow) {
 			return protocol.Envelope{}, fmt.Errorf("%s may not answer %s: an answer needs the receiver's Allow to name the answerer; only #bus answers any asker, and only on the asker's own route: %w", from, to, ErrNotAllow)
 		}

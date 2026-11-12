@@ -310,7 +310,7 @@ func TestDaemonAnswersAPrivateAskerOnItsOwnRouteOnly(t *testing.T) {
 		}
 		logs.mu.Unlock()
 	}
-	if !strings.Contains(refused, "only #bus answers any asker, and only on the asker's own route") {
+	if !strings.Contains(refused, "a redirected answer goes only where the asker may send") {
 		t.Fatalf("the third-party refusal does not name the rule: %s", refused)
 	}
 	if r, _ := b.Lookup("admin@h", "#third@h"); r.Queued != 0 {

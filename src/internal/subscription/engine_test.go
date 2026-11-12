@@ -118,7 +118,7 @@ func (b *vectorBus) Kind(target string) (string, string, error) {
 	return kind, name, nil
 }
 
-func (b *vectorBus) Send(_ context.Context, target, body, topic, tag string) error {
+func (b *vectorBus) Send(_ context.Context, _, target, body, topic, tag string) error {
 	b.attempts++
 	b.sent = append(b.sent, sendTuple{target, body, topic, tag})
 	switch b.step["send"] {
@@ -367,7 +367,7 @@ type holdBus struct {
 	delivered []string
 }
 
-func (b *holdBus) Send(ctx context.Context, target, body, topic, tag string) error {
+func (b *holdBus) Send(ctx context.Context, who, target, body, topic, tag string) error {
 	b.started <- target
 	<-ctx.Done()
 	return ctx.Err() // returns when the context ends and delivers nothing
@@ -539,7 +539,7 @@ type deleteBus struct {
 	id    string
 }
 
-func (b *deleteBus) Send(ctx context.Context, target, body, topic, tag string) error {
+func (b *deleteBus) Send(ctx context.Context, who, target, body, topic, tag string) error {
 	delete(b.store.rows, b.id)
 	return nil
 }

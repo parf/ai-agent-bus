@@ -146,10 +146,11 @@ type Bus interface {
 	// ErrNoSuchTarget when there is none, any other error when it cannot be
 	// told.
 	Kind(target string) (kind, name string, err error)
-	// Send puts one copy in the target's inbox. It returns promptly when ctx
+	// Send puts one copy in the target's inbox on who's behalf: who must still
+	// reach target when it is delivered. It returns promptly when ctx
 	// ends and never delivers after it has returned. ErrRefused is a refusal
 	// (full, revoked); any other error is an unknown outcome.
-	Send(ctx context.Context, target, body, topic, tag string) error
+	Send(ctx context.Context, who, target, body, topic, tag string) error
 }
 
 // ErrRefused is Bus.Send's answer for a refused copy.
@@ -779,7 +780,7 @@ func (e *Engine) send(rows []Row, body, topic, tag string, end time.Time, out ma
 			budget = AttemptBudget
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), budget)
-		err := e.bus.Send(ctx, row.Target, body, topic, tag)
+		err := e.bus.Send(ctx, row.CreatedBy, row.Target, body, topic, tag)
 		cancel()
 		switch {
 		case err == nil:

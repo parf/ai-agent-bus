@@ -17,7 +17,7 @@ import (
 )
 
 // subFixture: #a@h is the source (Owner alice, Maintainer maint), q@h and
-// q2@h are open queues, shut@h admits only alice (not #bus). With a store, the
+// q2@h are open queues, shut@h admits alice and maint. With a store, the
 // subscriptions persist.
 func subFixture(t *testing.T, st ports.Store) *Bus {
 	t.Helper()
@@ -36,7 +36,7 @@ func subFixture(t *testing.T, st ports.Store) *Bus {
 	if _, err := b.Register(protocol.Record{Name: "#a@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}, Maintainers: protocol.MaintainerList{"maint@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	for name, allow := range map[string][]string{"q@h": {"*"}, "q2@h": {"*"}, "shut@h": {"alice@h", "maint@h", DaemonAgent}} {
+	for name, allow := range map[string][]string{"q@h": {"*"}, "q2@h": {"*"}, "shut@h": {"alice@h", "maint@h"}} {
 		if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindQueue, Owner: "alice@h", Allow: allow}); err != nil {
 			t.Fatal(err)
 		}
@@ -239,12 +239,12 @@ func TestACopyIsOneMessageFromBusToEachMatchingTarget(t *testing.T) {
 // entry is attempted.
 func TestARefusedCopyIsDroppedCountedAndTheNextEntryIsAttempted(t *testing.T) {
 	b := subFixture(t, nil)
-	// shut@h admitted #bus when the subscription was made and stops admitting it: the copy is refused.
-	row, err := b.SubAdd("alice@h", "#a@h", "shut@h", "", "")
+	// shut@h admitted the author when the subscription was made and stops admitting him: the copy is refused.
+	row, err := b.SubAdd("maint@h", "#a@h", "shut@h", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "shut@h", Allow: ptr([]string{"alice@h", "maint@h"})}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "shut@h", Allow: ptr([]string{"alice@h"})}); err != nil {
 		t.Fatal(err)
 	}
 	r := subSource(b)
@@ -255,7 +255,7 @@ func TestARefusedCopyIsDroppedCountedAndTheNextEntryIsAttempted(t *testing.T) {
 	if n := len(drain(t, b, "shut@h")); n != 0 {
 		t.Fatalf("a refused copy was delivered: %d", n)
 	}
-	// The target now admits #bus: the next entry goes.
+	// The target admits the author again: the next entry goes.
 	if _, err := b.Manage("alice@h", Management{Name: "shut@h", Allow: ptr([]string{"*"})}); err != nil {
 		t.Fatal(err)
 	}
@@ -576,10 +576,10 @@ func subCount(st *memory.State, source uint32) int {
 	return len(rows)
 }
 
-// A target that can never receive the copies is refused when the subscription is made, with the
-// protocol's own code for a bad target and the reason in the text: #bus itself, and a target whose
-// Allow does not admit #bus, Personal or not. A Personal agent that lists #bus is a target (Q328).
-func TestSubAddRefusesATargetThatCannotTakeCopiesFromTheBus(t *testing.T) {
+// Only #bus itself is refused as a subscription target. Every other target admits #bus, so a
+// target whose Allow does not name it is accepted, and its copy is delivered on the author's
+// own reach (RD186).
+func TestSubAddRefusesOnlyBusAndCopiesReachATargetThatDoesNotNameBus(t *testing.T) {
 	b := subFixture(t, nil)
 	if _, err := b.Register(protocol.Record{Name: "#alice/oncall@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"personal"}, Allow: []string{"@owner"}}); err != nil {
 		t.Fatal(err)
@@ -587,31 +587,23 @@ func TestSubAddRefusesATargetThatCannotTakeCopiesFromTheBus(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Name: "#nobus@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"alice@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "#opens@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{DaemonAgent}}); err != nil {
-		t.Fatal(err)
+	_, err := b.SubAdd("alice@h", "#a@h", DaemonAgent, "", "")
+	if eventlog.Code(err) != "invalid_target" || !strings.Contains(eventlog.Reason(err), "#bus cannot be a subscription target") {
+		t.Fatalf("#bus as a target: %v", err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "#alice/pager@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"personal"}, Allow: []string{"@owner", DaemonAgent}}); err != nil {
-		t.Fatalf("a Personal agent may list #bus in its Allow (Q328): %v", err)
-	}
-	for _, tc := range []struct{ target, why string }{
-		{DaemonAgent, "#bus cannot be a subscription target"},
-		{"#alice/oncall@h", "does not admit #bus"},
-		{"#nobus@h", "does not admit #bus"},
-	} {
-		_, err := b.SubAdd("alice@h", "#a@h", tc.target, "", "")
-		if eventlog.Code(err) != "invalid_target" {
-			t.Errorf("target %s: code %q, want the existing invalid_target", tc.target, eventlog.Code(err))
-		}
-		if !strings.Contains(eventlog.Reason(err), tc.why) {
-			t.Errorf("target %s: reason %q does not say %q", tc.target, eventlog.Reason(err), tc.why)
-		}
-	}
-	if rows, err := b.SubList("alice@h", "#a@h"); err != nil || len(rows) != 0 {
-		t.Fatalf("a refused target left a subscription: %v %v", rows, err)
-	}
-	for _, target := range []string{"#opens@h", "#alice/pager@h"} {
+	for _, target := range []string{"#alice/oncall@h", "#nobus@h"} {
 		if _, err := b.SubAdd("alice@h", "#a@h", target, "", ""); err != nil {
-			t.Fatalf("target %s admits #bus and was refused: %v", target, err)
+			t.Fatalf("target %s does not name #bus and was refused: %v", target, err)
+		}
+	}
+	res := b.deliverEntry(subSource(b), subEntry(1, "alert", "x"), time.Now().Add(time.Minute))
+	if res.Sent != 2 || res.Dropped != 0 {
+		t.Fatalf("copies to targets that do not name #bus: %+v, want 2 sent", res)
+	}
+	for _, target := range []string{"#alice/oncall@h", "#nobus@h"} {
+		got := drain(t, b, target)
+		if len(got) != 1 || got[0].From != DaemonAgent {
+			t.Fatalf("%s got %d copies (%+v), want one from #bus", target, len(got), got)
 		}
 	}
 	if _, err := b.SubAdd("alice@h", "#a@h", "nobody@h", "", ""); eventlog.Code(err) != "admission_refused" {

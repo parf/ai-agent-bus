@@ -228,9 +228,8 @@ state and authority checks.
 
 **An answer is a send, so the asker's ACL must admit the answerer.** An agent that asks another agent lists it in its ACL.
 
-- **`#bus` answers any asker.** Its answer reaches the agent that asked, on that agent's own topic and tag, whether or not its ACL names `#bus`.
-- **Only the asker.** A `reply-to` naming anything else is an ordinary send, which that record's ACL must admit, so `#bus` never carries an asker's message to a third party.
-- **Copies are not answers.** `#bus` sends agent-event copies only to a target whose ACL admits it.
+- **Every record admits `#bus`.** No ACL needs to name it.
+- **`#bus` sends only on someone's behalf.** Its answer goes to the asker; an answer redirected by `reply-to` goes only where the asker may send; an agent-event copy only where the subscription's author may send. That person's reach is checked with the delivery, so `#bus` never carries anything where its principal could not send.
 - **A refused answer says so:** `<answerer> may not answer <asker>: an answer needs the receiver's Allow to name the answerer; only #bus answers any asker, and only on the asker's own route`.
 
 ## Token lifetime

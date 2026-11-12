@@ -257,11 +257,14 @@ func TestASubscriptionTextCallSplitsEveryWordOnTheSameWhiteSpace(t *testing.T) {
 func TestAWriteAnswersWithItsRealDeliveries(t *testing.T) {
 	a := newSubAPI(t)
 	a.mustAsk("admin@h", "sub add q@h #a@h alert /boom/i")
-	if _, err := a.b.Register(protocol.Record{Name: "shut@h", Kind: protocol.KindQueue, Owner: "admin@h", Allow: []string{"admin@h", "#bus"}}); err != nil {
+	if _, err := a.b.SetUser("admin@h", protocol.User{Name: "bob@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.b.Register(protocol.Record{Name: "shut@h", Kind: protocol.KindQueue, Owner: "bob@h", Allow: []string{"admin@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	a.mustAsk("admin@h", "sub add shut@h #a@h alert")
-	if _, err := a.b.Manage("admin@h", core.Management{Name: "shut@h", Allow: &[]string{"admin@h"}}); err != nil { // it stops admitting #bus after the subscription
+	if _, err := a.b.Manage("bob@h", core.Management{Name: "shut@h", Allow: &[]string{"bob@h"}}); err != nil { // it stops admitting the author after the subscription
 		t.Fatal(err)
 	}
 	var out struct {
@@ -416,14 +419,17 @@ func TestTheMethodListOffersTheSubscriptionCallsOnlyToManagers(t *testing.T) {
 	}
 }
 
-// The refusal of a target that cannot take #bus's copies uses the existing invalid_target code on the
+// #bus is the only refused target, with the existing invalid_target code on the
 // wire; only its text says why.
 func TestSubAddTargetThatCannotTakeBusCopiesIsInvalidTargetWithItsReason(t *testing.T) {
 	a := newSubAPI(t)
 	if _, err := a.b.Register(protocol.Record{Name: "#nobus@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"admin@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	for body, why := range map[string]string{"sub add #bus #a@h": "#bus cannot be a subscription target", "sub add #nobus@h #a@h": "does not admit #bus"} {
+	if out := a.mustAsk("admin@h", "sub add #nobus@h #a@h"); strings.Contains(out, "error") {
+		t.Fatalf("a target that does not name #bus was refused: %s", out)
+	}
+	for body, why := range map[string]string{"sub add #bus #a@h": "#bus cannot be a subscription target"} {
 		var out struct{ Error struct{ Code, Text string } }
 		if err := json.Unmarshal([]byte(a.mustAsk("admin@h", body)), &out); err != nil {
 			t.Fatal(err)

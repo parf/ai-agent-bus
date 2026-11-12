@@ -139,3 +139,63 @@ func TestOnlyBusAnswersAnyAskerAndOnlyAnAskItTook(t *testing.T) {
 		t.Fatalf("the asker did not get #bus's answer: %+v %v", got, err)
 	}
 }
+
+// A #bus answer redirected by reply-to goes wherever the asker may send, whether
+// or not that record names #bus, and nowhere the asker may not send (RD186).
+func TestBusRedirectedAnswerGoesOnlyWhereTheAskerMaySend(t *testing.T) {
+	b := ownerFixture(t)
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Register(protocol.Record{Name: "#asker@h", Kind: protocol.KindAgent, Owner: "owner@h"}); err != nil {
+		t.Fatal(err)
+	}
+	for name, allow := range map[string][]string{"open@h": {"#asker@h"}, "closed@h": {"owner@h"}} {
+		if _, err := b.Register(protocol.Record{Name: name, Kind: protocol.KindQueue, Owner: "owner@h", Allow: allow}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ask := func(to string) protocol.Envelope {
+		t.Helper()
+		e, err := b.Send(protocol.Envelope{From: "#asker@h", To: DaemonAgent, Body: "status", ReplyTo: &protocol.ReplyTo{Name: to}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return e
+	}
+	sent := ask("open@h")
+	if _, err := b.AnswerAsker(sent, "ok"); err != nil {
+		t.Fatalf("a redirected answer to a record the asker may reach, not naming #bus: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if got, err := b.Consume(ctx, "open@h", "", "", false, false); err != nil || got.Re != sent.ID || got.From != DaemonAgent {
+		t.Fatalf("open@h did not get the answer: %+v %v", got, err)
+	}
+	if _, err := b.AnswerAsker(ask("closed@h"), "ok"); !errors.Is(err, ErrNotAllow) || !strings.Contains(err.Error(), "only where the asker may send") {
+		t.Fatalf("a redirected answer to a record the asker may not reach: %v", err)
+	}
+	if r, _ := b.Lookup("owner@h", "closed@h"); r.Queued != 0 {
+		t.Fatalf("a refused redirected answer was delivered: %d", r.Queued)
+	}
+}
+
+// SendFor refuses a principal that is #bus itself or a sender other than #bus.
+func TestSendForNeedsANamedPrincipalAndBusAsSender(t *testing.T) {
+	b := ownerFixture(t)
+	if err := b.EstablishDaemonAgent("node.example"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Register(protocol.Record{Name: "q@h", Kind: protocol.KindQueue, Owner: "owner@h", Allow: []string{"*"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.SendFor(DaemonAgent, protocol.Envelope{From: DaemonAgent, To: "q@h", Body: "x"}); !errors.Is(err, ErrNotAllow) {
+		t.Fatalf("#bus on its own behalf: %v", err)
+	}
+	if _, err := b.SendFor("owner@h", protocol.Envelope{From: "owner@h", To: "q@h", Body: "x"}); !errors.Is(err, ErrNotAllow) {
+		t.Fatalf("a sender other than #bus: %v", err)
+	}
+	if _, err := b.SendFor("owner@h", protocol.Envelope{From: DaemonAgent, To: "q@h", Body: "x"}); err != nil {
+		t.Fatalf("#bus on the owner's behalf: %v", err)
+	}
+}

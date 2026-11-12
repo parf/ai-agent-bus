@@ -47,10 +47,10 @@ An alert is on disk within about 100 ms; a clean stop flushes all.
 - The runner forwards masked stderr and lifecycle observations using the agent's own credential. Alerts go first in their own lane; forwarding never blocks the child. A full or unavailable event path drops and counts the event without retrying. An agent can write a misleading line about itself, seen only by its own Owner and Maintainers; no line proves who produced it.
 - `write <agent> notice|warning|alert <text>` writes the agent's own log; the daemon Owner may also write. In text, `<text>` is everything after the one white-space character that follows the level, leading spaces included, then cleaned by the [log model](eventlog.md#log-model) rule, so a CRLF line's newline is removed. A write is named exactly, by the lower-case word `write` or a top-level JSON `"method":"write"`; `WRITE` or a nested member is not a write and gets the ordinary answer. A body over [the size cap](#technical-details) is refused with `invalid_request`; such a JSON body counts as a write only if its `"method"` member falls in the first 256 bytes, so otherwise the sender gets that refusal even without `wait`. A write answers only when `wait` is set.
 - `read <agent> [level]`, `list`, `pull <agent> [level] [count]` and `clean <agent> [level] [id]` use the [shared log model](eventlog.md#log-model) and [reply forms](eventlog.md#technical-details). Only the log's Owner, Maintainers and daemon Owner may read or manage it; only the daemon Owner may read `#bus`'s own log.
-- `sub add <target> <agent> [level] [filter]` subscribes to new matching entries of a log you manage; the [shared filter syntax](subscriptions.md#filters) applies. The target is a queue or agent that lists `#bus` in its Allow, because `#bus` sends the copies; a Personal agent may list it ([Personal rules](../03-records.md#personal-and-shared)), and `#bus` itself is refused. There is no replay.
+- `sub add <target> <agent> [level] [filter]` subscribes to new matching entries of a log you manage; the [shared filter syntax](subscriptions.md#filters) applies. The target is a queue or agent you may send to; `#bus` itself is refused. There is no replay.
 - The [subscription limits](subscriptions.md#the-shared-behaviour) apply separately to each agent log.
 - `sub list [agent]` lists subscriptions you made or manage; `sub delete <id>` removes one by its subscription id.
-- Source rights are checked at creation only. Every send checks the creator's may-send to the target and the target's Allow for `#bus`, under the [shared subscription rules](subscriptions.md#the-shared-behaviour). Deleting a source or author removes its subscriptions.
+- Source rights are checked at creation only. Every send checks the creator's may-send to the target, under the [shared subscription rules](subscriptions.md#the-shared-behaviour). Deleting a source or author removes its subscriptions.
 - Each matching subscription sends one copy from `#bus`, including a folded occurrence. Refused copies are dropped and counted without retry; the next entry is still attempted.
 - A waiting write reports real `deliveries` counts: matched, sent and dropped. Its copies finish before pull or clean can remove the entry. A waiting write with possible subscribers needs at least three seconds left before storing.
 - A damaged log is left out of `list`, still refuses its own read with `storage_invalid`, and is named in the daemon's error log at startup.
@@ -104,7 +104,7 @@ agent-bus config '#bus' '{"realm":"node.example"}'
 <details>
 <summary>Replies to private agents</summary>
 
-- `#bus` answers any asker on the asker's own route, private agents included; a `reply-to` naming another record needs that record's Allow to admit `#bus` ([answers](../02-access.md#answers)).
+- `#bus` answers any asker on the asker's own route, private agents included; a `reply-to` naming another record works when the asker may send there ([answers](../02-access.md#answers)).
 
 </details>
 
@@ -112,7 +112,7 @@ agent-bus config '#bus' '{"realm":"node.example"}'
 
 | If you see | Do this |
 |---|---|
-| No answer to a call with `reply-to` naming another record | That record's Allow must admit `#bus`; the asker's own route needs nothing ([answers](../02-access.md#answers)). |
+| No answer to a call with `reply-to` naming another record | The asker must be allowed to send to that record; the asker's own route needs nothing ([answers](../02-access.md#answers)). |
 | Fewer records than expected | `ls` shows only records you may see; ask their Owner for access. |
 | `--help` as body text answers unsupported | Use the ask flag: `agent-bus call '#bus' --help-json`. |
 
