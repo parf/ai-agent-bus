@@ -148,6 +148,20 @@ public final class BusTest {
         }
     }
 
+    /** A schedule against a vector's expect: fields by wire name, outcomes by their words; JSON numbers compare by value. */
+    static void matches(String at, Map<?, ?> got, Map<?, ?> expect) {
+        expect.forEach((key, want) -> {
+            Object value = got.get(key);
+            if ("outcomes".equals(key)) {
+                List<Object> words = new java.util.ArrayList<>();
+                for (Object o : got.get("outcomes") instanceof List<?> l ? l : List.of()) words.add(((Map<?, ?>) o).get("outcome"));
+                value = words;
+            }
+            boolean same = value instanceof Number a && want instanceof Number b ? a.longValue() == b.longValue() : java.util.Objects.equals(value, want);
+            check(at + ": " + key, same, value);
+        });
+    }
+
     static void section(String name, Body f) {
         if (!filter.isEmpty() && !name.contains(filter)) return;
         System.out.println("== " + name);
@@ -744,6 +758,23 @@ public final class BusTest {
             check("delete says whether there was one", kv.delete("s", Kind.STRING) && !kv.delete("s", Kind.STRING));
             e = thrown(() -> client("bob@localhost").record("#j-svc@localhost").kv().getInt("n"));
             check("the allow list does not grant the store", e instanceof Forbidden || e instanceof NotFound, name(e));
+        });
+
+        section("schedules", () -> {
+            Schedules sched = me.record("#j-svc@localhost").schedules();
+            Map<String, Object> added = sched.add(Schedules.Spec.to("#j-other@localhost", "tick").expr("*/5 * * * *")
+                    .until("2099-01-01T00:00:00Z").maxRuns(3).maxLate("5m").disabled(true));
+            @SuppressWarnings("unchecked") Map<String, Object> got = (Map<String, Object>) added.get("schedule");
+            check("an add's limits travel", List.of("recurring", false, 3L, "5m0s", "2099-01-01T00:00:00Z", "").equals(java.util.Arrays.asList(
+                    got.get("kind"), got.get("enabled"), got.get("max_runs"), got.get("max_late"), got.get("until"), added.get("warning"))), added);
+            String id = (String) got.get("id");
+            Throwable e = thrown(() -> client("bob@localhost").record("#j-svc@localhost").schedules().get(id));
+            check("a stranger reads it as missing: NotFound", e instanceof NotFound, name(e));
+            Map<String, Object> edited = sched.edit(id, Schedules.Spec.to("#j-other@localhost", "once").in("90s"));
+            check("an edit replaces the time and limits", "once".equals(edited.get("kind")) && !edited.containsKey("max_runs")
+                    && Boolean.TRUE.equals(edited.get("enabled")), edited);
+            check("the caller's every-schedule list has it", me.schedules().stream().anyMatch(x -> id.equals(x.get("id"))));
+            check("delete says it was there", sched.delete(id));
         });
 
         section("locks", () -> {
@@ -1354,6 +1385,65 @@ public final class BusTest {
                 }
                 // The vector held some on purpose; a release here is housekeeping, not part of the case.
                 for (Locks.Lease lease : held.values()) thrown(lease::release);
+                daemon.close();
+            }
+        });
+
+        section("shared schedule vectors", () -> {
+            for (Object c : vectors.apply("schedule")) {
+                Map<?, ?> k = (Map<?, ?>) c;
+                VectorDaemon daemon = new VectorDaemon();
+                Bus owner = daemon.as("owner@fixture"), worker = daemon.as("#worker@fixture");
+                Schedules sched = owner.record("jobs@fixture").schedules();
+                String[] id = {""};
+                int i = 0;
+                for (Object so : (List<?>) k.get("steps")) {
+                    Map<?, ?> step = (Map<?, ?>) so;
+                    String op = (String) step.get("op"), at = k.get("id") + " step " + i++ + " " + op;
+                    Map<?, ?> expect = step.get("expect") instanceof Map<?, ?> e ? e : Map.of();
+                    if (op.equals("inbox")) {
+                        check(at + ": as worker", "worker".equals(step.get("as")));
+                        Optional<Message> m = worker.consume(Consume.waiting(Duration.ofSeconds(5)));
+                        Map<String, Object> seen = m.map(x -> Map.<String, Object>of("from", x.from(), "topic", x.topic().orElse(""),
+                                "tag", x.tag().orElse(""), "body", x.body())).orElse(Map.of());
+                        expect.forEach((key, want) -> check(at + ": " + key, java.util.Objects.equals(seen.get(key), want), seen));
+                        continue;
+                    }
+                    Schedules.Spec s = Schedules.Spec.to(String.valueOf(step.get("target")), String.valueOf(step.get("body")));
+                    if (step.get("expr") instanceof String x) s.expr(x);
+                    if (step.get("in") instanceof String x) s.in(x);
+                    if (step.get("at") instanceof String x) s.at(x);
+                    java.util.concurrent.Callable<Object> call = switch (op) {
+                        case "add" -> () -> ((Map<?, ?>) sched.add(s)).get("schedule");
+                        case "edit" -> () -> sched.edit(id[0], s);
+                        case "get" -> () -> sched.get(id[0]);
+                        case "enable" -> () -> sched.enable(id[0]);
+                        case "disable" -> () -> sched.disable(id[0]);
+                        case "run" -> () -> sched.run(id[0]);
+                        case "delete" -> () -> sched.delete(id[0]);
+                        case "list" -> () -> Boolean.TRUE.equals(step.get("all")) ? owner.schedules() : sched.list();
+                        default -> null;
+                    };
+                    if (call == null) { check(at + ": known op", false, op); continue; }
+                    Vector v = new Vector().run(at, step, call);
+                    if (!v.ok) continue;
+                    switch (op) {
+                        case "add" -> {
+                            id[0] = (String) ((Map<?, ?>) v.result).get("id");
+                            matches(at, (Map<?, ?>) v.result, expect);
+                        }
+                        case "list" -> {
+                            List<Object> ids = new java.util.ArrayList<>();
+                            for (Object r : (List<?>) v.result) ids.add(((Map<?, ?>) r).get("id"));
+                            List<Object> want = new java.util.ArrayList<>();
+                            for (Object w : (List<?>) expect.get("ids")) want.add("$schedule".equals(w) ? id[0] : w);
+                            check(at + ": ids", ids.equals(want), ids);
+                        }
+                        case "run" -> check(at + ": outcome", java.util.Objects.equals(((Map<?, ?>) v.result).get("outcome"), expect.get("outcome")), v.result);
+                        case "delete" -> check(at + ": deleted", java.util.Objects.equals(v.result, expect.get("deleted")), v.result);
+                        default -> matches(at, (Map<?, ?>) v.result, expect);
+                    }
+                }
                 daemon.close();
             }
         });

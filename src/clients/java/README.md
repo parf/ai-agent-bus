@@ -14,7 +14,7 @@
 ## What you get
 
 - ✅ **Call and serve:** `bus.call(to, body, Call.within(...))` returns an `Outcome`; `bus.serve(handler, Serve.workers(n))` answers with a bounded pool.
-- ✅ **Targets:** `bus.record(name)` gives `kv()`, `locks()`, `config()`, `secret()`, `lookup()`, `manage()` and `unregister()`.
+- ✅ **Targets:** `bus.record(name)` gives `kv()`, `locks()`, `schedules()`, `config()`, `secret()`, `lookup()`, `manage()` and `unregister()`.
 - ✅ **Your own name works:** a call to yourself is answered by your own server.
 - ✅ **Over unix socket, HTTP or pinned HTTPS.**
 
@@ -53,6 +53,16 @@ On a fresh record (the counter increments on later runs):
 ```text
 pong hello
 1
+```
+
+## Schedules
+
+`record.schedules()` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`, answering the daemon's parsed JSON; `bus.schedules()` lists every one on a record you manage. Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
+
+```java
+Map<String, Object> added = bus.record("#worker@localhost").schedules()
+        .add(Schedules.Spec.to("#worker@localhost", "nightly report").expr("0 3 * * *"));
+System.out.println(added.get("schedule") + " " + added.get("warning"));
 ```
 
 ## Event logs

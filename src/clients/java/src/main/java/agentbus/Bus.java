@@ -98,6 +98,9 @@ public final class Bus implements AutoCloseable {
         return records.computeIfAbsent(name, n -> new Record(t, n, new Locks(t, n, gates)));
     }
 
+    /** Every schedule on a record the caller manages. */
+    public List<Map<String, Object>> schedules() { return Schedules.rows(t.json("GET", "/schedule/list", null, null, false)); }
+
     /** The records the caller may see, optionally of one kind. */
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> list(Optional<String> kind) {

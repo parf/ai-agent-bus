@@ -27,6 +27,7 @@ public final class Record {
     private final String name;
     private final KV kv;
     private final Locks locks;
+    private final Schedules schedules;
     private final Cached config;
     private final Cached secret;
     /** Guarded by {@code this}: a refresh and a fetch's publication never interleave. */
@@ -37,6 +38,7 @@ public final class Record {
         this.name = name;
         this.kv = new KV(t, name);
         this.locks = locks;
+        this.schedules = new Schedules(t, name);
         this.config = new Cached("/config");
         this.secret = new Cached("/secret");
     }
@@ -46,6 +48,8 @@ public final class Record {
     public KV kv() { return kv; }
 
     public Locks locks() { return locks; }
+
+    public Schedules schedules() { return schedules; }
 
     /** The record as the caller may see it, a parsed JSON object. */
     @SuppressWarnings("unchecked")
