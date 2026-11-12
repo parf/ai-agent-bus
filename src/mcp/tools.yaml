@@ -48,6 +48,30 @@ ab_kv_inc: >-
 ab_kv_json: >-
   Edit a json value's top-level keys in one step, the whole list or none of it: set, unset, inc, push, unshift, shift, pop, add_to_set, remove_from_set. shift and pop answer the element they took, so workers sharing a queue never get the same one; an absent name starts as {}.
 
+ab_schedule_add: >-
+  Keep a schedule on a record: the daemon sends body to target from #bus, on your behalf, at each firing. Give one of expr (a cron expression), in (a delay) or at (HH:MM UTC or an RFC 3339 instant); you must be allowed to send to target. The answer's warning is set near a cap.
+
+ab_schedule_list: >-
+  List one record's schedules, or every schedule on a record you manage, with next firing and counts.
+
+ab_schedule_get: >-
+  Read one schedule by id with its latest outcomes, newest first. A schedule you may not manage reads as missing.
+
+ab_schedule_edit: >-
+  Replace a schedule's time, target, body and limits, as add takes them; you become its creator.
+
+ab_schedule_enable: >-
+  Let a disabled schedule fire again; you become its creator, so you must be allowed to send to its target.
+
+ab_schedule_disable: >-
+  Stop a schedule firing and keep it.
+
+ab_schedule_run: >-
+  Fire a schedule once now and answer the outcome; its next slot does not move.
+
+ab_schedule_delete: >-
+  Remove a schedule; one that is not there is refused as not found.
+
 ab_bigfile_put: >-
   Upload a nonempty local input_path file (up to 32 MiB) from inside the one directory the session was configured with (AGENT_BUS_BIGFILE_DIR; unset, this refuses) as one bigfile on a record you maintain. Replaces the name. ttl takes s/m/h/d (24h default, 30d maximum); memory is lost at daemon restart. Returns size and SHA-256 metadata only; file contents never enter model context. A lost answer must not be retried automatically.
 

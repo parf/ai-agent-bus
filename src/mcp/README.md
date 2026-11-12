@@ -35,7 +35,7 @@ App Server** is the whole question.
 
 `ab_ls`, `ab_send`,
 `ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename`, and `ab_lock`,
-`ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-authority.md#shared-locks), and `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` for each record's [key-value store](../../docs/03-records-kv.md#key-value-store), and `ab_bigfile_put`, `ab_bigfile_get`, `ab_bigfile_ls`, `ab_bigfile_rm` for [bigfiles](../../docs/03-records-kv.md#bigfiles)
+`ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-authority.md#shared-locks), and `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` for each record's [key-value store](../../docs/03-records-kv.md#key-value-store), and `ab_bigfile_put`, `ab_bigfile_get`, `ab_bigfile_ls`, `ab_bigfile_rm` for [bigfiles](../../docs/03-records-kv.md#bigfiles), and `ab_schedule_add`, `ab_schedule_list`, `ab_schedule_get`, `ab_schedule_edit`, `ab_schedule_enable`, `ab_schedule_disable`, `ab_schedule_run`, `ab_schedule_delete` for each record's [schedules](../../docs/09-daemon-api.md#schedules)
 
 Readable [resources](../../docs/03-records-resource.md#what-a-resource-is) follow the caller's access.
 

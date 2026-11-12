@@ -93,6 +93,20 @@ const noContext = (id: string) =>
 // How long ab_lock waits for a holder when the caller gives no wait: named once, here, and said in
 // the wait parameter's schema text, which is where a caller reads it.
 const lockWaitDefault = "30s";
+
+// What an add and an edit both take (docs/09-daemon-api.md#schedules).
+const SCHEDULE_FIELDS = {
+  expr: { type: "string", description: "five cron fields, or six with a leading second; give one of expr, in, at" },
+  in: { type: "string", description: "a delay such as 90s, 30m, 2h, 3d: fires once" },
+  at: { type: "string", description: "HH:MM in UTC or an RFC 3339 instant: fires once" },
+  target: { type: "string", description: "who receives each firing" },
+  body: { type: "string", description: "the message each firing sends" },
+  until: { type: "string", description: "an RFC 3339 instant after which it no longer fires" },
+  max_runs: { type: "integer", description: "stop after this many firings" },
+  max_late: { type: "string", description: "a firing later than this is dropped, like 5m" },
+  disabled: { type: "boolean", description: "keep it but do not fire" },
+} as const;
+
 const tools = [
   {
     name: "ab_ls",
@@ -313,6 +327,41 @@ const tools = [
       required: ["record", "name", "ops"],
     },
   },
+  {
+    name: "ab_schedule_add",
+    description: descriptions.ab_schedule_add,
+    inputSchema: {
+      type: "object",
+      properties: {
+        record: { type: "string", description: "the record that holds the schedule; its Owner, Maintainers and own Agent may" },
+        ...SCHEDULE_FIELDS,
+      },
+      required: ["record", "target", "body"],
+    },
+  },
+  {
+    name: "ab_schedule_list",
+    description: descriptions.ab_schedule_list,
+    inputSchema: { type: "object", properties: { record: { type: "string", description: "one record's schedules; omitted, every schedule on a record you manage" } } },
+  },
+  {
+    name: "ab_schedule_get",
+    description: descriptions.ab_schedule_get,
+    inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+  },
+  {
+    name: "ab_schedule_edit",
+    description: descriptions.ab_schedule_edit,
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string" }, ...SCHEDULE_FIELDS },
+      required: ["id", "target", "body"],
+    },
+  },
+  { name: "ab_schedule_enable", description: descriptions.ab_schedule_enable, inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
+  { name: "ab_schedule_disable", description: descriptions.ab_schedule_disable, inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
+  { name: "ab_schedule_run", description: descriptions.ab_schedule_run, inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
+  { name: "ab_schedule_delete", description: descriptions.ab_schedule_delete, inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
 ] as const;
 
 const server = new Server(
@@ -511,6 +560,16 @@ const callTool = async (req: { params: { name: string; arguments?: Record<string
         try { return text(JSON.stringify(await bus.post("/kv/json", { record: need(args, "record"), name: need(args, "name"), ops: args.ops }))); }
         catch (e) { return text(String(e), true); }
       }
+      // A refusal reaches the outer catch: status, kind and the daemon's words unchanged.
+      case "ab_schedule_add": return text(JSON.stringify(await bus.post("/schedule/add", { record: need(args, "record"), ...scheduleFields(args) })));
+      case "ab_schedule_list": {
+        const record = maybe(args, "record");
+        return text(JSON.stringify(await bus.get(record ? `/schedule/list?${new URLSearchParams({ record })}` : "/schedule/list")));
+      }
+      case "ab_schedule_get": return text(JSON.stringify(await bus.get(`/schedule?${new URLSearchParams({ id: need(args, "id") })}`)));
+      case "ab_schedule_edit": return text(JSON.stringify(await bus.post("/schedule/edit", { id: need(args, "id"), ...scheduleFields(args) })));
+      case "ab_schedule_enable": case "ab_schedule_disable": case "ab_schedule_run": case "ab_schedule_delete":
+        return text(JSON.stringify(await bus.post(`/schedule/${req.params.name.slice("ab_schedule_".length)}`, { id: need(args, "id") })));
       case "ab_rename": {
         if (process.env.AGENT_BUS_SESSION_FILE) {
           const address = process.env.AGENT_BUS_CONTROL_ADDR;
@@ -564,6 +623,18 @@ server.setRequestHandler(CallToolRequestSchema, callTool);
 
 // The low-level Server does not enforce the schema it advertises, so a
 // missing required argument would otherwise become an empty body on the wire.
+// An add's or an edit's fields as given; the daemon judges them, and its
+// refusal is the answer.
+function scheduleFields(args: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of ["expr", "in", "at", "target", "body", "until", "max_late"]) {
+    const v = maybe(args, k);
+    if (v !== undefined) out[k] = v;
+  }
+  if (args.max_runs !== undefined) out.max_runs = args.max_runs;
+  if (args.disabled !== undefined) out.disabled = args.disabled;
+  return out;
+}
 function need(args: Record<string, unknown>, key: string): string {
   const v = args[key];
   if (typeof v !== "string" || v.trim() === "") throw new BadArgs(`${key} is required and must be a non-empty string`);

@@ -109,6 +109,50 @@ test("ab_kv_get answers an int past 2^53 exactly", async () => {
   expect(got.text).toContain('"value":9007199254740993');
 });
 
+const SCHEDULE_TOOLS = ["ab_schedule_add", "ab_schedule_delete", "ab_schedule_disable", "ab_schedule_edit", "ab_schedule_enable", "ab_schedule_get", "ab_schedule_list", "ab_schedule_run"];
+
+test("the schedule tools are the CLI's eight verbs, each on its own route", async () => {
+  const seen: string[] = [];
+  const { call, client } = await face(async (req, url) => {
+    if (!url.pathname.startsWith("/schedule")) return new Response("no", { status: 404 });
+    seen.push(`${req.method} ${url.pathname}${url.search}`);
+    return Response.json({});
+  });
+  const names = (await client.listTools()).tools.map((t) => t.name).filter((n) => n.startsWith("ab_schedule_")).sort();
+  expect(names).toEqual(SCHEDULE_TOOLS);
+  for (const verb of ["enable", "disable", "run", "delete"]) await call(`ab_schedule_${verb}`, { id: "s1" });
+  await call("ab_schedule_get", { id: "s 1" });
+  await call("ab_schedule_list", {});
+  await call("ab_schedule_list", { record: "#r@test" });
+  expect(seen).toEqual(["POST /schedule/enable", "POST /schedule/disable", "POST /schedule/run", "POST /schedule/delete",
+    "GET /schedule?id=s+1", "GET /schedule/list", "GET /schedule/list?record=%23r%40test"]);
+});
+
+test("ab_schedule_add sends only the fields given, and ab_schedule_edit names the id", async () => {
+  const bodies: Record<string, unknown>[] = [];
+  const { call } = await face(async (req, url) => {
+    if (url.pathname !== "/schedule/add" && url.pathname !== "/schedule/edit") return new Response("no", { status: 404 });
+    bodies.push(await req.json() as Record<string, unknown>);
+    return Response.json({ schedule: { id: "s1", kind: "recurring" }, warning: "" });
+  });
+  const got = await call("ab_schedule_add", { record: "r@test", expr: "*/5 * * * *", target: "#t@test", body: "tick", max_runs: 3, disabled: true });
+  expect(got.isError).toBe(false);
+  expect(got.text).toContain('"id":"s1"');
+  await call("ab_schedule_edit", { id: "s1", in: "90s", target: "#t@test", body: "once" });
+  expect(bodies).toEqual([
+    { record: "r@test", expr: "*/5 * * * *", target: "#t@test", body: "tick", max_runs: 3, disabled: true },
+    { id: "s1", in: "90s", target: "#t@test", body: "once" },
+  ]);
+});
+
+test("a schedule refusal passes through with the daemon's status and words", async () => {
+  const { call } = await face(() => Response.json({ error: "over the cap: 100 recurring schedules per record", kind: "malformed" }, { status: 413 }));
+  const got = await call("ab_schedule_add", { record: "r@test", expr: "* * * * *", target: "#t@test", body: "x" });
+  expect(got.isError).toBe(true);
+  expect(got.text).toContain("bus said 413");
+  expect(got.text).toContain("over the cap: 100 recurring schedules per record");
+});
+
 // A Codex push loop whose app-server went away must not take another message:
 // it is consumed and then lost when the delivery fails.
 test("codex push stops reading when the app-server connection drops", async () => {

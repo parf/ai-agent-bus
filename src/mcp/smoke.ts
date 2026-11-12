@@ -77,7 +77,7 @@ try {
 
   const list = await request("tools/list");
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
-  const expected = ["ab_bigfile_get", "ab_bigfile_ls", "ab_bigfile_put", "ab_bigfile_rm", "ab_consume", "ab_kv_delete", "ab_kv_get", "ab_kv_inc", "ab_kv_json", "ab_kv_set", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send", "ab_tab_title"];
+  const expected = ["ab_bigfile_get", "ab_bigfile_ls", "ab_bigfile_put", "ab_bigfile_rm", "ab_consume", "ab_kv_delete", "ab_kv_get", "ab_kv_inc", "ab_kv_json", "ab_kv_set", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_schedule_add", "ab_schedule_delete", "ab_schedule_disable", "ab_schedule_edit", "ab_schedule_enable", "ab_schedule_get", "ab_schedule_list", "ab_schedule_run", "ab_send", "ab_tab_title"];
   check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
   const descriptions = Bun.YAML.parse(await Bun.file(new URL("tools.yaml", import.meta.url)).text()) as Record<string, string>;
   check("tools/list sends the YAML descriptions", JSON.stringify(Object.keys(descriptions).sort()) === JSON.stringify(names) &&
@@ -138,6 +138,17 @@ try {
   const deleted = await call("ab_kv_delete", { record: me, name: "stage" });
   const gone = await call("ab_kv_get", { record: me, name: "stage" });
   check("ab_kv_delete removes the value", !deleted.isError && JSON.parse(deleted.text).deleted === true && gone.isError, gone.text);
+
+  // And its schedules (docs/09-daemon-api.md#schedules): one far enough off never fires here.
+  const sched = await call("ab_schedule_add", { record: me, in: "1h", target: peerName, body: "mcp-schedule-fixture" });
+  const sid = sched.isError ? "" : JSON.parse(sched.text).schedule.id;
+  const listed = await call("ab_schedule_list", { record: me });
+  check("ab_schedule_add keeps what ab_schedule_list lists", !sched.isError && !listed.isError && JSON.parse(listed.text).schedules.some((x: any) => x.id === sid && x.kind === "once"), listed.text);
+  const off = await call("ab_schedule_disable", { id: sid });
+  check("ab_schedule_disable leaves it kept and not enabled", !off.isError && JSON.parse(off.text).schedule.enabled === false, off.text);
+  const dropped = await call("ab_schedule_delete", { id: sid });
+  const schedGone = await call("ab_schedule_get", { id: sid });
+  check("ab_schedule_delete removes it, and a get then says not found", !dropped.isError && schedGone.isError && schedGone.text.includes("404"), schedGone.text);
 
   // The catalog is per caller, because the daemon is what filters and the
   // face only asks. Two principals, one registry, different answers — and
