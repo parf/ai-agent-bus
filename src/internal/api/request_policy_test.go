@@ -178,6 +178,7 @@ func TestHTTPRejectsDuplicateKnownQueriesAcrossTheRouteInventory(t *testing.T) {
 		"GET /consume topic tag inbox wait host asks original_to share",
 		"POST /lock wait", "POST /try-lock wait", "GET /holders record",
 		"GET /kv record name kind", "GET /kv/list record",
+		"GET /schedule id", "GET /schedule/list record",
 		"PUT /bigfile record name ttl memory", "GET /bigfile record name", "GET /bigfile/list record",
 		"GET /activity name", "GET /activity/days name from to totals",
 	} {

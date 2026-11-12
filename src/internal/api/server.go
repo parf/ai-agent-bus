@@ -234,6 +234,14 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /release-force", g(s.audited("release --force", s.lockReleaseForce)))
 	mux.HandleFunc("POST /extend", g(s.lockExtend))
 	mux.HandleFunc("GET /holders", g(s.lockHolders))
+	mux.HandleFunc("GET /schedule", g(s.scheduleGet))
+	mux.HandleFunc("GET /schedule/list", g(s.scheduleList))
+	mux.HandleFunc("POST /schedule/add", g(s.scheduleAdd))
+	mux.HandleFunc("POST /schedule/edit", g(s.scheduleEdit))
+	mux.HandleFunc("POST /schedule/enable", g(s.scheduleEnable(true)))
+	mux.HandleFunc("POST /schedule/disable", g(s.scheduleEnable(false)))
+	mux.HandleFunc("POST /schedule/run", g(s.scheduleRun))
+	mux.HandleFunc("POST /schedule/delete", g(s.scheduleDelete))
 	mux.HandleFunc("GET /kv", g(s.kvGet))
 	mux.HandleFunc("GET /kv/list", g(s.kvList))
 	mux.HandleFunc("POST /kv/set", g(s.kvSet))
@@ -1106,6 +1114,9 @@ var codes = []struct {
 	{core.ErrKVValue, http.StatusBadRequest, "malformed"},
 	{core.ErrKVType, http.StatusBadRequest, "malformed"},
 	{core.ErrKVLimit, http.StatusRequestEntityTooLarge, "malformed"},
+	{core.ErrSchedule, http.StatusBadRequest, "malformed"},
+	{core.ErrScheduleLimit, http.StatusRequestEntityTooLarge, "malformed"},
+	{core.ErrScheduleNoStore, http.StatusServiceUnavailable, "unavailable"},
 	{core.ErrBigAbsent, http.StatusNotFound, "not_found"},
 	{core.ErrBigValue, http.StatusBadRequest, "malformed"},
 	{core.ErrBigNoStore, http.StatusServiceUnavailable, "unavailable"},

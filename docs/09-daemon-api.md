@@ -130,6 +130,7 @@ Both live on a record and answer to its management authority.
 |---|---|
 | `POST /lock` · `POST /try-lock` · `POST /extend` · `POST /release` · `POST /release-force` · `GET /holders` | named locks on a record: wait for one, try once, lengthen its ttl, give it back, release another holder's, list holders ([shared locks](01-identity-and-authority.md#shared-locks)) |
 | `GET /kv` · `GET /kv/list` · `POST /kv/set` · `POST /kv/delete` · `POST /kv/inc` · `POST /kv/json` | a record's key-value store: string, int and JSON values ([key-value store](03-records-kv.md#key-value-store)) |
+| `GET /schedule` · `GET /schedule/list` · `POST /schedule/add` · `POST /schedule/edit` · `POST /schedule/enable` · `POST /schedule/disable` · `POST /schedule/run` · `POST /schedule/delete` | a record's schedules, fired from `#bus` ([schedules](#schedules)) |
 
 ## People, groups and accounts
 
@@ -190,6 +191,8 @@ Use this index to check the stability class of a route. Authorization still foll
 | `GET /may-send` | stable | [Checking permission to send](#checking-permission-to-send) |
 | `GET /names` | unstable | [route groups](#node) |
 | `GET /recent` | unstable | [route groups](#node) |
+| `GET /schedule` | stable | [Schedules](#schedules) |
+| `GET /schedule/list` | stable | [Schedules](#schedules) |
 | `GET /secret` | unstable | [route groups](#node) |
 | `GET /status` | stable | [Status and identity](#status-and-identity) |
 | `GET /users` | unstable | [route groups](#node) |
@@ -216,6 +219,12 @@ Use this index to check the stability class of a route. Authorization still foll
 | `POST /register` | unstable | [route groups](#node) |
 | `POST /release` | stable | [Locks](#locks) |
 | `POST /release-force` | stable | [Locks](#locks) |
+| `POST /schedule/add` | stable | [Schedules](#schedules) |
+| `POST /schedule/delete` | stable | [Schedules](#schedules) |
+| `POST /schedule/disable` | stable | [Schedules](#schedules) |
+| `POST /schedule/edit` | stable | [Schedules](#schedules) |
+| `POST /schedule/enable` | stable | [Schedules](#schedules) |
+| `POST /schedule/run` | stable | [Schedules](#schedules) |
 | `POST /secret` | unstable | [route groups](#node) |
 | `POST /send` | stable | [Send and consume](#send-and-consume) |
 | `POST /session` | unstable | [route groups](#node) |
@@ -288,6 +297,23 @@ A record's store has three kinds, `string`, `int` and `json`; `kind` defaults to
 - **Limits:** [KV limits](03-records-kv.md#rules) apply; exceeding a storage limit is `413 malformed`. Integers travel as exact digits, never rounded; an out-of-range integer or wrong value type is `400 malformed`.
 - **JSON values must be objects.** A top-level `null`, array or scalar is refused; an object may contain `null` members.
 - **Authority:** the record's Owner, Maintainers and own Agent; anyone else is `403 acl`; an unknown record is `404 not_found`. Meaning and the JSON operations: [key-value store](03-records-kv.md#key-value-store).
+
+### Schedules
+
+| Route | Takes | Answers |
+|---|---|---|
+| `POST /schedule/add` | `{record, expr \| in \| at, target, body, until?, max_runs?, max_late?, disabled?}`: `expr` is five cron fields, or six with a leading second; `in` a delay such as `90s`; `at` `HH:MM` in UTC or an RFC 3339 instant | `{schedule, warning}`; `warning` is set at 80 % of a cap |
+| `POST /schedule/edit` | `{id, …}` as add, without `record` | `{schedule}`; the caller becomes its creator |
+| `POST /schedule/enable` · `POST /schedule/disable` | `{id}` | `{schedule}`; enabling makes the caller its creator |
+| `POST /schedule/run` | `{id}` | `{outcome}`: one firing now; the next slot does not move |
+| `POST /schedule/delete` | `{id}` | `{id, deleted}` |
+| `GET /schedule` | query `id` | the schedule with its `outcomes`, newest first |
+| `GET /schedule/list` | query `record`, or none | `{schedules}`: one record's, or every schedule on a record the caller manages |
+
+- A schedule is `{id, holder, kind (recurring or once), expr?, at?, target, body, creator, enabled, disabled?, until?, max_runs?, max_late?, next?, last?, runs, sent, dropped, refused_in_a_row?, created, changed}`; every time is RFC 3339 in UTC. An outcome is `{at, slot, outcome, detail?}`, `outcome` one of `sent`, `admission_refused`, `target_gone`, `send_refused`, `send_unknown`, `late`.
+- **A firing** arrives from `#bus`, topic `schedule`, tag `by <creator>`, with `reply_to` the creator and `schedule: {id, by, slot, late_by?, missed?}`; only the daemon sets `schedule`.
+- **Authority:** the holder's Owner, Maintainers and own Agent; anyone else gets the answer for a missing schedule, `404 not_found`. The creator must be allowed to send to the target, at add and at every firing.
+- **Limits:** per record 100 recurring and 10 000 one-shot schedules, per owner 1 000 and 100 000; over a cap is `413 malformed`; a bad expression, time or body is `400 malformed`.
 
 ### Locks
 

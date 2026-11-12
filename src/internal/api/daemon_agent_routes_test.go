@@ -65,6 +65,9 @@ func TestDaemonAgentReservationAcrossRegisteredAPIRoutes(t *testing.T) {
 	// Explicit exceptions are public reads or operations on the authenticated
 	// connection/node, not on a target record. New routes have no implicit skip.
 	nonRecord := map[string]string{
+		"GET /schedule": "a schedule id; #bus holds none", "POST /schedule/edit": "a schedule id; #bus holds none",
+		"POST /schedule/enable": "a schedule id; #bus holds none", "POST /schedule/disable": "a schedule id; #bus holds none",
+		"POST /schedule/run": "a schedule id; #bus holds none", "POST /schedule/delete": "a schedule id; #bus holds none",
 		"GET /{$}": "dashboard redirect", "GET /identity": "public node identity", "GET /status": "caller-visible status",
 		"GET /accounts": "node-wide account configuration", "GET /groups": "caller-visible group listing", "GET /users": "caller-visible user listing",
 		"GET /activity": "caller-visible activity", "GET /activity/days": "caller-visible activity", "GET /ls": "caller-visible records",
@@ -94,6 +97,8 @@ func TestDaemonAgentReservationAcrossRegisteredAPIRoutes(t *testing.T) {
 		"POST /kv/json":   `{"record":"#bus","name":"probe","ops":[{"op":"set","key":"probe","value":1}]}`,
 		"PUT /bigfile":    "record=%23bus&name=probe", "GET /bigfile": "record=%23bus&name=probe", "GET /bigfile/list": "record=%23bus",
 		"POST /bigfile/delete":      `{"record":"#bus","name":"probe"}`,
+		"POST /schedule/add":        `{"record":"#bus","in":"1m","target":"ordinary@h","body":"takeover"}`,
+		"GET /schedule/list":        "record=%23bus",
 		"POST /user":                `{"name":"#bus","create":true,"person_name":"takeover"}`,
 		"POST /user/github-refresh": `{"name":"#bus"}`,
 		"POST /user/state":          `{"name":"#bus","status":"inactive"}`,
