@@ -164,6 +164,10 @@ class Bus:
             raise InvalidArgument("registry listing supports kind")
         return self._request("GET", "/ls", query=filters)
 
+    def schedules(self):
+        """Every schedule on a record the caller manages."""
+        return self._request("GET", "/schedule/list")["schedules"]
+
     def record(self, name):
         self._check()
         if not isinstance(name, str) or not name.strip():

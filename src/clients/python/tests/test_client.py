@@ -185,6 +185,21 @@ class LiveClient(unittest.TestCase):
             kv.get("same")
         self.assertEqual(missing.exception.status, 404)
 
+    def test_schedule_limits_travel_and_a_stranger_reads_it_as_missing(self):
+        sched = self.worker.record("#worker@fixture").schedules
+        added = sched.add("#caller@fixture", "tick", expr="*/5 * * * *", until="2099-01-01T00:00:00Z",
+                          max_runs=3, max_late="5m", disabled=True)
+        got = added["schedule"]
+        self.assertEqual((got["kind"], got["enabled"], got["max_runs"], got["max_late"], got["until"]),
+                         ("recurring", False, 3, "5m0s", "2099-01-01T00:00:00Z"))
+        self.assertEqual(added["warning"], "")
+        with self.assertRaises(Refusal) as stranger:
+            self.caller.record("#worker@fixture").schedules.get(got["id"])
+        self.assertEqual(stranger.exception.status, 404)
+        edited = sched.edit(got["id"], "#caller@fixture", "once", in_="90s")
+        self.assertEqual((edited["kind"], edited.get("max_runs"), edited["enabled"]), ("once", None, True))
+        self.assertIn(got["id"], [x["id"] for x in self.worker.schedules()])
+
     def test_registry_locks_and_force_release(self):
         record = self.owner.record("#temp@fixture")
         record.register(kind="agent", descr="first", allow=["*"])

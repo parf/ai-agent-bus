@@ -1,4 +1,4 @@
-"""Record-bound private reads, typed KV and named lock helpers."""
+"""Record-bound private reads, typed KV, named lock helpers and schedules."""
 import base64
 import copy
 import threading
@@ -62,6 +62,7 @@ class Record:
         self.kv = RecordKV(self)
         self.bigfile = RecordBigfile(self)
         self.locks = RecordLocks(self)
+        self.schedules = RecordSchedules(self)
         self._config, self._secret = LazyValue(), LazyValue()
 
     def lookup(self):
@@ -166,6 +167,57 @@ class RecordKV:
             raise InvalidArgument("JSON edit takes 1 to 100 operations")
         return self.record.bus._request("POST", "/kv/json", {
             "record": self.record.name, "name": key, "ops": list(operations)})["results"]
+
+
+def schedule_fields(target, body, expr, in_, at, until, max_runs, max_late, disabled):
+    """An add's or an edit's fields as given; the daemon judges them."""
+    fields = {"target": target, "body": body}
+    for name, value in (("expr", expr), ("in", in_), ("at", at), ("until", until), ("max_late", max_late)):
+        if value is not None:
+            fields[name] = value
+    if max_runs is not None:
+        fields["max_runs"] = max_runs
+    if disabled:
+        fields["disabled"] = True
+    return fields
+
+
+class RecordSchedules:
+    """A record's crons and one-shot sends, kept and fired by the daemon
+    (docs/09-daemon-api.md#schedules). Give one of expr, in_ or at."""
+
+    def __init__(self, record):
+        self.record = record
+
+    def add(self, target, body, *, expr=None, in_=None, at=None, until=None, max_runs=None, max_late=None,
+            disabled=False):
+        """Answers {"schedule": ..., "warning": ...}; warning is set near a cap."""
+        return self.record.bus._request("POST", "/schedule/add", {"record": self.record.name, **schedule_fields(
+            target, body, expr, in_, at, until, max_runs, max_late, disabled)})
+
+    def list(self):
+        return self.record.bus._request("GET", "/schedule/list", query={"record": self.record.name})["schedules"]
+
+    def get(self, id):
+        return self.record.bus._request("GET", "/schedule", query={"id": id})
+
+    def edit(self, id, target, body, *, expr=None, in_=None, at=None, until=None, max_runs=None, max_late=None,
+             disabled=False):
+        return self.record.bus._request("POST", "/schedule/edit", {"id": id, **schedule_fields(
+            target, body, expr, in_, at, until, max_runs, max_late, disabled)})["schedule"]
+
+    def enable(self, id):
+        return self.record.bus._request("POST", "/schedule/enable", {"id": id})["schedule"]
+
+    def disable(self, id):
+        return self.record.bus._request("POST", "/schedule/disable", {"id": id})["schedule"]
+
+    def run(self, id):
+        """One firing now; a lost answer is UncertainOutcome and is not retried."""
+        return self.record.bus._request("POST", "/schedule/run", {"id": id})["outcome"]
+
+    def delete(self, id):
+        return self.record.bus._request("POST", "/schedule/delete", {"id": id})["deleted"]
 
 
 class RecordLocks:

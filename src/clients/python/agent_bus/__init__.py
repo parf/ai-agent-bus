@@ -5,9 +5,9 @@ from .errors import (BusError, Refusal, TransportError, UnexpectedAnswer, Uncert
                      BusClosed, BusCancelled, IdentityMismatch, ReaderInUse,
                      InvalidArgument, DrainTimeout)
 from .message import Message, Secret, CallReply, CallDone
-from .storage import Record, RecordKV, RecordLocks, Lease
+from .storage import Record, RecordKV, RecordLocks, RecordSchedules, Lease
 
 __all__ = ["RecordBigfile", "BigfileHashMismatch", "Bus", "Message", "Secret", "CallReply", "CallDone", "Record", "RecordKV",
-           "RecordLocks", "Lease", "BusError", "Refusal", "TransportError", "UnexpectedAnswer", "UncertainOutcome",
+           "RecordLocks", "RecordSchedules", "Lease", "BusError", "Refusal", "TransportError", "UnexpectedAnswer", "UncertainOutcome",
            "BusTimeout", "BusClosed", "BusCancelled", "IdentityMismatch", "ReaderInUse",
            "InvalidArgument", "DrainTimeout"]

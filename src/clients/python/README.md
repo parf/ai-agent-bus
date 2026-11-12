@@ -14,7 +14,7 @@
 ## What you get
 
 - ✅ **Call and serve:** `bus.call(to, body, timeout=...)` returns a reply; `bus.serve(handler, workers=...)` answers messages with a bounded pool, and `on_reply=` reads the answers to your own sends.
-- ✅ **Targets:** `bus.record(name)` gives that record's `kv` and `locks`; `bus.config` reads the agent's Configuration.
+- ✅ **Targets:** `bus.record(name)` gives that record's `kv`, `locks` and `schedules`; `bus.config` reads the agent's Configuration.
 - ✅ **Your own name works:** a call to yourself is answered by your own handler.
 - ✅ **Safe secrets:** representations are redacted; `reveal()` returns bytes only when you ask.
 
@@ -119,3 +119,14 @@ removed = bus.record("#worker@localhost").bigfile.delete("mail")
 - Get checks Content-Length against `max_size` before reading the body and verifies SHA-256 before returning `(bytes, info)`.
 - `BigfileHashMismatch` means discard the download. Daemon refusals retain their status and cause, including 503.
 - See [bigfiles](../../../docs/03-records-kv.md#bigfiles) for authority and expiry.
+
+## Schedules
+
+`record.schedules` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`; `bus.schedules()` lists every one on a record you manage. Give one of `expr=`, `in_=` or `at=`. Each firing arrives from `#bus`, topic `schedule`.
+
+```python
+added = bus.record("#worker@localhost").schedules.add("#worker@localhost", "nightly report", expr="0 3 * * *")
+print(added["schedule"]["next"], added["warning"])
+```
+
+- `run(id)` fires once now and is never retried; a lost answer is `UncertainOutcome`.

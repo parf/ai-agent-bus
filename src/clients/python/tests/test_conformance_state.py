@@ -1,4 +1,4 @@
-"""Native Python adapter for the shared state vectors: kv, locks and bigfile."""
+"""Native Python adapter for the shared state vectors: kv, locks, bigfile and schedule."""
 import base64
 import hashlib
 import http.server
@@ -119,6 +119,50 @@ class SharedState(unittest.TestCase):
                     self.assertEqual(self.result, expect['displaced'], where)
                 elif op == 'holders':
                     self.assertEqual({k: v['holder'] for k, v in self.result.items()}, expect['holders'], where)
+
+    def test_shared_schedule_vectors(self):
+        for case in self.each_case('schedule'):
+            sched = self.owner.record('jobs@fixture').schedules
+            sid = None
+            for i, step in enumerate(case['steps']):
+                where = f"{case['id']} step {i} {step['op']}"
+                expect = step.get('expect') or {}
+                op = step['op']
+                spec = {k: step[k] for k in ('expr', 'at', 'until') if k in step}
+                if 'in' in step:
+                    spec['in_'] = step['in']
+                calls = {
+                    'add': lambda: sched.add(step['target'], step['body'], **spec)['schedule'],
+                    'edit': lambda: sched.edit(sid, step['target'], step['body'], **spec),
+                    'get': lambda: sched.get(sid),
+                    'enable': lambda: sched.enable(sid),
+                    'disable': lambda: sched.disable(sid),
+                    'run': lambda: sched.run(sid),
+                    'delete': lambda: sched.delete(sid),
+                    'list': lambda: self.owner.schedules() if step.get('all') else sched.list(),
+                }
+                if op == 'inbox':
+                    self.assertEqual(step['as'], 'worker', where)
+                    got = self.worker.consume(wait=5)
+                    self.assertIsNotNone(got, where)
+                    self.assertEqual({k: getattr(got, k) for k in expect}, expect, where)
+                    continue
+                self.assertIn(op, calls, where)
+                if self.refusal(where, step, calls[op]):
+                    continue
+                got = self.result
+                if op == 'add':
+                    sid = got['id']
+                if op == 'list':
+                    self.assertEqual([x['id'] for x in got], [sid if w == '$schedule' else w for w in expect['ids']], where)
+                elif op == 'run':
+                    self.assertEqual(got['outcome'], expect['outcome'], where)
+                elif op == 'delete':
+                    self.assertEqual(got, expect['deleted'], where)
+                else:
+                    for key, want in expect.items():
+                        value = [o['outcome'] for o in got.get('outcomes', [])] if key == 'outcomes' else got.get(key)
+                        self.assertEqual(value, want, where + ' ' + key)
 
     def test_shared_bigfile_vectors(self):
         for case in self.each_case('bigfile'):
