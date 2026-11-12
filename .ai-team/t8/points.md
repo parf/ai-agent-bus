@@ -43,7 +43,7 @@ flowchart LR
 - 🤝 **Your AI assistants work alone.** Now they message each other and you by name. [How](../../docs/04-messaging.md#inbox-queues)
 - 📬 **Someone is away.** A message waits in their inbox until they read it. [How](../../docs/04-messaging.md#durability)
 - 🔑 **You cannot trust an assistant with a password.** Now it uses your tools through helpers that hold the passwords. [How](../../docs/02-access.md#acl)
-- ⏰ **Routine work waits for somebody to remember.** Now reminders and daily checks wake an assistant by themselves. [How](../../docs/agents/cron.md#what-it-does)
+- ⏰ **Routine work waits for somebody to remember.** Now reminders and daily checks wake an assistant by themselves. [How](../../docs/03-records-schedules.md#schedules)
 - 🚨 **You hear about breakage late.** Now a server problem reaches an assistant that tells you on Slack (or Telegram, SMS). [How](../../docs/agents/logwatch.md#what-it-does)
 - 🔄 **Updating servers means logging in to each.** Now one code push updates them all and reports back. [How](../../docs/agents/git-autopull.md#how-it-works)
 - 🧰 **Your handy scripts stay private hacks.** Now any script becomes a safe, shared team tool. [How](../../docs/runner/README.md)
@@ -157,14 +157,14 @@ All links are to the repository docs.
 
 - [1] [message queues](../../docs/04-messaging.md#inbox-queues), [request and reply](../../docs/04-messaging.md#request-and-reply), [live AI sessions](../../docs/06-launchers.md#smart-launchers), [remote use](../../docs/02-access-remote.md#choosing-a-way)
 - [2] [who may use what](../../docs/02-access.md#acl), [helpers keep the keys](../../docs/agents/README.md#bundled-agents)
-- [3] [cron](../../docs/agents/cron.md#what-it-does), [at](../../docs/agents/at.md#what-it-does)
+- [3] [cron](../../docs/03-records-schedules.md#schedules), [at](../../docs/03-records-schedules.md#schedules)
 - [4] [logwatch](../../docs/agents/logwatch.md#what-it-does), [Telegram](../../docs/agents/telegram.md#what-it-does), [SMS](../../docs/agents/sms.md#what-it-does), [systemd](../../docs/agents/systemd.md#what-it-does)
 - [5] [autopull](../../docs/agents/git-autopull.md#how-it-works), [webhook](../../docs/agents/webhook.md#what-it-does)
 - [6] [runner](../../docs/runner/README.md), [confinement](../../docs/runner/security.md#isolation-today), [controls](../../docs/runner/operations.md#controlling-one-agent), [instances](../../docs/runner/agents.md#give-one-package-several-configurations)
 - [7] [dashboard](../../docs/05-discovery.md#dashboard)
 - [8] [helper guide](../../docs/agents/README.md#choose-an-agent), [install](../../docs/07-setup.md#install), [documents](../../docs/agents/rag.md#what-it-does)
 - Chat: [Slack](../../docs/agents/slack.md#what-it-does), [Telegram](../../docs/agents/telegram.md#what-it-does). Mail: [IMAP](../../docs/agents/imap.md#what-it-does), [SMTP](../../docs/agents/smtp.md#what-it-does), [help-desk walk-through](../../docs/agents/README.md#example-a-mail-help-desk). Phone: [SMS](../../docs/agents/sms.md#what-it-does). Servers: [server-info](../../docs/agents/server-info.md#what-it-does), [systemd](../../docs/agents/systemd.md#what-it-does), [git](../../docs/agents/git.md#what-it-does). Data: [database](../../Plans/R1.0-Release/dbsync.md#what-the-db-agent-offers-and-what-dbsync-does-not-assume), [rag](../../docs/agents/rag.md#what-it-does). Web: [fetch](../../docs/agents/fetch.md#what-it-does). AI: [ai](../../docs/agents/ai.md#what-it-does). Sessions: [tmux sessions](../../docs/agents/tmux-sessions.md#what-it-does).
-- Scenarios: 1 [sessions](../../docs/06-launchers.md#smart-launchers); 2 [cron](../../docs/agents/cron.md#what-it-does); 3 [logwatch](../../docs/agents/logwatch.md#what-it-does); 4 [server-info](../../docs/agents/server-info.md#what-it-does) with [cron](../../docs/agents/cron.md#what-it-does); 5 [autopull](../../docs/agents/git-autopull.md#how-it-works); 6 [database](../../Plans/R1.0-Release/dbsync.md#what-the-db-agent-offers-and-what-dbsync-does-not-assume); 7 [help desk](../../docs/agents/README.md#example-a-mail-help-desk); 8 [durability](../../docs/04-messaging.md#durability).
+- Scenarios: 1 [sessions](../../docs/06-launchers.md#smart-launchers); 2 [cron](../../docs/03-records-schedules.md#schedules); 3 [logwatch](../../docs/agents/logwatch.md#what-it-does); 4 [server-info](../../docs/agents/server-info.md#what-it-does) with [cron](../../docs/03-records-schedules.md#schedules); 5 [autopull](../../docs/agents/git-autopull.md#how-it-works); 6 [database](../../Plans/R1.0-Release/dbsync.md#what-the-db-agent-offers-and-what-dbsync-does-not-assume); 7 [help desk](../../docs/agents/README.md#example-a-mail-help-desk); 8 [durability](../../docs/04-messaging.md#durability).
 - Chains in scenarios 2-4 and 7 pass through a live AI session that calls the helpers; each hop is documented and tested alone, not run end to end on a live node.
 
 ## R1 work not yet on main

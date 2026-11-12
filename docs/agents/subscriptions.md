@@ -8,7 +8,7 @@
 ## What you get
 
 - New matches arrive at your chosen inbox; `sub list` reports sent and dropped copies.
-- No history replay, automatic delivery retries or in-place edits. To change a subscription, delete it and add it again. Schedules use [cron](cron.md#what-it-does).
+- No history replay, automatic delivery retries or in-place edits. To change a subscription, delete it and add it again. Timed messages are [schedules](../03-records-schedules.md#schedules).
 
 Each helper decides only what a subscription watches:
 

@@ -12,6 +12,7 @@ Follow each link for the full behavior and limits.
 - [Conditional registration](01-identity-and-authority.md#registration) arbitrates competing new claims. [Unregistration](01-identity-and-authority.md#unregistering) removes old group membership so a later holder does not inherit access.
 - [Administrative and record authority](01-identity-and-authority.md#positions-and-scopes) are separate: administering people does not make someone every record's maintainer.
 - [Every record admits `#bus`; it sends only where its principal may send](02-access.md#answers) (RD186).
+- [Schedules belong to records and fire from `#bus` on their creator's reach](03-records-schedules.md#who-may-use-them); `#cron` and `#at` are retired (RD184–RD189).
 - [A Personal record's Allow may name `#bus`](03-records.md#personal-and-shared), its Maintainers may not (Q328).
 
 ### Access and credentials

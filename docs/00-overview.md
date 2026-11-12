@@ -44,6 +44,7 @@ agent-bus status
 | ↳ [Services](03-records-service.md#what-a-service-is) | The external 📡 case: address, protocol, secrets and what it has no queue for |
 | ↳ [Resources](03-records-resource.md#what-a-resource-is) | The 📚 kind: the card, its source, listing and reading through MCP |
 | ↳ [Key-value store](03-records-kv.md#key-value-store) | Every record's durable string, int and JSON values: verbs, atomic JSON operations, limits and coordination patterns |
+| ↳ [Schedules](03-records-schedules.md#schedules) | Every agent's, queue's and pub/sub's repeating and one-off messages, fired from `#bus` |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and durability |
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
 | [Dedicated runner](06-dedicated-runner.md#script-agents) | `agent-bus run`: one script behind one agent, optionally sandboxed |

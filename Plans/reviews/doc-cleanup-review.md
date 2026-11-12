@@ -46,11 +46,11 @@ This ledger reconciles the earlier full-block Astra reviews with the completed f
 | [docs/administration.md](../../docs/administration.md) | Users | Reviewed — Entry | Consolidated installed-node operation, TLS and logs; removed developer-node defaults. |
 | [docs/agents/README.md](../../docs/agents/README.md) | Users | Reviewed — Agents | Merged agent selection/grants guidance; generated catalogue follows shipped inventory; preserved generated block. |
 | [docs/agents/ai.md](../../docs/agents/ai.md) | Users | Reviewed — Agents | Removed repeated capability and instance setup prose; retained actual settings and operational limits. |
-| [docs/agents/at.md](../../docs/agents/at.md) | Users | Reviewed — Agents | Merged scheduling and delivery explanations; kept one-attempt and unknown-outcome conditions. |
+| [docs/agents/at.md](../../docs/03-records-schedules.md#schedules) | Users | Reviewed — Agents | Merged scheduling and delivery explanations; kept one-attempt and unknown-outcome conditions. |
 | [docs/agents/authoring.md](../../docs/agents/authoring.md) | Agent authors | Reviewed — Checklist | Metadata authoring guidance retained; links the canonical behavior checklist instead of a second one. |
 | [docs/agents/bus.md](../../docs/agents/bus.md) | Users | Reviewed — Agents | Removed repeated built-in scope claims; kept callable operations and event/subscription examples. |
 | [docs/agents/create-agent-prompt.md](../../docs/agents/create-agent-prompt.md) | Agent authors | Reviewed — Agents | Condensed repeated generation instructions; prompt uses canonical agent checklist. |
-| [docs/agents/cron.md](../../docs/agents/cron.md) | Users | Reviewed — Agents | Removed repeated transcripts; kept schedule semantics and bounded delivery outcome window. |
+| [docs/agents/cron.md](../../docs/03-records-schedules.md#schedules) | Users | Reviewed — Agents | Removed repeated transcripts; kept schedule semantics and bounded delivery outcome window. |
 | [src/agents/db/guide.md](../../src/agents/db/guide.md) | Source-package users | Reviewed — Source | Moved from user catalogue; trimmed repeated setup/history; source installation explicitly scoped. |
 | [docs/agents/debug.md](../../docs/agents/debug.md) | Users | Reviewed — Agents | Removed duplicated capability lists; installed checks and diagnostic limitations retained. |
 | [docs/agents/eventlog.md](../../docs/agents/eventlog.md) | Users | Reviewed — Agents | Merged event/forwarding descriptions; retained stored-event and one-attempt delivery distinctions. |

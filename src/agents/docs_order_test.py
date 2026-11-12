@@ -43,10 +43,10 @@ ENFORCED = ['docs/runner/%s.md' % name for name in (
     '03-records-channel', '03-records-kv', '03-records-resource', '03-records-service', '04-messaging', '05-discovery')] + [
     'docs/agents/%s.md' % name for name in (
     'ai', 'fetch', 'git', 'git-autopull', 'qdrant', 'rag', 'server-info', 'systemd', 'voyage',
-    'README', 'at', 'bus', 'sms', 'smtp', 'tmux-sessions', 'webhook',
-    'cron', 'dbsync', 'debug', 'eventlog', 'filescan', 'imap', 'logwatch', 'slack', 'subscriptions', 'telegram')]
+    'README', 'bus', 'sms', 'smtp', 'tmux-sessions', 'webhook',
+    'dbsync', 'debug', 'eventlog', 'filescan', 'imap', 'logwatch', 'slack', 'subscriptions', 'telegram')]
 
-ENFORCED += ['docs/%s.md' % name for name in ('06-dedicated-runner', '06-launchers', '08-processes', '09-daemon-api')]
+ENFORCED += ['docs/%s.md' % name for name in ('06-dedicated-runner', '06-launchers', '08-processes', '09-daemon-api', '03-records-schedules')]
 
 # DW11: the client READMEs and src/*.md.
 ENFORCED += ['src/%s.md' % name for name in ('README', 'INSTALL', 'MODULES')] + [

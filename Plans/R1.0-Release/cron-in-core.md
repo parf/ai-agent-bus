@@ -41,7 +41,7 @@ Owner, 2026-11-06 ~14:00: "#cron and #at must be converted from agents to bus co
 
 ## Parity list: today and its core equivalent
 
-`#cron` and `#at` share one engine (`src/agents/shared/scheduler.py`, parser `src/agents/shared/cronexpr.py`): entries in the agent's KV, one process firing under a record lock, each firing claimed just before its one send. Pages: [cron](../../docs/agents/cron.md#what-it-does), [at](../../docs/agents/at.md#what-it-does). Both held nothing on the live node on 2026-11-06; nothing is migrated. Step 9 closes this list: each row gets a core call and a fixture that fails without it.
+`#cron` and `#at` share one engine (`src/agents/shared/scheduler.py`, parser `src/agents/shared/cronexpr.py`): entries in the agent's KV, one process firing under a record lock, each firing claimed just before its one send. Pages: [cron](../../docs/03-records-schedules.md#schedules), [at](../../docs/03-records-schedules.md#schedules). Both held nothing on the live node on 2026-11-06; nothing is migrated. Step 9 closes this list: each row gets a core call and a fixture that fails without it.
 
 | # | Today | Core equivalent | Differs |
 |---|---|---|---|

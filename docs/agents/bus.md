@@ -12,6 +12,7 @@
 - ✅ **Find helpers:** `ls` lists your team's helpers with one-line descriptions.
 - ✅ **Read the menu:** `help` lists the calls you may use.
 - ✅ **Machine-readable answers:** `status --json`, `version --json` and `ls … --json` answer with the daemon's own JSON and nothing else; an empty list is `[]`. Text stays the default.
+- ✅ **Sends your schedules:** a [schedule](../03-records-schedules.md#how-a-message-arrives)'s message comes from `#bus`, topic `schedule`, on its creator's reach.
 - ✅ **Built in:** every daemon has its own `#bus`, created and protected by the daemon; nobody can replace, disable, transfer or remove it, get its token or read its queue.
 - 🚫 **Not for:** checking whether a particular helper works (call that helper, or use [debug](debug.md#check-the-bus-in-a-minute)), or managing the registry through its message methods.
 

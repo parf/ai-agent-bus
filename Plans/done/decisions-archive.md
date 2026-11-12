@@ -189,7 +189,7 @@ History only; these rows are never a current contract. See [current decisions](.
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| A subscription forward whose delivery cannot be confirmed pauses that subscription with a visible error; a definite refusal retries with backoff (RD138, Q207) | [the shared behaviour](../../docs/agents/subscriptions.md#the-shared-behaviour), [cron](../../docs/agents/cron.md#what-it-does) | 2026-10-28 owner decision, replaced by RD161 (2026-10-29): a refused copy, or one whose acceptance is unknown, is dropped with one warning and the subscription stays active; a one-shot is dropped and removed; nothing is held, retried or paused. A confirmed delivery is still never resent |
+| A subscription forward whose delivery cannot be confirmed pauses that subscription with a visible error; a definite refusal retries with backoff (RD138, Q207) | [the shared behaviour](../../docs/agents/subscriptions.md#the-shared-behaviour), [cron](../../docs/03-records-schedules.md#schedules) | 2026-10-28 owner decision, replaced by RD161 (2026-10-29): a refused copy, or one whose acceptance is unknown, is dropped with one warning and the subscription stays active; a one-shot is dropped and removed; nothing is held, retried or paused. A confirmed delivery is still never resent |
 
 
 ## Earlier release installation and signing
