@@ -15,7 +15,7 @@ type vectors struct {
 	Invalid []struct{ Expr, Error string }
 }
 
-// The Go parser agrees with #cron's Python parser on every row of the shared
+// The parser agrees with the retired Python parser on every row of the shared
 // table: the next five slots from each start, and every refusal word for word.
 func TestExprMatchesTheCronVectors(t *testing.T) {
 	raw, err := os.ReadFile("../../testdata/cron/vectors.json")

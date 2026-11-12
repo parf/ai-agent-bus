@@ -50,7 +50,7 @@ var (
 // horizonDays bounds a search: a February 29 schedule fires within eight years.
 const horizonDays = 8 * 366
 
-// Error is a refused expression, worded as #cron worded it.
+// Error is a refused expression.
 type Error string
 
 func (e Error) Error() string { return string(e) }

@@ -90,7 +90,7 @@ SHARDS=(core go_checks go_unit go_release agent_pack agent_packages process_titl
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples agent_guide
-  agent_slack agent_telegram agent_discord agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_filescan agent_dbsync agent_subscriptions container_image distro_install agent_eventlog)
+  agent_slack agent_telegram agent_discord agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_filescan agent_dbsync agent_subscriptions container_image distro_install agent_eventlog)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -149,7 +149,7 @@ if [ -z "$SHARD" ]; then
   # One client fixture for the selected shards that run a real daemon on the Go client side, built from this file's
   # directory (the module root), only when one is selected: at normal or slow, or agent_subscriptions at any level (its
   # daemon-delivery test runs in fast too and would otherwise build a fixture of its own).
-  fixture_shards=" mcp_rpc client_python client_rust client_php client_typescript client_java client_go client_examples agent_logwatch agent_git agent_rag agent_webhook agent_imap agent_cron agent_at agent_eventlog agent_subscriptions "
+  fixture_shards=" mcp_rpc client_python client_rust client_php client_typescript client_java client_go client_examples agent_logwatch agent_git agent_rag agent_webhook agent_imap agent_eventlog agent_subscriptions "
   for name in "${SHARDS[@]}"; do
     case "$fixture_shards" in *" $name "*)
       case "${LEVELS[$name]:-normal}:$name" in normal:*|slow:*|fast:agent_subscriptions)

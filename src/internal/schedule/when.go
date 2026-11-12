@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// The one-shot time forms of #cron's later and #at, read in UTC.
+// The one-shot time forms: a delay, HH:MM or an instant, read in UTC.
 const (
 	Skew    = 30 * time.Second     // an instant this far in the past still fires now
 	Horizon = 366 * 24 * time.Hour // nothing further ahead

@@ -255,31 +255,6 @@ agent_subscriptions() {
   out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_change_sync.py -v 2>&1); rc=$?
   echo "$out" | sed 's/^/  /'
   ok_exit "change-sync core: state file, authority, confirmed delivery, poll timer" "$rc"
-  out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest agents.cron.test_scheduler_state -v 2>&1); rc=$?
-  echo "$out" | sed 's/^/  /'
-  ok_exit "canonical scheduler state and interrupted-send recovery" "$rc"
-}
-
-agent_cron() {
-  if normal; then
-    sec "cron subscriptions and one-shots: destination authority, single firing, RD138 delivery"
-    local out rc
-    local fixture; fixture=$(client_fixture) || { ok_exit "cron bus fixture is present" 1; return; }
-    out=$(CRON_BUS_FIXTURE="$fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/cron -p 'test_*.py' -v 2>&1); rc=$?
-    echo "$out" | sed 's/^/  /'
-    ok_exit "cron parser, /manages at add and firing, one sender per slot, restarts and unconfirmed pauses" "$rc"
-  else skipped=$((skipped+1)); fi
-}
-
-agent_at() {
-  if normal; then
-    sec "at: deferred one-shot calls on the shared scheduler engine"
-    local out rc
-    local fixture; fixture=$(client_fixture) || { ok_exit "at bus fixture is present" 1; return; }
-    out=$(CRON_BUS_FIXTURE="$fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/at -p 'test_*.py' -v 2>&1); rc=$?
-    echo "$out" | sed 's/^/  /'
-    ok_exit "at grammar and HH:MM, one send per call, restarts, ACL pauses, shared engine packaged unchanged" "$rc"
-  else skipped=$((skipped+1)); fi
 }
 
 agent_smtp() {

@@ -14,7 +14,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/sandbox"
 )
 
-func checkoutCronTree(t *testing.T) (string, string) {
+func checkoutAgentTree(t *testing.T) (string, string) {
 	t.Helper()
 	// Outside /usr: that whole tree is already readable in bubblewrap and
 	// would hide a missing support mount on the development node.
@@ -25,7 +25,7 @@ func checkoutCronTree(t *testing.T) (string, string) {
 	src := filepath.Join(root, "src")
 	writeFile(t, filepath.Join(root, ".git"), "gitdir: fixture\n")
 	writeFile(t, filepath.Join(src, "go.mod"), "module fixture\n")
-	for _, name := range []string{"agents/cron", "agents/shared", "clients/python", "internal/version"} {
+	for _, name := range []string{"agents/eventlog", "agents/shared", "clients/python", "internal/version"} {
 		if err := os.CopyFS(filepath.Join(src, name), os.DirFS(filepath.Join("..", "..", name))); err != nil {
 			t.Fatal(err)
 		}
@@ -40,30 +40,30 @@ func checkoutCronTree(t *testing.T) (string, string) {
 		t.Fatal(err)
 	}
 	host := filepath.Join(root, "runner")
-	writeFile(t, filepath.Join(host, "agents.json"), `{"cron":{"enabled":true}}`)
+	writeFile(t, filepath.Join(host, "agents.json"), `{"eventlog":{"enabled":true}}`)
 	return filepath.Join(src, "agents"), host
 }
 
-func TestGitBundledCronStartsWithTheDefaultSandbox(t *testing.T) {
+func TestGitBundledAgentStartsWithTheDefaultSandbox(t *testing.T) {
 	if err := sandbox.ProbeBwrap(); err != nil {
 		t.Skipf("checkout proof requires bubblewrap: %v", err)
 	}
-	bundled, host := checkoutCronTree(t)
+	bundled, host := checkoutAgentTree(t)
 	r := &runner{agents: filepath.Join(host, "agent.d"), bundled: bundled, host: host, say: io.Discard, ctx: context.Background()}
 	list, err := loadSources(r.sources(), host)
 	if err != nil || len(list) != 1 || list[0].Refused != "" || !list[0].enabled() {
-		t.Fatalf("enabled checkout cron: %+v %v", list, err)
+		t.Fatalf("enabled checkout eventlog: %+v %v", list, err)
 	}
 	in := list[0]
 	box, why := r.sandboxFor(in)
 	if why != "" || box.Name() != "bwrap" {
 		t.Fatalf("default sandbox: %v %s", box, why)
 	}
-	work := filepath.Join(host, "work", "cron")
+	work := filepath.Join(host, "work", "eventlog")
 	if err := os.MkdirAll(work, 0700); err != nil {
 		t.Fatal(err)
 	}
-	s := &served{in: in, name: "#cron@fixture.test", bus: unconfiguredClient(), dir: r.codeDir(in), work: work, cmd: command(r.codeDir(in), in.Agent.Command), box: box, jail: &jail{}, env: []string{"AGENT_BUS_ASK=help", "PYTHONDONTWRITEBYTECODE=1"}}
+	s := &served{in: in, name: "#eventlog@fixture.test", bus: unconfiguredClient(), dir: r.codeDir(in), work: work, cmd: command(r.codeDir(in), in.Agent.Command), box: box, jail: &jail{}, env: []string{"AGENT_BUS_ASK=help", "PYTHONDONTWRITEBYTECODE=1"}}
 	k := &keeper{r: r, s: s}
 	cmd, _, err := k.command()
 	if err != nil {
@@ -81,33 +81,33 @@ func TestGitBundledCronStartsWithTheDefaultSandbox(t *testing.T) {
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Fatalf("checkout cron failed in default sandbox: %v: %s", err, stderr.String())
+			t.Fatalf("checkout eventlog failed in default sandbox: %v: %s", err, stderr.String())
 		}
 	case <-time.After(5 * time.Second):
 		k.signalOne(cmd, s.jail, 9)
 		<-done
-		t.Fatal("checkout cron startup did not complete")
+		t.Fatal("checkout eventlog startup did not complete")
 	}
 	var manifest struct {
 		Description string `json:"description"`
 	}
-	raw, err := os.ReadFile(filepath.Join(bundled, "cron", "agent.json"))
+	raw, err := os.ReadFile(filepath.Join(bundled, "eventlog", "agent.json"))
 	if err != nil || json.Unmarshal(raw, &manifest) != nil {
 		t.Fatalf("manifest: %v", err)
 	}
 	if !strings.Contains(out.String(), manifest.Description) || stderr.String() != "" {
-		t.Fatalf("real cron help after imports: stdout=%q stderr=%q", out.String(), stderr.String())
+		t.Fatalf("real eventlog help after imports: stdout=%q stderr=%q", out.String(), stderr.String())
 	}
 }
 
 func TestCheckoutSupportReadsNeverApplyToSharedOrReleasePackages(t *testing.T) {
-	bundled, host := checkoutCronTree(t)
-	// Include the fourth allowed root, even though cron only uses Python.
+	bundled, host := checkoutAgentTree(t)
+	// Include the fourth allowed root, even though eventlog only uses Python.
 	if err := os.MkdirAll(filepath.Join(filepath.Dir(bundled), "clients", "typescript"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	r := &runner{agents: filepath.Join(host, "agent.d"), bundled: bundled}
-	dir := filepath.Join(bundled, "cron")
+	dir := filepath.Join(bundled, "eventlog")
 	want := []string{dir, filepath.Join(bundled, "shared"), filepath.Join(bundled, "VERSION"), filepath.Join(filepath.Dir(bundled), "clients", "python"), filepath.Join(filepath.Dir(bundled), "clients", "typescript"), filepath.Join(filepath.Dir(bundled), "internal", "version")}
 	if got := r.codeReads(installed{Bundled: true}, dir); !reflect.DeepEqual(got, want) {
 		t.Fatalf("checkout read roots: %v, want %v", got, want)
