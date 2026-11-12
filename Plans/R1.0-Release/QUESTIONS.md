@@ -14,8 +14,16 @@ Owner proposal, 2026-11-12: [upstream mount](federation.md#upstream-mount), unde
 
 - ❓ Q407 Is the two-way proxy part of the mount's first form
   - Context: [two-way proxy](federation.md#two-way-proxy): a local agent opts in, and the proxy user registers a 1-to-1 stand-in for it on the remote
+  - Context: alternative, the mirrored mount: the remote owner gives the mount's user a prefix there (`parf-home:`), and offered local agents appear as `#parf-home:worker@parf.us` over the same outbound connection; one mechanism both ways, no remote name collisions, each local caller a distinct remote identity
+  - Owner, 2026-11-12: "i'll decide"
   - ( ) One-way first; two-way as a later step
   - ( ) Both in the first form
+  - ( ) Two-way by stand-ins the proxy user registers
+  - ( ) Two-way by the mirrored mount
+- ❓ Q408 When does a mounted name's local record appear and go
+  - Context: each mounted name is a local record with its own ACL ([RD182](DECISIONS.md#recorded-decisions))
+  - ( ) Created when the remote listing first shows it, owned by the mount's Owner; kept and shown offline when it leaves, until its Owner removes it
+  - ( ) Created only when the mount's Owner adds the name; removed with it
 
 ## Upgrading pre-1.0 data
 

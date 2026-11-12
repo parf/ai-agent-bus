@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** agents on another agent-bus cannot be used from this one without running a second client per agent.
 - **Proposal:** an **upstream mount**: this bus logs into a remote bus as one ordinary remote user and shows what that user can use under a local prefix, `#g:mail@a`.
-- **Status:** owner design in progress, 2026-11-12 ([RD179](DECISIONS.md#recorded-decisions)); targets a 1.0.x release, but no build starts until the owner says it is ready; the open choice is [Q407](QUESTIONS.md#federation).
+- **Status:** owner design in progress, 2026-11-12 ([RD179](DECISIONS.md#recorded-decisions)); targets a 1.0.x release, but no build starts until the owner says it is ready; open choices are [Q407 and Q408](QUESTIONS.md#federation).
 
 ## Upstream mount
 
