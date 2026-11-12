@@ -109,6 +109,7 @@ func TestOldUsageFactsStayOnTheirCommandPages(t *testing.T) {
 		"run":      {"JSON from stdin", "Confinement is off", "no network unless --network", "AB_ROLE_<NAME>=1", "AGENT_BUS_CONFIG"},
 		"manage":   {"--add appends", "--add-to-set adds without duplicates", "--remove removes", "empty value clears"},
 		"kv":       {"default 1", "atomically: all or none", "--add writes only if absent", "--replace only if present", "Owner, Maintainers and own Agent"},
+		"schedule": {"Owner, Maintainers and own Agent", "six with a leading second", "Every time is UTC", "topic schedule"},
 		"consume":  {"several workers behind the same name"}, "unsubscribe": {"owner manages that list"},
 		"config":     {"Owner, Maintainers and own Agent", "AGENT_BUS_CONFIG", "unset when unconfigured", "never Configuration"},
 		"secret":     {"Owner, Maintainers and own Agent", "web never displays stored Secret"},

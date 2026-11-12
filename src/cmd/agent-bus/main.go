@@ -113,6 +113,8 @@ func main() {
 		err = lockHolders(rest)
 	case "kv":
 		err = kvVerb(rest)
+	case "schedule":
+		err = scheduleVerb(rest)
 	case "bigfile":
 		err = bigVerb(rest)
 	case "ls":
