@@ -76,6 +76,7 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 
 - **Protocol:** both HTTP `/identity` fields must match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version) before application requests. Missing, malformed and unsupported versions are refused.
 - **Refusals:** errors expose the daemon's `kind` alongside its status and message.
+- **Waiting, not polling:** each pending `call` holds one filtered read open at the daemon, for up to 25 s at a time, and `serve` holds one unfiltered read while a worker is free. `stop()` cancels that waiting read; the daemon hands a cancelled read nothing ([one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox)).
 
 - **Runtime:** an ESM client for Node 22+ and Bun 1.3+. All network I/O uses Node's built-in HTTP and HTTPS interfaces, including Unix sockets. Browsers are unsupported.
 - **Connecting:** `Bus.connect()` does no I/O. The first authenticated operation verifies `/status.you` against `expectName` when supplied, and `record(name)` selects a target, never a different caller.

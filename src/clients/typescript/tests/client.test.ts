@@ -166,10 +166,19 @@ test('certificate pins are verified before any credentials; correct pin permits 
  const pin=createHash('sha256').update(new X509Certificate(readFileSync(cert)).raw).digest('hex');const right=Bus.connect({addr,token:'dummy',fingerprint:pin});buses.push(right);expect((await right.whoami()).you).toBe('#caller@fixture');expect(credentials).toBe(2);
 });
 
-test('a work poll completing after drain expiry is still handled exactly once',async()=>{
- let resolvePoll!:()=>void,polled!:()=>void;const begun=new Promise<void>(r=>polled=r),release=new Promise<void>(r=>resolvePoll=r);let polls=0,handled=0,replies=0;
- const addr=await fake((req,res)=>{if(req.url==='/status'){res.end('{"you":"#worker@fixture"}');return;}if(req.url?.startsWith('/consume')){polls++;polled();void release.then(()=>res.end('{"message_id":"taken","from":"#caller@fixture","to":"#worker@fixture","body":"work"}'));return;}if(req.url==='/send'){replies++;res.end('{"message_id":"response"}');}});
- const b=Bus.connect({addr,timeout:1000});buses.push(b);const replied=replyCompleted(b);const running=await serve(b,()=>{handled++;return 'answer';},{drainTimeout:10});await begun;b.stop();await expect(running.promise).rejects.toMatchObject({unfinished:1});resolvePoll();await replied();expect(handled).toBe(1);expect(replies).toBe(2);expect(polls).toBe(1);
+test('stopping cancels the waiting serving read, which takes nothing',async()=>{
+ let polled!:()=>void,closed!:()=>void;const begun=new Promise<void>(r=>polled=r),gone=new Promise<void>(r=>closed=r);let polls=0,handled=0,sends=0;
+ const addr=await fake((req,res)=>{if(req.url==='/status'){res.end('{"you":"#worker@fixture"}');return;}if(req.url?.startsWith('/consume')){polls++;expect(req.url).toContain('wait=25000ms');polled();res.on('close',()=>closed());return;}sends++;res.end('{"message_id":"x"}');});
+ const b=Bus.connect({addr,timeout:1000});buses.push(b);const running=await serve(b,()=>{handled++;return 'answer';},{drainTimeout:1000});await begun;const stopped=performance.now();b.stop();
+ await bounded(gone,'serving read cancelled');await running.promise;expect(performance.now()-stopped).toBeLessThan(500);expect(polls).toBe(1);expect(handled).toBe(0);expect(sends).toBe(0);
+});
+
+test('a pending call holds one long read instead of polling',async()=>{
+ let consumes=0,sent!:()=>void;const sending=new Promise<void>(r=>sent=r);const waits:string[]=[];
+ const addr=await fake((req,res)=>{if(req.url==='/status'){res.end('{"you":"#caller@fixture"}');return;}if(req.url==='/send'){sent();res.end('{"message_id":"m1"}');return;}if(req.url?.startsWith('/consume')){consumes++;waits.push(new URL(req.url,'http://x').searchParams.get('wait')!);return;}res.end('{}');});
+ const b=Bus.connect({addr,timeout:1000});buses.push(b);const call=b.call('#worker@fixture','x',{timeout:1500});await sending;await sleep(600);
+ expect(consumes).toBe(1);expect(Number(waits[0]!.replace('ms',''))).toBeGreaterThan(800);
+ await expect(call).resolves.toEqual({kind:'timeout',acked:false});
 });
 
 test('call identity timeout is a timeout outcome, and closing wakes a pending call',async()=>{
@@ -454,10 +463,11 @@ test('RT21 retained self work respects capacity and drains after stop',async()=>
   const until=performance.now()+1000;
   while(server.active.size&&performance.now()<until)await sleep(1);
   expect(server.active.size).toBe(0);
-  // Keep the dispatch read blocked through a drain-loop turn. Only the
-  // already-taken self request can keep the serving generation alive now.
-  await sleep(20);
-  expect((caller as any).serving).toBe(server);
+  // The call's own read is still blocked: the drain loop itself takes the
+  // already-taken self request once the slot frees, before the generation ends.
+  const handledBy=performance.now()+1000;
+  while(seen.length<2&&performance.now()<handledBy)await sleep(1);
+  expect(seen).toEqual(['hold slot',row.request.body]);
  } finally {release.resolve();readRelease.resolve();}
  const outcome=await result;
  expect(outcome.kind).toBe('answer');

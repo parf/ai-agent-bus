@@ -18,9 +18,11 @@ function held(path: string, wait: unknown): number {
   while (rest) { const m = /^(\d+(?:\.\d*)?)(ms|us|µs|ns|h|m|s)/.exec(rest); if (!m) return 0; total += Number(m[1]) * units[m[2]!]!; rest = rest.slice(m[0].length); }
   return total > 0 && total <= 60_000 ? total : 0;
 }
-type Pending = { inbox: string; topic: string; tag: string; sent?: string; early: Message[]; request?: Message; acked: boolean; finish: (outcome: CallOutcome) => void; fail: (error: unknown) => void; onAck?: (message: Message) => void; deadline: number };
-type Serving = { handler: (message: Message) => string | null | Promise<string | null>; options: ServeOptions; inbox: string; workers: number; active: Set<Promise<void>>; accepting: boolean; polling: number; error?: unknown };
+type Pending = { inbox: string; topic: string; tag: string; sent?: string; early: Message[]; request?: Message; acked: boolean; settled?: boolean; finish: (outcome: CallOutcome) => void; fail: (error: unknown) => void; onAck?: (message: Message) => void; deadline: number };
+type Serving = { handler: (message: Message) => string | null | Promise<string | null>; options: ServeOptions; inbox: string; workers: number; active: Set<Promise<void>>; accepting: boolean; polling: number; error?: unknown; reading?: AbortController; wake?: () => void; stopped?: () => void };
 const pause = (ms = 10) => new Promise<void>(resolve => setTimeout(resolve, ms));
+/** How long one read waits at the daemon: a pending call or a serving loop holds one long read, never a poll. */
+const LONG_WAIT = 25_000;
 export class Bus {
   private readonly transport: Transport;
   private readonly timeout: number;
@@ -31,8 +33,6 @@ export class Bus {
   private raw = false;
   private readonly pending = new Map<string,Pending>();
   private serving?: Serving;
-  private dispatching = false;
-  private cursor = 0;
   private readonly prefix = `call-${randomUUID()}-`;
   private readonly handles = new Map<string,RecordHandle>();
   static connect(options: ConnectOptions = {}): Bus { return new Bus(options); }
@@ -136,21 +136,24 @@ export class Bus {
     let cancelled: (() => void) | undefined;
     let entry!: Pending;
     const result = new Promise<CallOutcome>((resolve,reject) => {
-      entry = {inbox,topic,tag,early:[],acked:false,deadline,onAck:options.onAck,finish:resolve,fail:reject};
+      entry = {inbox,topic,tag,early:[],acked:false,deadline,onAck:options.onAck,finish:outcome => { entry.settled = true; resolve(outcome); },fail:error => { entry.settled = true; reject(error); }};
       timer = setTimeout(() => resolve({kind:'timeout',acked:entry.acked}),remaining(deadline));
       cancelled = () => reject(abortError()); options.signal?.addEventListener('abort',cancelled,{once:true});
     });
     // Avoid an unhandled early timeout/abort while the POST is in flight.
     result.catch(() => {});
-    this.pending.set(key,entry); this.startDispatcher();
+    this.pending.set(key,entry);
+    const following = new AbortController();
     try {
       const payload = this.payload(to,body,{...options,tag,wait:remaining(deadline),reply_to:route ? {...route,topic,tag} : undefined});
       const sent = await this.request('POST','/send',payload,{timeout:remaining(deadline),signal:options.signal});
       entry.sent = sent.message_id;
       for (const message of entry.early) this.deliver(entry,message); entry.early = [];
+      if (this.serving && entry.request) this.takeRetained(this.serving);
+      if (!entry.settled) void this.follow(entry,following.signal);
       return await result;
     } catch (error) { if (error instanceof BusTimeout) return {kind:'timeout',acked:entry.acked}; throw error; }
-    finally { if (timer) clearTimeout(timer); if (cancelled) options.signal?.removeEventListener('abort',cancelled); this.pending.delete(key); }
+    finally { following.abort(); if (timer) clearTimeout(timer); if (cancelled) options.signal?.removeEventListener('abort',cancelled); this.pending.delete(key); }
   }
   private deliver(entry:Pending,message:Message): void {
     if (performance.now() >= entry.deadline) { entry.finish({kind:'timeout',acked:entry.acked}); return; }
@@ -165,41 +168,63 @@ export class Bus {
   private retained(server:Serving): Pending | undefined {
     return [...this.pending.values()].find(entry => entry.request?.envelope.to === server.inbox);
   }
-  private startDispatcher(): void { if (!this.dispatching) { this.dispatching = true; void this.dispatch().finally(() => { this.dispatching = false; if (!this.closed && (this.pending.size || this.serving)) this.startDispatcher(); }); } }
-  private async dispatch(): Promise<void> {
-    while (!this.closed && (this.pending.size || this.serving)) {
-      const server = this.serving;
-      const capacity = server && server.active.size + server.polling < server.workers;
-      const deferred = capacity ? this.retained(server) : undefined;
-      if (deferred) {
-        const message = deferred.request!; deferred.request = undefined;
-        // Its accepted request ID already proves this is work, even though
-        // its tag has our call prefix. Do not run reply-classification hooks.
-        const task = this.handle(server!,message);
-        server!.active.add(task); void task.finally(() => server!.active.delete(task)).catch(() => {});
-        continue;
-      }
-      const choices = [...this.pending.values()].filter(entry => entry.sent && entry.deadline > performance.now());
-      const work = server && server.accepting && capacity;
-      if (!choices.length && !work) { await pause(); continue; }
-      this.cursor %= choices.length + (work ? 1 : 0); const entry = choices[this.cursor++];
-      const workPoll = !entry; if (workPoll) server!.polling++;
-      const inbox = entry?.inbox ?? server!.inbox;
+  /** One pending call's own filtered read, held at the daemon for up to LONG_WAIT and renewed until the call settles. */
+  private async follow(entry:Pending,stop:AbortSignal): Promise<void> {
+    while (!entry.settled && !stop.aborted && !this.closed) {
+      const left = entry.deadline - performance.now();
+      if (left <= 0) { entry.finish({kind:'timeout',acked:entry.acked}); return; }
+      let message: Message | null;
+      try { message = await this.read({inbox:entry.inbox,topic:entry.topic,tag:entry.tag,wait:Math.max(1,Math.min(LONG_WAIT,Math.floor(left))),timeout:5000,signal:stop}); }
+      catch (error) { if (stop.aborted || this.closed || entry.settled) return; if (error instanceof BusTimeout || performance.now() >= entry.deadline) entry.finish({kind:'timeout',acked:entry.acked}); else entry.fail(error); return; }
+      if (message) this.route(message,entry.inbox);
+    }
+  }
+  /** Hands a message to the pending call it answers; false when it belongs to none. */
+  private route(message:Message,inbox:string): boolean {
+    let routed = this.pending.get(this.key(inbox,message.topic ?? '',message.tag ?? ''));
+    if (!routed && !message.receipt && !message.re && message.from === this.name)
+      routed = [...this.pending.values()].find(entry => entry.tag === message.tag);
+    if (!routed) return false;
+    this.deliver(routed,message);
+    // A call to our own name: its request is work for a free serving worker.
+    if (routed.request && this.serving) this.takeRetained(this.serving);
+    return true;
+  }
+  private spawn(server:Serving,task:Promise<void>): void {
+    server.active.add(task);
+    void task.finally(() => { server.active.delete(task); server.wake?.(); }).catch(() => {});
+  }
+  private takeRetained(server:Serving): void {
+    let deferred: Pending | undefined;
+    // The serving read is not counted: it holds no message yet, and what it brings waits for a free worker.
+    while (server.active.size < server.workers && (deferred = this.retained(server))) {
+      const message = deferred.request!; deferred.request = undefined;
+      // Its accepted request ID already proves this is work, even though
+      // its tag has our call prefix. Do not run reply-classification hooks.
+      this.spawn(server,this.handle(server,message));
+    }
+  }
+  /** Stopping cancels the waiting serving read; the daemon hands a cancelled read nothing and keeps the message queued (docs/04-messaging.md#one-reader-per-inbox). */
+  private halt(server:Serving): void { server.accepting = false; server.reading?.abort(); server.wake?.(); server.stopped?.(); }
+  private async freeWorker(server:Serving): Promise<void> {
+    while (server.active.size >= server.workers && !this.closed) await new Promise<void>(resolve => { server.wake = resolve; if (server.active.size < server.workers || this.closed) resolve(); });
+    server.wake = undefined;
+  }
+  /** The serving loop: one unfiltered read held at the daemon while a worker is free; it waits for a worker otherwise. */
+  private async serveLoop(server:Serving): Promise<void> {
+    while (server.accepting && !this.closed) {
+      this.takeRetained(server);
+      if (server.active.size >= server.workers) { await this.freeWorker(server); continue; }
+      const reading = new AbortController(); server.reading = reading; server.polling++;
       try {
-        const message = await this.read({inbox,topic:entry?.topic ?? server?.options.topic,tag:entry?.tag,share:!entry && server?.options.share,wait:50,timeout:entry ? Math.min(1000,remaining(entry.deadline)) : 1000});
-        if (!message) continue;
-        let routed = this.pending.get(this.key(inbox,message.topic ?? '',message.tag ?? ''));
-        if (!routed && !message.receipt && !message.re && message.from === this.name)
-          routed = [...this.pending.values()].find(entry => entry.tag === message.tag);
-        if (routed) this.deliver(routed,message);
-        else if (workPoll && server && !message.receipt) {
-          // Classification can await application work too: it belongs to a
-          // serving worker, never the dispatcher that delivers pending calls.
-          const task = this.work(server,message);
-          server.active.add(task); void task.finally(() => server.active.delete(task)).catch(() => {});
+        const message = await this.read({inbox:server.inbox,topic:server.options.topic,share:server.options.share,wait:LONG_WAIT,timeout:5000,signal:reading.signal});
+        if (message && !this.route(message,server.inbox) && !message.receipt) {
+          await this.freeWorker(server);
+          // Classification can await application work too: it belongs to a serving worker.
+          if (!this.closed) this.spawn(server,this.work(server,message));
         }
-      } catch (error) { if (entry) { if (error instanceof BusTimeout || performance.now() >= entry.deadline) entry.finish({kind:'timeout',acked:entry.acked}); else entry.fail(error); this.pending.delete(this.key(entry.inbox,entry.topic,entry.tag)); } else if (server) { server.error = error; server.accepting = false; } }
-      finally { if (workPoll) server!.polling--; }
+      } catch (error) { if (!reading.signal.aborted && !this.closed) { server.error = error; this.halt(server); } }
+      finally { server.polling--; if (server.reading === reading) server.reading = undefined; }
     }
   }
   private async work(server:Serving,message:Message): Promise<void> {
@@ -235,12 +260,13 @@ export class Bus {
     if (this.serving || this.raw) throw new ReaderInUse();
     await this.ensureIdentity(budget(this.timeout),options.signal); if (this.serving || this.raw) throw new ReaderInUse();
     const server:Serving = {handler,options,inbox:options.inbox ?? this.name!,workers,active:new Set(),accepting:true,polling:0}; this.serving = server;
-    const stop = () => { server.accepting = false; }; options.signal?.addEventListener('abort',stop,{once:true}); if (options.signal?.aborted) stop(); this.startDispatcher();
-    try { while (server.accepting && !this.closed) await pause(); const end = performance.now() + drain;
-      while (server.active.size || server.polling || this.retained(server)) { if (performance.now() >= end) throw new DrainTimeout(server.active.size + server.polling + [...this.pending.values()].filter(entry => entry.request?.envelope.to === server.inbox).length); await pause(); }
+    const stop = () => this.halt(server); options.signal?.addEventListener('abort',stop,{once:true}); if (options.signal?.aborted) stop();
+    void this.serveLoop(server);
+    try { while (server.accepting && !this.closed) await new Promise<void>(resolve => { server.stopped = resolve; if (!server.accepting || this.closed) resolve(); }); const end = performance.now() + drain;
+      while (server.active.size || server.polling || this.retained(server)) { this.takeRetained(server); if (performance.now() >= end) throw new DrainTimeout(server.active.size + server.polling + [...this.pending.values()].filter(entry => entry.request?.envelope.to === server.inbox).length); await pause(); }
       if (server.error) throw server.error;
     } finally { server.accepting = false; options.signal?.removeEventListener('abort',stop); if (this.serving === server) this.serving = undefined; }
   }
-  stop(): void { this.check(); if (this.serving) this.serving.accepting = false; }
-  async close(): Promise<void> { if (this.closed) return; this.closed = true; if (this.serving) this.serving.accepting = false; for (const entry of this.pending.values()) entry.fail(new BusClosed()); this.pending.clear(); this.transport.close(); }
+  stop(): void { this.check(); if (this.serving) this.halt(this.serving); }
+  async close(): Promise<void> { if (this.closed) return; this.closed = true; if (this.serving) this.halt(this.serving); for (const entry of this.pending.values()) entry.fail(new BusClosed()); this.pending.clear(); this.transport.close(); }
 }
