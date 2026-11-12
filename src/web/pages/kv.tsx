@@ -5,12 +5,14 @@
 import { h, Fragment } from "../jsx.ts";
 import { Ctx, LocalProblem } from "../ctx.ts";
 import { respond, flashRedirect } from "../ui/frame.tsx";
-import { Icon, Help, PageHead, Card, KindIcon, Muted, Empty, Segmented, Button, recordHref } from "../ui/kit.tsx";
+import { Icon, Help, PageHead, Card, KindIcon, Muted, Empty, Segmented, Tabs, Button, recordHref } from "../ui/kit.tsx";
+import { TagBadges } from "../ui/tags.tsx";
+import { recordTags, filterTag } from "../tags.ts";
 import { TextField, TextAreaField, FieldError, ErrorSummary, type FormState } from "../ui/forms.tsx";
 import { formRefusal } from "../problem.tsx";
 import { entity } from "../glyphs.ts";
 import { number } from "../format.ts";
-import { KV_KINDS, KV_TITLE, Preview, preview, recordBig, storeHref, valueHref, type BigKey, type KVKind, type KVListing } from "../ui/kv.tsx";
+import { KV_KINDS, KV_TITLE, Preview, preview, recordBig, storeHref, valueHref, type BigKey, type KVKind, type KVListing, type KVStoreRow } from "../ui/kv.tsx";
 
 const RECORD_KINDS = ["agent", "service", "queue", "pubsub", "resource", "group", "user"];
 const HELP = ["Each record keeps its own string, integer and JSON values; they survive a restart.",
@@ -39,30 +41,45 @@ function listUrl(p: Record<string, string | undefined>): string {
 // ------------------------------------------------------------------ /kv
 
 async function kvPage(ctx: Ctx): Promise<Response> {
-  const [st, all] = await Promise.all([ctx.status(), ctx.kvStores()]);
+  const [st, all, records] = await Promise.all([ctx.status(), ctx.kvStores(), ctx.records()]);
+  // A store's tags are its record's, as the record lists show them (Q387).
+  const tagsOf = new Map(records.map(r => [r.name, recordTags(r)]));
+  const labels = (r: KVStoreRow) => tagsOf.get(r.record) ?? ["no-tags"];
   const present = RECORD_KINDS.filter(k => all.some(r => r.kind === k));
   const q = ctx.q("q").trim(), kind = present.includes(ctx.q("kind")) ? ctx.q("kind") : "";
+  const tag = ctx.q("tag") ? filterTag(ctx.q("tag")) : "";
   const needle = q.toLowerCase();
-  const rows = all.filter(r => (!kind || r.kind === kind) && (!needle || r.record.toLowerCase().includes(needle)));
+  const tagCounts = new Map<string, number>();
+  const rows = all.filter(r => {
+    if ((kind && r.kind !== kind) || (needle && !r.record.toLowerCase().includes(needle))) return false;
+    // Each tag counts against the search and the kind, not the tag chosen.
+    for (const t of labels(r)) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+    return !tag || labels(r).includes(tag);
+  });
+  const tagEntries = [...tagCounts].filter(([t]) => t !== "no-tags").sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  if (tag && !tagEntries.some(([t]) => t === tag)) tagEntries.push([tag, 0]);
   const clear = listUrl({});
   const body = <>
     <PageHead icon={<Icon name="database" />} title="KV" help={<Help id="kv-help" label="About KV" title="Key-value stores" items={HELP} />} />
+    {tagEntries.length ? <Tabs label="Record tags" items={[{ href: listUrl({ q, kind }), text: "All", current: !tag },
+      ...tagEntries.map(([t, count]) => ({ href: listUrl({ q, kind, tag: t }), text: t, count, current: tag === t }))]} /> : null}
     <form class="toolbar record-search" method="get" action="/kv">
       <div class="search"><Icon name="search" /><label for="kv-query" class="sr-only">Search stores</label>
         <input id="kv-query" type="search" name="q" value={q} placeholder="Search by record" /></div>
       {kind ? <input type="hidden" name="kind" value={kind} /> : null}
+      {tag ? <input type="hidden" name="tag" value={tag} /> : null}
     </form>
     {present.length > 1 ? <div class="toolbar filters">
-      <Segmented label="Kind" items={[{ href: listUrl({ q }), text: "All", current: !kind }, ...present.map(k => ({ href: listUrl({ q, kind: k }), text: kindWord(k), current: kind === k }))]} />
+      <Segmented label="Kind" items={[{ href: listUrl({ q, tag }), text: "All", current: !kind }, ...present.map(k => ({ href: listUrl({ q, kind: k, tag }), text: kindWord(k), current: kind === k }))]} />
     </div> : null}
     {all.length === 0 ? <Empty icon="database" title="No values stored">A store appears here once a record you may use holds a value.</Empty>
-      : rows.length === 0 ? <Empty icon="filter" title="No stores match these filters" action={<a class="btn" href={clear}>Clear filters</a>}>Change the search or the kind above, or clear filters.</Empty>
+      : rows.length === 0 ? <Empty icon="filter" title="No stores match these filters" action={<a class="btn" href={clear}>Clear filters</a>}>Change the search, the tag or the kind above, or clear filters.</Empty>
       : <>
-        <div class="results-line"><span>Showing {number(rows.length)} of {number(all.length)} stores on records you may use.</span>{q || kind ? <a href={clear}>Clear filters</a> : null}</div>
+        <div class="results-line"><span>Showing {number(rows.length)} of {number(all.length)} stores on records you may use.</span>{q || kind || tag ? <a href={clear}>Clear filters</a> : null}</div>
         <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
           <thead><tr><th>Record</th><th>Strings</th><th>Integers</th><th>JSON</th><th><span class="sr-only">Actions</span></th></tr></thead>
           <tbody>{rows.map(r => <tr>
-            <td data-label="Record"><div class="rec-cell"><KindIcon kind={r.kind} /><a href={recordHref({ name: r.record, kind: r.kind })}><code>{r.record}</code></a></div></td>
+            <td data-label="Record"><div class="rec-cell"><KindIcon kind={r.kind} /><div class="rec-title"><a href={recordHref({ name: r.record, kind: r.kind })}><code>{r.record}</code></a><TagBadges rec={{ tags: labels(r).filter(t => t !== "no-tags") }} href={t => listUrl({ q, kind, tag: t })} /></div></div></td>
             <td data-label="Strings">{r.string ? number(r.string) : ""}</td>
             <td data-label="Integers">{r.int ? number(r.int) : ""}</td>
             <td data-label="JSON">{r.json ? number(r.json) : ""}</td>
