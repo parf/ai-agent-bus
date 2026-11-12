@@ -110,3 +110,9 @@ test("an agent list shows a thumbnail only for an agent whose help named an imag
   const thumb = render(AgentPicture({ name: pictured.name, hash: knownImages.get(pictured.name)!, size: 24 }));
   expect(thumb).toMatch(/^<img class="agent-picture agent-thumb" [^>]*width="24"/);
 });
+
+test("a list row asks lazily for every live agent's thumbnail, over its kind icon", async () => {
+  const { ListPicture } = await import("../agent-image.tsx");
+  const row = render(ListPicture({ name: "#plain@h", hash: "", icon: "ICON" }));
+  expect(row).toMatch(/^<span class="thumb-stack">ICON<img class="agent-thumb" src="\/agent-image\?name=%23plain%40h" alt="" width="24" height="24" loading="lazy"/);
+});

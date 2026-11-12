@@ -3,7 +3,7 @@ import { AccessRows } from "../ui/access.tsx";
 import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
 import { agentHelp, AgentDescription, ConfigurationHelp, SecretHelp, knownImages, type AgentHelp } from "../agent-metadata.tsx";
-import { AgentPicture } from "../agent-image.tsx";
+import { AgentPicture, ListPicture } from "../agent-image.tsx";
 import { configuration, ConfigurationPreview, formatConfiguration } from "../configuration.tsx";
 import { normalizeTags, recordTags, filterTag, isPersonal } from "../tags.ts";
 // Record pages: lists, register, detail, inactive view, settings, deactivate,
@@ -246,7 +246,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
         <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
           <thead><tr><th>{firstHead}</th>{columns.map(c => <th class={c.num ? "num" : ""}>{c.head}</th>)}</tr></thead>
           <tbody>{rows.map(r => <tr class={[r.owner === you ? "owned-record" : "", isPersonal(r) && !personal ? "personal-record" : "", r.status === "inactive" ? "inactive-record" : ""].join(" ")}>
-            <td data-label={firstHead}><div class="rec-cell">{r.kind === "agent" && knownImages.get(r.name) ? <AgentPicture name={r.name} hash={knownImages.get(r.name)!} size={24} /> : <KindIcon kind={r.kind} owner={r.kind === "user" && r.name === nodeOwner} template={r.resource?.template} />}
+            <td data-label={firstHead}><div class="rec-cell">{r.kind === "agent" && (r.readers || knownImages.has(r.name)) ? <ListPicture name={r.name} hash={knownImages.get(r.name) ?? ""} icon={<KindIcon kind={r.kind} />} /> : <KindIcon kind={r.kind} owner={r.kind === "user" && r.name === nodeOwner} template={r.resource?.template} />}
               <div class="rec-title"><a href={recordHref(r, { return: here })}>{r.descr ? <><strong>{r.descr}</strong><code>{r.name}</code></> : <strong><code>{r.name}</code></strong>}</a><TagBadges rec={r} href={tag => listUrl(k.list, { ...params, tag })} />{key === "agents" ? <EventMark summary={summaries?.get(r.name)} /> : null}</div></div></td>
             {columns.map(c => <td class={c.num ? "num" : ""} data-label={c.head}>{c.cell(r)}</td>)}
           </tr>)}</tbody>

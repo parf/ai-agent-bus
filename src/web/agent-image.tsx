@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { imageCheck, imageLoad } from "../agents/shared/image.ts";
 import type { Ctx, Rec } from "./ctx.ts";
 import { agentHelp } from "./agent-metadata.tsx";
-import { h } from "./jsx.ts";
+import { h, type Child } from "./jsx.ts";
 import { text } from "./http.ts";
 
 type Picture = { data: Uint8Array; type: string };
@@ -73,6 +73,12 @@ export async function imageRoute(ctx: Ctx): Promise<Response> {
   if (!pic) return text("404 page not found", 404);
   return new Response(pic.data as BodyInit, { headers: { "Content-Type": pic.type } });
 }
+
+/** A list row's thumbnail, lazily asked for and drawn over the kind icon: an
+ *  agent with no picture answers 404, the empty image draws nothing, and the
+ *  icon shows through. */
+export const ListPicture = ({ name, hash, icon }: { name: string; hash: string; icon: Child }) =>
+  <span class="thumb-stack">{icon}<img class="agent-thumb" src={`/agent-image?${new URLSearchParams(hash ? { name, h: hash } : { name })}`} alt="" width={24} height={24} loading="lazy" decoding="async" /></span>;
 
 /** The page-header picture, or the letter placeholder when help names none. */
 export const AgentPicture = ({ name, hash, size = 40 }: { name: string; hash: string; size?: number }) => hash
