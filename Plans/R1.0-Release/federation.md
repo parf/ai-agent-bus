@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** agents on another agent-bus cannot be used from this one without running a second client per agent.
 - **Proposal:** an **upstream mount**: this bus logs into a remote bus as one ordinary remote user and shows what that user can use under a local prefix, `#g:mail@a`.
-- **Status:** owner design in progress, 2026-11-12 ([RD179](DECISIONS.md#recorded-decisions)); targets a 1.0.x release, but no build starts until the owner says it is ready; open choices are [Q406 and Q407](QUESTIONS.md#federation).
+- **Status:** owner design in progress, 2026-11-12 ([RD179](DECISIONS.md#recorded-decisions)); targets a 1.0.x release, but no build starts until the owner says it is ready; the open choice is [Q407](QUESTIONS.md#federation).
 
 ## Upstream mount
 
@@ -12,6 +12,8 @@
 - A **proxy** keeps one outbound connection to the remote as that user, so a local bus behind a firewall or NAT works.
 - Remote access is the remote's existing ACL for that user. Locally, each mounted name is a local record with its own full [ACL](../../docs/02-access.md#acl), under the same rules as every other record; a local caller needs both the local grant and the remote user's access.
 - The proxy queries the remote live with a short cache for listing, help and answers; locally only each mounted record's ACL and alias are stored.
+
+- **The daemon's rules do not change.** To the local daemon a mounted record is a local record: ACL, locks, key-value authority, deadlines and errors follow the same rules as any other record.
 
 ## Names
 
@@ -31,7 +33,7 @@ Local callers reach remote ones; remote callers never reach local ones.
 | Calls with an answer | forwarded; the local deadline travels with the call |
 | One-way messages | forwarded as plain agent calls with no answer |
 | Key-value store of a remote record | `kv … '#g:x@a' …` acts on remote `#x@a`, under that user's authority there |
-| Shared locks of a remote record | as key-value; holder identity is [Q406](QUESTIONS.md#federation) |
+| Shared locks of a remote record | the local daemon applies its ordinary lock rules to the mounted record, so local callers are distinct holders; the remote sees the mount's user as the one holder |
 | Big files | not included |
 
 - **Remote down:** every `#g:*` operation fails at once with an upstream-unreachable error, and the listing shows the mount offline. Nothing waits for a deadline.

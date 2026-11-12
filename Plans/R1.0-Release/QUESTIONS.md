@@ -12,11 +12,6 @@ suggestion with `✅ 💡` or `🚫 💡`.
 
 Owner proposal, 2026-11-12: [upstream mount](federation.md#upstream-mount), undecided.
 
-- ❓ Q406 Who holds a remote lock taken through the mount
-  - Context: the remote sees every local caller as the same user, so two local workers taking one remote lock look like one holder; that breaks mutual exclusion unless the proxy separates them
-  - ( ) The proxy records the local holder and refuses a second local caller while the remote hold lasts
-  - ( ) Each local caller gets its own remote identity (needs the two-way proxy agents, Q407)
-  - ( ) Locks are not forwarded
 - ❓ Q407 Is the two-way proxy part of the mount's first form
   - Context: [two-way proxy](federation.md#two-way-proxy): a local agent opts in, and the proxy user registers a 1-to-1 stand-in for it on the remote
   - ( ) One-way first; two-way as a later step

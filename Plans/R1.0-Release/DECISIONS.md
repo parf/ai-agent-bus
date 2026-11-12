@@ -2,6 +2,8 @@
 
 ## Recorded decisions
 
+- ✅ RD183 The daemon treats a mounted record as local: its ordinary ACL, lock and key-value rules apply, so local lock holders stay distinct and the remote sees the mount's user ([upstream mount](federation.md#upstream-mount); owner, 2026-11-12; settles Q406)
+
 - ✅ RD182 Each mounted name is a local record with its own full ACL under the ordinary rules; no mount-wide access shortcut ([upstream mount](federation.md#upstream-mount); owner, 2026-11-12; settles Q405)
 
 - ✅ RD181 The upstream mount targets a 1.0.x release; building starts only on the owner's go-ahead, while parts of the design are still open ([upstream mount](federation.md#upstream-mount); owner, 2026-11-12; settles Q403)
