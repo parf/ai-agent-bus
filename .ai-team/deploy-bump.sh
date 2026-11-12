@@ -174,7 +174,9 @@ def plan():
         changed = lambda key: re.search(r'^[+-]\s*"' + key + r'"\s*:', shown, re.M) is not None
         # A reformat of either line counts as a change here, so it is a bump: the pair is only ever moved by the bump.
         first_stamp = re.search(r'^\+\s*"released"\s*:', shown, re.M) and not re.search(r'^-\s*"released"\s*:', shown, re.M)
-        if changed('version') and not changed('released'):
+        # A second bump on the same UTC day leaves released as it was: that day is still right.
+        same_day = datetime.datetime.fromtimestamp(int(git('show', '-s', '--format=%ct', last).strip()), datetime.timezone.utc).strftime('%Y-%m-%d') == json.loads(git('show', f'{last}:{rp}')).get('released')
+        if changed('version') and not changed('released') and not same_day:
             print(f'refuse\t{rel}\tcommit {last[:8]} changed version without released: the pair must move together'); continue
         if changed('released') and not changed('version') and not first_stamp:
             print(f'refuse\t{rel}\tcommit {last[:8]} changed released without version: the pair must move together'); continue

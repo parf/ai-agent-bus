@@ -1,5 +1,9 @@
 # RAG changelog
 
+## 0.4.5
+
+Its bundled Python client can keep schedules: timed messages fired by the bus.
+
 ## 0.4.4
 
 A new picture in its own vivid colors.

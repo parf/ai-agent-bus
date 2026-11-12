@@ -1,5 +1,9 @@
 # eventlog changelog
 
+## 1.0.3
+
+Its bundled Python client can keep schedules: timed messages fired by the bus.
+
 ## 1.0.2
 
 A new picture in its own vivid colors.
