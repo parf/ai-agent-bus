@@ -14,6 +14,7 @@ import { h, Fragment, type Child } from "../jsx.ts";
 import { Ctx, NotFound, LocalProblem, ConditionsChanged, Refusal, type Rec, type Status, type UserRow } from "../ctx.ts";
 import { LocksCard, recordLocks } from "../ui/locks.tsx";
 import { KVCard, recordKV, storeHref } from "../ui/kv.tsx";
+import { ScheduleCard, recordSchedules } from "../ui/schedule.tsx";
 import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
 import { TextField, LinesField, SecretField, TagsField, ConfigurationField, privateHint, CheckField, MaintainersField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
@@ -414,7 +415,8 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     return `${detailPath(rec.kind)}?${q}#activity`;
   };
   const fullHref = (() => { const q = new URLSearchParams({ name }); if (range.kind !== "day") q.set("range", range.kind); if (range.at !== range.today) q.set("at", String(range.at)); return `/activity?${q}`; })();
-  const [locks, kv, events] = await Promise.all([recordLocks(ctx, name), recordKV(ctx, name), rec.kind === "agent" ? agentEvents(ctx, rec.name) : null]);
+  const holds = ["agent", "queue", "pubsub"].includes(rec.kind);
+  const [locks, kv, events, schedules] = await Promise.all([recordLocks(ctx, name), recordKV(ctx, name), rec.kind === "agent" ? agentEvents(ctx, rec.name) : null, holds ? recordSchedules(ctx, name) : null]);
   const onList = (rec.subs ?? []).includes(st.you);
   const declaredConfig = metadata.data?.config;
   const hasDeclaredConfig = !!declaredConfig && typeof declaredConfig === "object" && Object.keys(declaredConfig).length > 0;
@@ -502,6 +504,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         {hasDeclaredConfig || hasDeclaredSecrets ? <Card title="Package settings" icon="settings">{hasDeclaredConfig ? <ConfigurationHelp help={metadata} value={config} /> : null}{hasDeclaredSecrets ? <SecretHelp help={metadata} /> : null}</Card> : null}
         {locks && Object.keys(locks).length ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
         {kv ? <KVCard kv={kv} /> : null}
+        {schedules ? <ScheduleCard record={rec.name} list={schedules} /> : null}
         {runs}{roles}{where}
         {manage && !inbox ? <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.can_transfer ? ", transfer" : ""}, deletion</span></a> : null}
       </div>

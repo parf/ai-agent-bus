@@ -8,7 +8,7 @@ import { Icon, Logo, Avatar } from "./kit.tsx";
 import { COPYRIGHT } from "../version.ts";
 import { generated } from "../format.ts";
 
-export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "resources" | "locks" | "kv" | "runners" | "kind:group" | "groups" | "activity" | "diagnostics" | "bus" | "account" | "";
+export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "resources" | "locks" | "kv" | "crons" | "ats" | "runners" | "kind:group" | "groups" | "activity" | "diagnostics" | "bus" | "account" | "";
 
 export const NAV: { key: Section; label: string; href: string; icon: string; keys: string }[] = [
   { key: "overview", label: "Overview", href: "/", icon: "layout-dashboard", keys: "g o" },
@@ -22,6 +22,8 @@ export const NAV: { key: Section; label: string; href: string; icon: string; key
   { key: "runners", label: "Runners", href: "/runners", icon: "server", keys: "g n" },
   { key: "locks", label: "Locks", href: "/locks", icon: "lock", keys: "g l" },
   { key: "kv", label: "KV", href: "/kv", icon: "database", keys: "g k" },
+  { key: "crons", label: "Crons", href: "/crons", icon: "repeat", keys: "g c" },
+  { key: "ats", label: "Ats", href: "/ats", icon: "alarm-clock", keys: "g i" },
   { key: "activity", label: "Activity", href: "/activity", icon: "activity", keys: "g t" },
   { key: "diagnostics", label: "Diagnostics", href: "/diagnostics", icon: "scan-search", keys: "g d" },
 ];
@@ -129,6 +131,12 @@ export const FLASH: Record<string, string> = {
   "group-saved": "Group saved.", "group-registered": "Group registered.", "github-refreshed": "GitHub profile refreshed.",
   "email-saved": "Email saved.",
   "lock-released": "Lock released.", "kv-saved": "Value saved.", "kv-deleted": "Value deleted.", "bigfile-deleted": "Bigfile deleted.", "lock-force-released": "Lock released by force; the audit log records it.",
+  "schedule-added": "Schedule added.", "schedule-added-near-cap": "Schedule added; its holder is at 80 % of a schedule cap.",
+  "schedule-enabled": "Schedule enabled; it now sends on your behalf.", "schedule-disabled": "Schedule disabled.", "schedule-deleted": "Schedule deleted.",
+  "schedule-run-sent": "Fired now: sent.", "schedule-run-admission_refused": "Fired now: the target refused it.",
+  "schedule-run-target_gone": "Fired now: the target is gone.", "schedule-run-send_refused": "Fired now: the send was refused.",
+  "schedule-run-send_unknown": "Fired now: whether it was sent is unknown.", "schedule-run-late": "Fired now: skipped as too late.",
+  "schedule-run-other": "Fired now; see its outcomes.",
 };
 
 export async function respond(ctx: Ctx, o: PageOptions, body: Child, status = 200): Promise<Response> {

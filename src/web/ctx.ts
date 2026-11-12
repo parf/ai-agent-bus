@@ -130,6 +130,12 @@ export class Ctx {
   /** One record's bigfiles (docs/03-records-kv.md#bigfiles). */
   bigList(record: string) { return this.get<import("./ui/kv.tsx").BigListing>("/bigfile/list", { record }); }
   kvStores() { return this.get<import("./ui/kv.tsx").KVStoreRow[]>("/kv/list").then(r => r ?? []); }
+  /** One record's schedules, or with no record every schedule on a record the visitor manages (docs/09-daemon-api.md#schedules). */
+  scheduleList(record?: string) {
+    return this.get<{ schedules: import("./ui/schedule.tsx").Schedule[] | null }>("/schedule/list", record ? { record } : undefined).then(r => r?.schedules ?? []);
+  }
+  /** One schedule with its outcomes, newest first. */
+  schedule(id: string) { return this.get<import("./ui/schedule.tsx").Schedule>("/schedule", { id }); }
   kvGet(record: string, kind: string, name: string) { return this.get<{ value?: unknown; value_base64?: string }>("/kv", { record, kind, name }); }
 
   /** Every record the visitor may see, inactive ones marked. */

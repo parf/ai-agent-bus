@@ -301,6 +301,13 @@ function initAgentStatus() {
       .catch(() => {});
   }
 }
+/** A schedule's instants in the viewer's own zone; the page wrote them in UTC, and the title keeps that. */
+function initLocalTimes() {
+  for (const t of $$<HTMLTimeElement>("time[data-local]")) {
+    const d = new Date(t.dateTime);
+    if (!isNaN(+d)) t.textContent = d.toLocaleString([], { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+  }
+}
 function openMethodAnchor() {
   const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
   if (!target) return;
@@ -316,6 +323,7 @@ function start() {
   initShortcuts();
   initCharts();
   initAgentStatus();
+  initLocalTimes();
   openMethodAnchor();
   window.addEventListener("hashchange", openMethodAnchor);
 }

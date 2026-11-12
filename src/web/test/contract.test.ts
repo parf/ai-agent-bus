@@ -1284,6 +1284,58 @@ describe("key-value stores", () => {
   });
 });
 
+describe("schedules", () => {
+  let s = "", b = "";
+  beforeAll(async () => {
+    s = await signIn(owner); b = await signIn(bob);
+    // bob maintains cronq@test; cronother@test is the Owner's alone.
+    await api("/register", { name: "cronq@test", kind: "queue", allow: ["*"], tags: ["nightly"] });
+    await api("/manage", { name: "cronq@test", maintainers: ["bob"] });
+    await api("/register", { name: "cronother@test", kind: "queue", allow: ["*"] });
+    await api("/schedule/add", { record: "cronother@test", expr: "0 3 * * *", target: "cronother@test", body: "owner only" });
+  });
+
+  test("Add from the Crons page reaches the daemon, and the cron lists, opens, fires, switches and deletes", async () => {
+    const add = await req("/schedule-add", { cookie: s, form: { return: "recurring", how: "expr", record: "cronq@test", when: "30 2 * * *", target: "cronq@test", body: "nightly report" } });
+    expect(add.status).toBe(303);
+    const at = add.headers.get("location")!;
+    expect(at).toMatch(/^\/schedule\?id=[0-9a-f]+$/);
+    const id = at.slice("/schedule?id=".length);
+    const list = await (await req("/crons?q=cronq", { cookie: s })).text();
+    const row = [...list.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)].map(m => m[0]).find(r => r.includes(`/schedule?id=${id}`))!;
+    expect(row).toContain("<code>30 2 * * *</code>");
+    expect(row).toMatch(/<time datetime="\d{4}-\d\d-\d\dT02:30:00Z"/);
+    expect(row).toContain('href="/queue?name=cronq%40test"');
+    expect(await (await req("/ats?q=cronq", { cookie: s })).text()).not.toContain(`/schedule?id=${id}`);
+    const tags = /<nav class="tabs" aria-label="Holder tags">[\s\S]*?<\/nav>/.exec(await (await req("/crons", { cookie: s })).text())![0];
+    expect(tags).toContain('href="/crons?tag=nightly" class="tab ">nightly<span class="count">1</span>');
+    const detail = await (await req(at, { cookie: s })).text();
+    expect(detail).toContain('<pre class="kv-value"><code>nightly report</code></pre>');
+    expect(detail).toContain("<dt>Creator</dt><dd><code>owner@test</code></dd>");
+    const run = await req("/schedule-run", { cookie: s, form: { id, kind: "recurring" } });
+    expect(run.headers.get("set-cookie")).toContain("ab_flash=schedule-run-sent");
+    expect(await (await req(at, { cookie: s })).text()).toMatch(/id="schedule-outcomes"[\s\S]*<span class="pill tone-ok">sent<\/span>/);
+    expect((await req("/schedule-switch", { cookie: s, form: { id, kind: "recurring", on: "0" } })).status).toBe(303);
+    expect((await (await req("/crons?state=hand", { cookie: s })).text())).toContain(`/schedule?id=${id}`);
+    const card = /<section[^>]*id="schedules"[\s\S]*?<\/section>/.exec(await (await req("/queue?name=cronq@test", { cookie: s })).text())?.[0] ?? "";
+    expect(card).toContain("<strong>1</strong> cron");
+    const del = await req("/schedule-delete", { cookie: s, form: { id, kind: "recurring" } });
+    expect(`${del.status} ${del.headers.get("location")}`).toBe("303 /crons");
+    expect((await req(at, { cookie: s })).status).toBe(404);
+  });
+
+  test("a refused add keeps the form; a Maintainer sees the record's schedules and nobody else's", async () => {
+    const bad = await req("/schedule-add", { cookie: s, form: { return: "recurring", how: "expr", record: "cronq@test", when: "not a cron", target: "cronq@test", body: "kept text" } });
+    expect(bad.status).toBe(400);
+    expect(await bad.text()).toContain('value="not a cron"');
+    await api("/schedule/add", { record: "cronq@test", in: "2h", target: "cronq@test", body: "later" });
+    const theirs = await (await req("/ats", { cookie: b })).text();
+    expect(theirs).toContain('href="/queue?name=cronq%40test"');
+    expect(await (await req("/crons", { cookie: b })).text()).not.toContain('href="/queue?name=cronother%40test"');
+    expect(await (await req("/queue?name=cronother@test", { cookie: b })).text()).not.toContain('id="schedules"');
+  });
+});
+
 describe("the daemon unreachable", () => {
   test("502 The bus is not answering, and the socket path never shows", async () => {
     const h = makeHandler({ daemon: join(dir, "missing.sock"), listen: { hostname: "127.0.0.1", port: 6781 }, dev: false });

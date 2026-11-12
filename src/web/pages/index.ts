@@ -58,6 +58,14 @@ route("POST", "/kv-set", kv.postSet);
 route("POST", "/kv-inc", kv.postInc);
 route("POST", "/kv-delete", kv.postDelete);
 route("POST", "/bigfile-delete", kv.postBigDelete);
+import { handlers as sc } from "./schedule.tsx";
+route("GET", "/crons", sc.crons);
+route("GET", "/ats", sc.ats);
+route("GET", "/schedule", sc.schedule);
+route("POST", "/schedule-add", sc.postAdd);
+route("POST", "/schedule-switch", sc.postSwitch);
+route("POST", "/schedule-run", sc.postRun);
+route("POST", "/schedule-delete", sc.postDelete);
 route("GET", "/account", ppl.account);
 route("GET", "/palette.json", ppl.palette, false);
 
