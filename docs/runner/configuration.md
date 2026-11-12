@@ -95,6 +95,7 @@ The [isolation rules](security.md#isolation-today) define which code and support
 | `serves` | `runner` (default): a script per message; `itself`: kept processes that read their own inbox ([below](#agents-that-serve-themselves)) |
 | `version`, `released` | Own version and the UTC day it was released (`YYYY-MM-DD`), shown in help. A bundled agent carries both ([helper version](../agents/README.md#helper-version)); any other agent without them shows none |
 | `license`, `author`, `homepage` | License (SPDX), author and documentation link shown in help |
+| `image` | Optional picture: a file in the package folder, suggested `agent.avif` or `agent.webp`; square AVIF, WebP, PNG or JPEG, at most 512×512 and 256 KiB, never through a symlink. A file that breaks a rule refuses the package by name. Help names it with its SHA-256; the runner answers the `image` ask with it in base64; the web shows it |
 | `body_formats`, `arguments`, `methods`, `config` | Call, method and Configuration descriptions ([package help](#package-help)) |
 | `processes` | A count or `min..max`, default `0..1`. Per-message scripts use the maximum; `jsonl` pools use both bounds. An agent that serves itself takes a fixed count |
 | `in_flight` | Concurrent messages per `jsonl` process; default 1 |
@@ -121,7 +122,7 @@ The [isolation rules](security.md#isolation-today) define which code and support
 
 ## Package help
 
-- 📖 The runner answers `help`, `help-config`, `help-secret` and `help-json` from `agent.json`, without running the script.
+- 📖 The runner answers `help`, `help-config`, `help-secret` and `help-json` from `agent.json`, and `image` from the file it names, without running the script.
 - 🧠 Set `"help":"native"` when the script must shape its own help from live Configuration, as `#systemd` and `#git` do.
 - 🔇 Set `"asks":"none"` to answer every other ask with `unsupported: <ask>`; `agent-bus run` has `--no-asks` for the same.
 - 🧪 `agent-bus run --package-dir /path` loads a package the same way; the standalone starter uses it.

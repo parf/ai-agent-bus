@@ -248,7 +248,7 @@ Common to every route below:
 | `topic`, `tag` | the caller | labels a receiver or a waiting reader filters on; both optional |
 | `receipt` | the caller | `ack` or `done`; any other value is `400`. Receivers use it to report progress on the message named by `re`; the daemon does not authenticate that correlation |
 | `re` | the caller | the `message_id` a receipt is about |
-| `ask` | the caller | `help`, `help-config`, `help-secret`, `help-json`, `mcp` or `status`; the body must be empty and no receipt may accompany it |
+| `ask` | the caller | `help`, `help-config`, `help-secret`, `help-json`, `image`, `mcp` or `status`; the body must be empty and no receipt may accompany it |
 | `reply_to` | the caller | `{name, topic?, tag?}`: where an answer goes when it is not the sender; `name` must be registered |
 | `ttl` | the caller | how long the message is worth delivering, a duration; the receiver's bound caps it; invalid is `400` |
 | `wait` | the caller | how long the caller will wait for an answer, a duration; travels as `deadline`; invalid is `400` |

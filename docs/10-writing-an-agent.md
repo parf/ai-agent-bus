@@ -64,6 +64,7 @@ agent-bus help run
 
 - **Answer status when useful.** Report observed activity, backlog, last error and a safe configuration summary. A stateless tool may have nothing useful to report. Leave starting, stopping and failed lifecycle states to the runner. [Agent self-description](constitution.md#agent-self-description).
 - **Make failures diagnosable.** For operational events worth retaining, use your own event log and choose notice, warning or alert deliberately. Avoid routine success noise; retain useful diagnostic or audit outcomes, without private values. [Agent logs](agents/bus.md#agent-logs), [levels](agents/eventlog.md#levels).
+- **Give it a picture.** Name one square file in the agent's folder with `image` in `agent.json`, such as `agent.webp`, at most 512×512 and 256 KiB; make it with any image tool, `#ai`'s `image` included, and ship it in the package. The web shows it on the agent's page. [The `image` key](runner/configuration.md#package-help).
 - **Use KV for small durable state.** Store progress or shared values with the record's operations when that persistence is needed; do not create state merely to satisfy a checklist. [KV rules](03-records-kv.md#rules).
 
 ## MORE — when needed

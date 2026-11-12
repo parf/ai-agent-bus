@@ -262,6 +262,12 @@ func loadSources(sources []agentSource, runnerDir string) ([]installed, error) {
 						in.Over, in.Digest, in.overlayFiles = over, in.Digest+sum, files
 					}
 				}
+				// The image is checked where it is served from, after any override names another.
+				if in.Refused == "" {
+					if err := agentmeta.Manifest(in.Agent).CheckImage(path); err != nil {
+						in.Refused = err.Error()
+					}
+				}
 				out = append(out, in)
 			}
 		}

@@ -59,7 +59,8 @@ Follow the [authoring checklist](authoring.md#checklist-writing-an-agents-descri
 including its recommendations. Author `agent.json`, executable, tests and README.
 Use SPDX `license`, `author`, `homepage`, `tags`, ordered `methods`, shared
 `arguments` and `config`. Set `version` and `released` (a UTC `YYYY-MM-DD` day) for
-an independent package; a bundled agent sets both. Method arguments support types/enum arrays,
+an independent package; a bundled agent sets both. Optionally ship a square picture in
+the package and name it with `image` ([the key](../runner/configuration.md#package-help)). Method arguments support types/enum arrays,
 `optional`, final `rest`, `json_only` and defaults; methods support text usage,
 roles, destructive marks and real examples. Configuration keys need help/examples.
 

@@ -573,6 +573,7 @@ interprets none of it and only carries the asks:
 | its methods and their arguments, with optional types, enums, roles and a destructive flag | `agent.json` `methods` | `--help`, `--help-json` |
 | its Configuration keys: name, type, help, example, default | `agent.json` `config` | `--help-config` |
 | its secret and environment keys: names, comments, required; never values | commented `env.dist` | `--help-secret` |
+| its picture: one square AVIF, WebP, PNG or JPEG file in its folder | `agent.json` `image` names it; help gives its SHA-256 | the `image` ask |
 
 The format is in [package help](runner/configuration.md#package-help); where
 secret values live is [two places for secrets](runner/security.md#secrets).
@@ -592,7 +593,7 @@ still checked.
 
 | Rule | Requirement |
 |---|---|
-| The call | the envelope's `ask` is `help`, `help-config`, `help-secret`, `help-json`, `status`, or `mcp` for the tools, and its body is empty; `agent-bus call <to> --help`, `--help-config`, `--help-secret`, `--help-json` or `--mcp` sends it. No body text is reserved: `--help` in a body is ordinary input |
+| The call | the envelope's `ask` is `help`, `help-config`, `help-secret`, `help-json`, `image`, `status`, or `mcp` for the tools, and its body is empty; `agent-bus call <to> --help`, `--help-config`, `--help-secret`, `--help-json` or `--mcp` sends it. No body text is reserved: `--help` in a body is ordinary input |
 | Ask first | Every kind dispatches a nonempty ask before Configuration-dependent work, body parsing or normal handling. A supported ask is answered; every other ask answers `unsupported: <ask>` as ordinary text, not an error. Only no ask reaches normal work. The daemon still refuses asks outside the closed set |
 | Script forwarding | The runner answers what package metadata can describe; any other ask reaches the script as `AGENT_BUS_ASK=<ask>` with an empty body. `--no-asks` on `agent-bus run`, or `"asks":"none"` in the package, answers unsupported instead of running the script |
 | Observed status | While it owns the reader, the runner answers known starting, stopping or failed states itself; otherwise status reaches the running script, or answers unsupported under no-asks. It never attaches a fallback reader that could steal ordinary input: for a refused or unconfigured entry that has a token, and for a kept agent until its process runs, it reads asks only, answers `status` and the manifest's help asks, `unsupported: <ask>` for the rest, never runs the script and takes no ordinary message |
@@ -601,7 +602,7 @@ still checked.
 | A packaged script | the runner and `agent-bus run --package-dir` normally render package metadata; `help: native` delegates to the script when runtime Configuration determines scope ([package help](runner/configuration.md#package-help)) |
 | An unpackaged or self-serving agent | answers its own asks; a script receives `AGENT_BUS_ASK` and no input. At least `help` is required; its help names which extra asks it answers |
 | No MCP tools | An unpackaged script has no tools: its runner answers `mcp` without starting it. Offering tools requires a package declaring `help: native`. An agent that answers asks but has no MCP tools answers `mcp` with `{"tools": []}`, the MCP shape for none, so every caller gets one shape |
-| The answer | text for `help`, `help-config` and `help-secret`; the whole description as JSON for `help-json`; methods, arguments, returns and required roles from the package. Help names the supported extra asks. `help-config` describes Configuration keys; `help-secret` gives environment names, comments and required status, never values |
+| The answer | text for `help`, `help-config` and `help-secret`; the whole description as JSON for `help-json`; methods, arguments, returns and required roles from the package. Help names the supported extra asks. `help-config` describes Configuration keys; `help-secret` gives environment names, comments and required status, never values; `image` gives the picture `agent.json` names, in base64, and only an agent with one lists it |
 | Access | written from the roles the daemon asserts on the message, never from what the caller claims |
 | AI sessions | a session behind the MCP face asks an unfamiliar agent `--help` before calling it, and answers `--help` with what it can do for that caller |
 

@@ -10,6 +10,7 @@ route("GET", "/activity", activity);
 route("GET", "/diagnostics", diagnostics);
 
 import { handlers as rec } from "./records.tsx";
+import { imageRoute } from "../agent-image.tsx";
 route("GET", "/agents", rec.agents);
 route("GET", "/services", rec.services);
 route("GET", "/queues", rec.queues);
@@ -21,6 +22,7 @@ route("GET", "/queues/new", rec.newQueue);
 route("GET", "/pubsub/new", rec.newPubsub);
 route("GET", "/resources/new", rec.newResource);
 route("GET", "/agent", rec.agent);
+route("GET", "/agent-image", imageRoute);
 route("GET", "/service", rec.service);
 route("GET", "/queue", rec.queue);
 route("GET", "/pubsub/channel", rec.pubsubChannel);

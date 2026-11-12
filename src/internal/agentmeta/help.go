@@ -54,6 +54,21 @@ func normalized(t Type) Type {
 	return t
 }
 
+// helpData is the help ask's data form; image fields appear only with an image.
+type helpData struct {
+	Description string   `json:"description"`
+	License     string   `json:"license,omitempty"`
+	Version     string   `json:"version,omitempty"`
+	Released    string   `json:"released,omitempty"`
+	Author      string   `json:"author,omitempty"`
+	Homepage    string   `json:"homepage,omitempty"`
+	Docs        string   `json:"docs,omitempty"`
+	Image       string   `json:"image,omitempty"`
+	ImageSHA256 string   `json:"image_sha256,omitempty"`
+	Methods     Methods  `json:"methods"`
+	Asks        []string `json:"asks"`
+}
+
 // Answer returns package help without executing its command or reading any host
 // env file, bus Secret or Configuration value. jsonForm selects data, not prose.
 func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target ...string) (string, error) {
@@ -121,17 +136,15 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 				methods[name] = method
 			}
 		}
-		data = struct {
-			Description string   `json:"description"`
-			License     string   `json:"license,omitempty"`
-			Version     string   `json:"version,omitempty"`
-			Released    string   `json:"released,omitempty"`
-			Author      string   `json:"author,omitempty"`
-			Homepage    string   `json:"homepage,omitempty"`
-			Docs        string   `json:"docs,omitempty"`
-			Methods     Methods  `json:"methods"`
-			Asks        []string `json:"asks"`
-		}{m.Description, m.License, m.Version, m.Released, m.Author, m.Homepage, m.Docs, methods, []string{"help", "help-config", "help-secret", "help-json"}}
+		d := helpData{Description: m.Description, License: m.License, Version: m.Version, Released: m.Released, Author: m.Author, Homepage: m.Homepage, Docs: m.Docs, Methods: methods, Asks: []string{"help", "help-config", "help-secret", "help-json"}}
+		if m.Image != "" {
+			img, err := LoadImage(dir, m.Image)
+			if err != nil {
+				return "", err
+			}
+			d.Image, d.ImageSHA256, d.Asks = m.Image, img.SHA256, append(d.Asks, "image")
+		}
+		data = d
 		b.WriteString(m.Description + "\n")
 		shared := map[string]Argument{}
 		examples := []string{}

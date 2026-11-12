@@ -16,6 +16,8 @@ func TestAnAskIsHelpOrMCPWithNoBody(t *testing.T) {
 	for _, bad := range []protocol.Envelope{
 		{From: "bob@h", To: "#svc@h", Ask: "tools"},
 		{From: "bob@h", To: "#svc@h", Ask: "Help"},
+		{From: "bob@h", To: "#svc@h", Ask: "Image"},
+		{From: "bob@h", To: "#svc@h", Ask: protocol.AskImage, Body: "x"},
 		{From: "bob@h", To: "#svc@h", Ask: protocol.AskHelp, Body: "--help"},
 		{From: "bob@h", To: "#svc@h", Ask: protocol.AskMCP, Receipt: protocol.ReceiptDone, Re: "x"},
 	} {
@@ -23,7 +25,7 @@ func TestAnAskIsHelpOrMCPWithNoBody(t *testing.T) {
 			t.Errorf("ask %q body %q receipt %q was taken: %v", bad.Ask, bad.Body, bad.Receipt, err)
 		}
 	}
-	for _, ask := range []string{protocol.AskHelp, protocol.AskMCP, protocol.AskHelpConfig, protocol.AskHelpSecret, protocol.AskHelpJSON, protocol.AskStatus} {
+	for _, ask := range []string{protocol.AskHelp, protocol.AskMCP, protocol.AskHelpConfig, protocol.AskHelpSecret, protocol.AskHelpJSON, protocol.AskImage, protocol.AskStatus} {
 		if _, err := b.Send(protocol.Envelope{From: "bob@h", To: "#svc@h", Ask: ask}); err != nil {
 			t.Fatalf("ask %s: %v", ask, err)
 		}

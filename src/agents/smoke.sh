@@ -20,6 +20,12 @@ agent_pack() {
   out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_envfile.py -v 2>&1); rc=$?
   ok_exit "the shared env-file reader keeps its rules" "$rc"
   [ "$rc" = 0 ] || echo "$out"
+  out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_image.py -v 2>&1); rc=$?
+  ok_exit "the Python image check matches the shared vectors and refuses paths out of the package" "$rc"
+  [ "$rc" = 0 ] || echo "$out"
+  out=$(timeout 60 bun test ./agents/shared/image.test.ts 2>&1); rc=$?
+  bun_test_text "$rc" <<<"$out"
+  ok_exit "the TypeScript image check matches the shared vectors and refuses paths out of the package" "$rc"
   out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p protocol_test.py -v 2>&1); rc=$?
   ok_exit "the pack's protocol declaration equals every bundled client's, covers the daemon and ships in every package" "$rc"
   [ "$rc" = 0 ] || echo "$out"

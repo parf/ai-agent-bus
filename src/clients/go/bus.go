@@ -172,7 +172,7 @@ func WithOnReply(v func(context.Context, Envelope) error) Option {
 	return func(s *settings) { s.onReply = v }
 }
 
-// WithAsk asks the receiver about itself, "help", "help-config", "help-secret", "help-json", "mcp" or "status", instead of giving it work; the body must be empty.
+// WithAsk asks the receiver about itself, "help", "help-config", "help-secret", "help-json", "image", "mcp" or "status", instead of giving it work; the body must be empty.
 func WithAsk(v string) Option { return func(s *settings) { s.ask = v } }
 func config(opts []Option) settings {
 	s := settings{workers: 1, drain: 30 * time.Second}

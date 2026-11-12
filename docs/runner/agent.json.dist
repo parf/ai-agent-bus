@@ -27,6 +27,7 @@
   "license": "MIT",
   "author": "Example author",
   "homepage": "https://example.com/mail",
+  "image": "agent.webp",
   "methods": {
     "fetch": {
       "help": "Fetch mail",

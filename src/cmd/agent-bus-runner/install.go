@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	scriptEnv "github.com/parf/ai-agent-bus/internal/script"
 )
 
@@ -263,6 +264,9 @@ func validateDeployTree(root string) error {
 		return fmt.Errorf("deploy requires a regular agent.json at the repository root, a self-contained package; subdirectory layouts are refused")
 	}
 	if _, err := manifest.check(); err != nil {
+		return err
+	}
+	if err := agentmeta.Manifest(manifest).CheckImage(root); err != nil {
 		return err
 	}
 	absolute, err := filepath.Abs(root)

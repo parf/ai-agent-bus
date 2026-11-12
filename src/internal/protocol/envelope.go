@@ -33,7 +33,7 @@ type Envelope struct {
 	// declarations, mcp for tools. The body is empty;
 	// no body text is reserved, so an agent that knows nothing of asks sees
 	// a message with no input (docs/constitution.md#agent-self-description).
-	Ask string `json:"ask,omitempty"` // "", "help", "help-config", "help-secret", "help-json", "mcp" or "status"
+	Ask string `json:"ask,omitempty"` // "", "help", "help-config", "help-secret", "help-json", "image", "mcp" or "status"
 	// Roles are what the sender holds toward the record it addressed, worked
 	// out by the daemon at the send — owner and maintainer, for now — and
 	// passed through every forward unchanged. A sender never states them
@@ -337,6 +337,7 @@ const (
 	AskHelpConfig = "help-config"
 	AskHelpSecret = "help-secret"
 	AskHelpJSON   = "help-json"
+	AskImage      = "image" // the agent's picture, in base64 (Plans/R1.1/agent-images.md#how-the-web-gets-it)
 )
 
 // What a full queue does, declared per record, inboxes included.

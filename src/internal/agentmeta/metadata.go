@@ -127,6 +127,7 @@ type Manifest struct {
 	Author      string              `json:"author,omitempty"`
 	Homepage    string              `json:"homepage,omitempty"`
 	Docs        string              `json:"docs,omitempty"`
+	Image       string              `json:"image,omitempty"`
 	Methods     Methods             `json:"methods,omitempty"`
 	Arguments   map[string]Argument `json:"arguments,omitempty"`
 	Config      map[string]Config   `json:"config,omitempty"`
@@ -161,7 +162,20 @@ func Load(dir string) (Manifest, error) {
 	if e != nil {
 		return Manifest{}, e
 	}
-	return Decode(b)
+	m, err := Decode(b)
+	if err == nil {
+		err = m.CheckImage(dir)
+	}
+	return m, err
+}
+
+// CheckImage validates the named image in the package folder dir; no image is valid.
+func (m Manifest) CheckImage(dir string) error {
+	if m.Image == "" {
+		return nil
+	}
+	_, err := LoadImage(dir, m.Image)
+	return err
 }
 func field(where, help string, t Type) error {
 	if strings.TrimSpace(help) == "" {
@@ -199,6 +213,11 @@ func (m Manifest) Check() error {
 
 	if strings.TrimSpace(m.Description) == "" {
 		return fmt.Errorf("agent.json: description is required")
+	}
+	if m.Image != "" {
+		if err := checkImageName(m.Image); err != nil {
+			return err
+		}
 	}
 	// Validity only: a bundled agent's presence of released is the pack check's.
 	if m.Released != "" {

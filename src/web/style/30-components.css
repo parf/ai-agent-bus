@@ -11,6 +11,9 @@
   background: linear-gradient(135deg, var(--accent-soft), var(--indigo-soft)); border: 1px solid var(--border); color: var(--accent-text); }
 .title-mark .ic { width: 1.3rem; height: 1.3rem; }
 .title-mark .avatar { width: 42px; height: 42px; }
+.title-mark:has(.agent-picture) { overflow: hidden; padding: 0; }
+.agent-picture { width: 42px; height: 42px; object-fit: cover; display: block; }
+.agent-placeholder { display: grid; place-items: center; font-weight: 600; font-size: 1.2rem; }
 .page-actions { margin-left: auto; display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
 .page-sub { margin-top: .5rem; color: var(--text-2); font-size: .92rem; display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: center; }
 .section-title { display: flex; align-items: center; gap: .55rem; font-size: 1rem; margin: 0 0 .8rem; }

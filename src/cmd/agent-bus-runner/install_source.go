@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -90,6 +91,9 @@ func (r *runner) bundledInstallSource(name string) (string, error) {
 		}
 		if _, err := manifest.check(); err != nil {
 			return "", fmt.Errorf("bundled source agent.json: %w", err)
+		}
+		if err := agentmeta.Manifest(manifest).CheckImage(path); err != nil {
+			return "", fmt.Errorf("bundled source %w", err)
 		}
 		return path, nil
 	}

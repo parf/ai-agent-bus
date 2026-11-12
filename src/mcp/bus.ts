@@ -42,7 +42,7 @@ export type Envelope = {
   re?: string;
   // An ask is about the receiver itself, with no body: help for what it can
   // do, mcp for its tools (docs/constitution.md#agent-self-description).
-  ask?: "help" | "help-config" | "help-secret" | "help-json" | "mcp" | "status";
+  ask?: "help" | "help-config" | "help-secret" | "help-json" | "image" | "mcp" | "status";
   reply_to?: { name: string; topic?: string; tag?: string };
 };
 

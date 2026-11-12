@@ -28,7 +28,7 @@ Owner, 2026-11-11 ([№Q395](resolved.md#Q395)): disk first, then the agent; for
 | Order | Source | When |
 |---|---|---|
 | 1. Disk | the file in the installed bundled pack, found by the bundled agent's name under the pack directory the web already knows, never by a path from a record | a bundled agent installed on the web's host |
-| 2. Ask, runner-served | an `image` ask the runner answers from the file next to `agent.json`, the same way it answers `help` from the package, without running the script; the answer is the file in base64 | an agent the runner serves |
+| 2. Ask, runner-served | an `image` ask (added to the closed ask set, owner 2026-11-11) the runner answers from the file next to `agent.json`, the same way it answers `help` from the package, without running the script; the answer is the file in base64 | an agent the runner serves |
 | 2. Ask, self-hosted | the same ask, answered by the shared helpers (Go, Python, TypeScript) from the agent's own `agent.json` | any agent that serves itself, bundled or not |
 
 - **Caching:** the web keeps an image by its SHA-256 from help; a new hash fetches again; an unchanged one never asks.

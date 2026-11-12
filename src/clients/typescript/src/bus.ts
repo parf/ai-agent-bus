@@ -4,7 +4,7 @@ import { Transport, BusError, type BinaryOptions, type Operation, budget, remain
 import { Message, bindings, type Envelope } from './message.js';
 import { RecordHandle } from './record.js';
 export interface ConnectOptions { addr?: string | null; token?: string; expectName?: string; timeout?: number; fingerprint?: string }
-export interface SendOptions extends Operation { topic?: string; tag?: string; ttl?: string | number; wait?: string | number; reply_to?: { name?: string; topic?: string; tag?: string }; ask?: 'help' | 'help-config' | 'help-secret' | 'help-json' | 'mcp' | 'status' }
+export interface SendOptions extends Operation { topic?: string; tag?: string; ttl?: string | number; wait?: string | number; reply_to?: { name?: string; topic?: string; tag?: string }; ask?: 'help' | 'help-config' | 'help-secret' | 'help-json' | 'image' | 'mcp' | 'status' }
 export interface CallOptions extends Omit<SendOptions,'tag'|'wait'> { timeout: number; onAck?: (message: Message) => void }
 /** `asks: 'only'` takes only messages that carry an ask and leaves the rest queued; it may wait beside the unfiltered reader of the same inbox. */
 export interface ConsumeOptions extends Operation { inbox?: string; topic?: string; tag?: string; wait?: string | number; share?: boolean; asks?: 'only' }

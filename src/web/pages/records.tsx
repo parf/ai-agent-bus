@@ -3,6 +3,7 @@ import { AccessRows } from "../ui/access.tsx";
 import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
 import { agentHelp, AgentDescription, ConfigurationHelp, SecretHelp, type AgentHelp } from "../agent-metadata.tsx";
+import { AgentPicture } from "../agent-image.tsx";
 import { configuration, ConfigurationPreview, formatConfiguration } from "../configuration.tsx";
 import { normalizeTags, recordTags, filterTag, isPersonal } from "../tags.ts";
 // Record pages: lists, register, detail, inactive view, settings, deactivate,
@@ -460,7 +461,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
   </Card> : null;
 
   const body = <>
-    <PageHead back={{ href: back, label: "Back to records" }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />}
+    <PageHead back={{ href: back, label: "Back to records" }} icon={rec.kind === "agent" && typeof metadata.data?.image_sha256 === "string" ? <AgentPicture name={rec.name} hash={metadata.data.image_sha256} /> : <Icon name={entity(rec.kind)?.icon ?? "box"} />}
       title={<><Name copy>{rec.name}</Name>{isPersonal(rec) ? <span class="muted"> · Personal</span> : null}</>}
       sub={<div class="meta-row">
         <KindPill kind={rec.kind} template={rec.resource?.template} />

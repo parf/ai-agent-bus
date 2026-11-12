@@ -143,7 +143,7 @@ impl Message {
     pub fn re(&self) -> &str {
         &self.re
     }
-    /// What the sender asks about the receiver itself, `help`, `help-config`, `help-secret`, `help-json`, `mcp` or `status`; empty for ordinary work.
+    /// What the sender asks about the receiver itself, `help`, `help-config`, `help-secret`, `help-json`, `image`, `mcp` or `status`; empty for ordinary work.
     pub fn ask(&self) -> &str {
         &self.ask
     }
@@ -195,7 +195,7 @@ pub struct SendOptions {
     pub ttl: Option<Duration>,
     pub wait: Option<Duration>,
     pub reply_to: Option<ReplyTo>,
-    /// Asks the receiver about itself, `help`, `help-config`, `help-secret`, `help-json`, `mcp` or `status`, instead of giving it work; the body must be empty.
+    /// Asks the receiver about itself, `help`, `help-config`, `help-secret`, `help-json`, `image`, `mcp` or `status`, instead of giving it work; the body must be empty.
     pub ask: Option<String>,
 }
 #[derive(Clone)]

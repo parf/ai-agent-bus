@@ -18,6 +18,17 @@ func DispatchAsk(ask string, handlers map[string]AskHandler) (string, bool, erro
 // AskHandlers supplies authored metadata unless the package implements native help.
 func (m Manifest) AskHandlers(dir string, roles []string, target string) map[string]AskHandler {
 	handlers := map[string]AskHandler{}
+	// The image is a package file like agent.json, so the runner answers for it
+	// even when the package shapes its own help.
+	if m.Image != "" {
+		handlers["image"] = func() (string, error) {
+			img, err := LoadImage(dir, m.Image)
+			if err != nil {
+				return "", err
+			}
+			return img.Base64(), nil
+		}
+	}
 	if m.Help == "native" {
 		return handlers
 	}

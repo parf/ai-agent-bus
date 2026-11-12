@@ -1,0 +1,38 @@
+{
+ "a.png": {
+  "type": "image/png",
+  "size": 64
+ },
+ "a.jpg": {
+  "type": "image/jpeg",
+  "size": 64
+ },
+ "lossy.webp": {
+  "type": "image/webp",
+  "size": 64
+ },
+ "lossless.webp": {
+  "type": "image/webp",
+  "size": 64
+ },
+ "vp8x.webp": {
+  "type": "image/webp",
+  "size": 64
+ },
+ "a.avif": {
+  "type": "image/avif",
+  "size": 64
+ },
+ "wide.png": {
+  "refused": "not square"
+ },
+ "huge.png": {
+  "refused": "over 512×512"
+ },
+ "huge.avif": {
+  "refused": "over 512×512"
+ },
+ "svg.png": {
+  "refused": "is not AVIF, WebP, PNG or JPEG"
+ }
+}
