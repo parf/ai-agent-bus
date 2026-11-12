@@ -23,7 +23,7 @@ import { ChatPort, ChatSubscriptions, staff as mayChangeSubscriptions, subscript
 import { Forwarder, Posted, identityGiveMs, identityRetry, type Identity, type IdentityFailure } from "./forward.js";
 import { SocketMode } from "./socket.js";
 import { postAs } from "./postas.js";
-import { describe } from "./describe.js";
+import { describe, imageAsk } from "./describe.js";
 import { SlackRouter, routingConfig, type RoutingConfig } from "./routing.ts";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
@@ -416,7 +416,7 @@ function render(json: boolean, r: Result, ctx?: Ctx): string {
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
 async function handle(e: Message): Promise<string | null> {
-  const answer = dispatchAsk(e.ask, ask => describe(name, mayChangeSubscriptions(e, name), ask), { status: () => (identity ? "ok" : `not ready: Slack has not said who the agent is yet (${identityWhy || "not asked yet"})`) });
+  const answer = dispatchAsk(e.ask, ask => describe(name, mayChangeSubscriptions(e, name), ask), { ...imageAsk, status: () => (identity ? "ok" : `not ready: Slack has not said who the agent is yet (${identityWhy || "not asked yet"})`) });
   if (answer !== undefined) return answer;
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
@@ -627,7 +627,7 @@ const earlyAsks = (async () => {
     if (!m?.ask) continue;
     const ask = m.ask;
     try {
-      await m.reply(dispatchAsk(ask, kind => describe(name, mayChangeSubscriptions(m, name), kind), { status: () => phase }) ?? `unsupported: ${ask}`);
+      await m.reply(dispatchAsk(ask, kind => describe(name, mayChangeSubscriptions(m, name), kind), { ...imageAsk, status: () => phase }) ?? `unsupported: ${ask}`);
     } catch {
       /* the caller gave up */
     }

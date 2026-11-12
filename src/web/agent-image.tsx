@@ -76,5 +76,5 @@ export async function imageRoute(ctx: Ctx): Promise<Response> {
 
 /** The page-header picture, or the letter placeholder when help names none. */
 export const AgentPicture = ({ name, hash, size = 40 }: { name: string; hash: string; size?: number }) => hash
-  ? <img class="agent-picture" src={`/agent-image?${new URLSearchParams({ name, h: hash })}`} alt="" width={size} height={size} loading="lazy" decoding="async" />
+  ? <img class={size < 40 ? "agent-picture agent-thumb" : "agent-picture"} src={`/agent-image?${new URLSearchParams({ name, h: hash })}`} alt="" width={size} height={size} loading="lazy" decoding="async" />
   : <span class="agent-picture agent-placeholder" aria-hidden="true">{(bundledName(name) || name.replace(/^#/, "")).slice(0, 1).toUpperCase() || "?"}</span>;

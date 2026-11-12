@@ -99,3 +99,14 @@ test("the header shows the picture element only with a hash, else a placeholder"
   expect(none).not.toContain("<img");
   expect(none).toContain(">P</span>");
 });
+
+test("an agent list shows a thumbnail only for an agent whose help named an image hash", async () => {
+  const { agentHelp, knownImages } = await import("../agent-metadata.tsx");
+  const pictured = { kind: "agent", name: "#pictured/one@h", readers: 1, at: "t" } as Rec;
+  const plain = { kind: "agent", name: "#plain@h", readers: 1, at: "t" } as Rec;
+  await agentHelp(visitor("a", { image_sha256: sha(avif) }, never), pictured);
+  await agentHelp(visitor("a", {}, never), plain);
+  expect([knownImages.get(pictured.name), knownImages.has(plain.name)]).toEqual([sha(avif), false]);
+  const thumb = render(AgentPicture({ name: pictured.name, hash: knownImages.get(pictured.name)!, size: 24 }));
+  expect(thumb).toMatch(/^<img class="agent-picture agent-thumb" [^>]*width="24"/);
+});

@@ -38,8 +38,22 @@ package_begin() {
   dest=$package_stage
 }
 
+# The picture agent.json names ships beside it (Plans/R1.1/agent-images.md#rules).
+package_image() {
+  python3 - "$1" "$package_stage" <<'PY'
+import json, os, shutil, sys
+src, dest = sys.argv[1], sys.argv[2]
+name = json.load(open(os.path.join(dest, 'agent.json'))).get('image')
+if name:
+    os.makedirs(os.path.dirname(os.path.join(dest, name)), exist_ok=True)
+    shutil.copyfile(os.path.join(src, name), os.path.join(dest, name))
+    os.chmod(os.path.join(dest, name), 0o644)
+PY
+}
+
 package_commit() {
   # mktemp starts private; the completed package is public runner-readable code.
+  [ ! -f "$package_stage/agent.json" ] || package_image "$here"
   chmod 0755 "$package_stage"
   if [ -e "$package_target" ]; then
     package_backup=$(mktemp -d "$package_target.old.XXXXXX")

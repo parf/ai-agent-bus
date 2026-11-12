@@ -25,6 +25,7 @@ chmod 755 "$tmp" "$tmp/slack.js"
 sed 's|"command": "./slack.ts"|"command": "./slack.js"|' "$here/agent.json" >"$tmp/agent.json"
 cp "$here/env.dist" "$tmp/env.dist"
 chmod 644 "$tmp/agent.json" "$tmp/env.dist"
+python3 -c 'import json, os, shutil, sys; n = json.load(open(os.path.join(sys.argv[1], "agent.json"))).get("image"); n and (shutil.copyfile(os.path.join(sys.argv[2], n), os.path.join(sys.argv[1], n)), os.chmod(os.path.join(sys.argv[1], n), 0o644))' "$tmp" "$here"  # its picture (Plans/R1.1/agent-images.md#rules)
 grep -q '"command": "./slack.js"' "$tmp/agent.json"
 rm -rf "$dest.old"; [ -e "$dest" ] && mv "$dest" "$dest.old"
 mv "$tmp" "$dest"; trap - EXIT

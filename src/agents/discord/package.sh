@@ -14,6 +14,7 @@ sed 's|"command": "./discord.ts"|"command": "./discord.js"|' "$here/agent.json" 
 install -m 0644 "$here/env.dist" "$tmp/env.dist"
 chmod 0755 "$tmp" "$tmp/discord.js"
 chmod 0644 "$tmp/agent.json"
+python3 -c 'import json, os, shutil, sys; n = json.load(open(os.path.join(sys.argv[1], "agent.json"))).get("image"); n and (shutil.copyfile(os.path.join(sys.argv[2], n), os.path.join(sys.argv[1], n)), os.chmod(os.path.join(sys.argv[1], n), 0o644))' "$tmp" "$here"  # its picture (Plans/R1.1/agent-images.md#rules)
 rm -rf "$dest.old"; [ ! -e "$dest" ] || mv "$dest" "$dest.old"
 mv "$tmp" "$dest"; trap - EXIT
 rm -rf "$dest.old"

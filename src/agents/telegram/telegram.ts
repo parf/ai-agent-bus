@@ -15,7 +15,7 @@ import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "../shared/envfile.js";
 import { configFault, parseConfig, resolveDestination, secretFault, type Config } from "./config.js";
 import { parseCall } from "./parse.js";
-import { describe } from "./help.js";
+import { describe, imageAsk } from "./help.js";
 import { DeadlinePassed, telegramWeb } from "./telegramapi.ts";
 import { fail, ok, render, type Result } from "./render.ts";
 import { Seen } from "./seen.ts";
@@ -299,7 +299,7 @@ async function users(json: boolean, call: Extract<Call, { method: "users" }>): P
 }
 
 async function handle(e: Message): Promise<string | null> {
-  const answer = dispatchAsk(e.ask, ask => describe(mayChangeSubscriptions(e, name), ask));
+  const answer = dispatchAsk(e.ask, ask => describe(mayChangeSubscriptions(e, name), ask), imageAsk);
   if (answer !== undefined) return answer;
   return _handle(e);
 }

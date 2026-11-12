@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { Bus } from '../../clients/typescript/src/index.ts';
 import { parseEnvFile } from '../shared/envfile.ts';
-import { dispatchAsk, helpAnswer } from '../shared/metadata.ts';
+import { dispatchAsk, helpAnswer, imageHandler } from '../shared/metadata.ts';
+import { fileURLToPath } from 'node:url';
 import manifest from './agent.json';
 import { readFileSync } from 'node:fs';
 import { Api } from './api.ts';
@@ -11,6 +12,8 @@ const name=process.env.AGENT_BUS_NAME?.trim().toLowerCase();
 if(!name){console.error('discord: AGENT_BUS_NAME is required');process.exit(1);}
 const bus=Bus.connect({expectName:name});
 const envDist=readFileSync(new URL('./env.dist',import.meta.url),'utf8');
+// The package folder: beside the bundle, as env.dist is.
+const dir=fileURLToPath(new URL('.',import.meta.url));
 const api=new Api(async()=>parseEnvFile('record Secret',(await bus.record(name).secret({timeout:1000})).reveal()));
 const log=(line:string)=>console.error('discord: '+line);
 const app=new App(bus,name,api,()=>bus.record(name).config({timeout:1000}),log);
@@ -21,8 +24,8 @@ for(const signal of ['SIGTERM','SIGINT'] as const)process.on(signal,()=>{gateway
 process.on('SIGHUP',()=>{api.reload();void gateway.reload();});
 await gateway.start();
 await bus.serve(async e=>{
-  const help=(ask:any)=>helpAnswer(manifest,ask,envDist,[...e.roles],false,name);
-  const ask=dispatchAsk(e.ask,help,{status:()=>`Discord gateway ${gateway.armed?'connected or reconnecting':'stopped'}`});
+  const help=(ask:any)=>helpAnswer(manifest,ask,envDist,[...e.roles],false,name,dir);
+  const ask=dispatchAsk(e.ask,help,{...imageHandler(manifest,dir),status:()=>`Discord gateway ${gateway.armed?'connected or reconnecting':'stopped'}`});
   if(ask!==undefined)return ask;
   if(e.body.trim()==='help')return help('help');
   const at=typeof e.deadline==='string'?Date.parse(e.deadline):NaN;

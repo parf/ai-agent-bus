@@ -13,7 +13,10 @@ const strings = (v: unknown) => Array.isArray(v) ? v.filter((s): s is string => 
 export const metadataWait = { ms: 2000 };
 // Session-scoped: method visibility depends on the caller's delivered roles.
 const cache = new Map<string, { until: number; answer: AgentHelp }>();
-export function clearMetadataCache() { cache.clear(); }
+export function clearMetadataCache() { cache.clear(); knownImages.clear(); }
+// Image hashes help has named, by agent: lists show a thumbnail only for these,
+// and the image route still asks the visitor's own help before serving one.
+export const knownImages = new Map<string, string>();
 export async function agentHelp(ctx: Ctx, rec: Rec): Promise<AgentHelp> {
   if (rec.kind !== "agent") return {};
   const key = JSON.stringify([ctx.session, rec.name, rec.at]);
@@ -34,7 +37,13 @@ export async function agentHelp(ctx: Ctx, rec: Rec): Promise<AgentHelp> {
     if (answer.kind === "answer") {
       try {
         const data: unknown = JSON.parse(answer.body);
-        if (object(data) && typeof data.description === "string" && object(data.methods)) return remember({ data });
+        if (object(data) && typeof data.description === "string" && object(data.methods)) {
+          if (typeof data.image_sha256 === "string" && /^[0-9a-f]{64}$/.test(data.image_sha256)) {
+            if (knownImages.size >= 4096 && !knownImages.has(rec.name)) knownImages.delete(knownImages.keys().next().value!);
+            knownImages.set(rec.name, data.image_sha256);
+          } else knownImages.delete(rec.name);
+          return remember({ data });
+        }
       } catch {}
     }
     const fallback = await ctx.call(rec.name, "", Math.max(1, until - Date.now()), "help");

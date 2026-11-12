@@ -7,6 +7,7 @@ tmp=$(mktemp -d "${dest%/}.new.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/support/agents/shared" "$tmp/support/clients/python" "$tmp/support/internal/version"
 cp "$here/debug.py" "$here/agent.json" "$here/env.dist" "$tmp/"
+python3 -c 'import json, os, shutil, sys; n = json.load(open(os.path.join(sys.argv[1], "agent.json"))).get("image"); n and (shutil.copyfile(os.path.join(sys.argv[2], n), os.path.join(sys.argv[1], n)), os.chmod(os.path.join(sys.argv[1], n), 0o644))' "$tmp" "$here"  # its picture (Plans/R1.1/agent-images.md#rules)
 cp "$here/../shared/metadata.py" "$tmp/support/agents/shared/"
 cp -r "$here/../../clients/python/agent_bus" "$tmp/support/clients/python/"
 find "$tmp" -type d -name __pycache__ -exec rm -rf {} +
