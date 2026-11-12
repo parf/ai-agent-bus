@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** scheduling lives in two runner agents, `#cron` and `#at`, so an agent cannot own its schedules, the web cannot show them, and a firing needs a runner process up.
 - **Outcome:** the daemon keeps **schedules** the way it keeps KV: attached to a record, used by its Owner, Maintainers and own Agent, fired from `#bus`, shown on **Crons** and **Ats** pages and agent pages. `#cron` and `#at` are then removed.
-- **Status:** design settled with the owner (Q379–Q390 on 2026-11-06; Q409–Q415, Q417 and Q418 on 2026-11-12); R1 task [RT35](TODO.md#cron-and-at-in-the-core); nothing built. Open: [Q416](#open-questions).
+- **Status:** design settled with the owner (Q379–Q390 on 2026-11-06; Q409–Q418 on 2026-11-12); R1 task [RT35](TODO.md#cron-and-at-in-the-core); nothing built.
 
 ## Contents
 
@@ -49,7 +49,7 @@ Owner, 2026-11-06 ~14:00: "#cron and #at must be converted from agents to bus co
 | 2 | `sub list` | list a holder's schedules; the web lists all a visitor may use | |
 | 3 | `sub delete <id>` | delete by id | |
 | 4 | `#cron` `later`: once, after `+90s` `+15m` `+2h` `+3d`, or at an RFC 3339 instant with offset | add a one-shot with the same forms | |
-| 5 | `later list`: pending and the last 100 outcomes | list one-shots with state and recent outcomes | retention: [Q416](#q416) |
+| 5 | `later list`: pending and the last 100 outcomes | list one-shots with state and outcomes of the last 7 days, at most 1 000 per holder ([Q416](#q416)) | retention by age |
 | 6 | `later cancel <id>` | delete; a one-shot whose send is in flight may still deliver once | |
 | 7 | `#at` `in`: `90s` `30m` `2h` `3d`, optional `+`, no compound | the same delay forms | `later` and `in` become one |
 | 8 | `#at` `at`: `HH:MM` (next strictly after this minute) or an instant with offset | the same; `HH:MM` read as UTC | |
@@ -62,12 +62,12 @@ Owner, 2026-11-06 ~14:00: "#cron and #at must be converted from agents to bus co
 | 15 | creator's may-send at add and before every send; the target must also admit `#cron` | creator's may-send at add and before every firing, checked with the send; `#bus` is always admitted ([Q410](#q410)); 5 refusals in a row disable ([Q409](#q409)) | no Allow entry for the sender; disable |
 | 16 | target: an existing agent or queue `#cron` can see; never `#cron` itself | an existing agent or queue the creator may send to, including the creator's own; never `#bus` | the creator, not the helper, must reach it |
 | 17 | anyone admitted to `#cron` schedules; each lists and deletes their own; staff see others' entries without bodies | the holder's Owner, Maintainers and own Agent, who see every schedule on it with bodies ([Q383](#q383)) | a person keeps schedules on an agent or queue they manage, such as their session ([Q417](#q417)); managers see bodies |
-| 18 | per instance: 100 recurring (20 per creator), 1000 one-shots (100 per creator) | per holder: 100 recurring, 10 000 one-shots ([Q384](#q384)); node limits [Q416](#q416) | |
+| 18 | per instance: 100 recurring (20 per creator), 1000 one-shots (100 per creator) | per holder: 100 recurring, 10 000 one-shots ([Q384](#q384)); per holder Owner: 1 000 recurring, 100 000 one-shots ([Q416](#q416)) | caps per holder and per owner, none per creator |
 | 19 | time to live: to the next slot, at least 60 s, at most 24 h; 24 h for a one-shot | the same, also capped by the target queue's own limit; a catch-up gets a one-shot's | |
 | 20 | at most 200 creator-and-target questions per pass, the rest `deferred` | an in-process check per firing | `deferred` gone |
 | 21 | a slot missed while down is skipped, not counted; a due one-shot sent once at start | a target down is not a miss (its queue holds the message); daemon downtime follows [Q385](#q385) | catch-up added |
 | 22 | a zone missing from host data stops the instance | no zones | no Configuration |
-| 23 | recurring counts in memory since start; one-shot outcomes survive restart | counts and outcomes persisted per schedule | recurring counts persist |
+| 23 | recurring counts in memory since start; one-shot outcomes survive restart | counts and outcomes persisted per schedule, outcomes for 7 days | recurring counts persist |
 | 24 | the roles `#cron` holds on the target travel with each message | the roles `#bus` holds on the target travel | roles of `#bus` |
 | 25 | warnings: dropped copy, missed slot, deferred, invalid stored entry | [warnings and alerts](#warnings-and-alerts) | |
 
@@ -84,7 +84,7 @@ Owner, 2026-11-06 ~14:00: "#cron and #at must be converted from agents to bus co
 | Body | required, 1 to 16384 bytes |
 | Controls | enable (default), disable, run now, edit, delete, by any manager of the holder ([Q415](#q415)); `until` and `max_runs`; max lateness, off by default |
 | End | a one-shot leaves once its outcome is recorded; a recurring schedule past `until` or `max_runs` is disabled and kept |
-| Caps | per holder: 100 recurring and 10 000 pending one-shots; over a cap refused by name; a warning at 80 % |
+| Caps | per holder: 100 recurring and 10 000 pending one-shots; per holder Owner across all holders: 1 000 recurring and 100 000 one-shots ([Q416](#q416)); over a cap refused by name; a warning at 80 % |
 | Lifetime | removed with its holder, kept on owner transfer, silent while the holder is inactive; a short-lived holder answers the add with a warning ([Q389](#q389)) |
 | Time | UTC everywhere; shown in the viewer's zone on the web only ([Q386](#q386)) |
 | Tags for filtering | the holder's tags ([Q387](#q387)) |
@@ -180,7 +180,7 @@ Letters from [the map](../subsystems.md); ⚠️ steps get a mutant per boundary
 
 | Step | Letter | What | Acceptance | Depends |
 |---|---|---|---|---|
-| 1 | C ⚠️ | Store: port, SQLite and memory tables, caps, drop with holder, orphans, dump and restore paths, record export and import | survives restart; a removed holder takes its schedules; transfer keeps them; the 101st recurring is refused by name; an invalid row is set aside and never fired; export then import on a fresh daemon carries them, firing only once the creator passes | owner reads the format |
+| 1 | C ⚠️ | Store: port, SQLite and memory tables, caps, drop with holder, orphans, dump and restore paths, record export and import | survives restart; a removed holder takes its schedules; transfer keeps them; the 101st recurring on a holder and the 1 001st across one owner's holders are refused by name; outcomes older than 7 days are gone; an invalid row is set aside and never fired; export then import on a fresh daemon carries them, firing only once the creator passes | owner reads the format |
 | 2 | H | Go expression parser ported from `cronexpr.py`, with seconds | one fixture table runs against both parsers and agrees on every five-field row; seconds rows Go only; a day-rule mutant fails a named row | — |
 | 3 | A ⚠️, D ⚠️ | Engine: wake, claim, the one-hold check and send from `#bus`, outcomes, disable after 5, catch-up, clock rules, one-second floor, lateness, time to live; envelope stamps; the daemon-side event writer; the schedule-stamped expiry hook | each [firing case](#firing) has a fixture: claimed once across a crash between claim and send; a creator who lost may-send, standing on the holder or activity is skipped and warned, 5 in a row disable with an alert; a target without `#bus` in its Allow still receives; a one-second schedule fires once a second, never faster, over 10 s; `missed: N` and `late_by` after a stopped daemon; a backward clock fires nothing twice; `run now` leaves the next slot; a fire at 23:59:59Z is stamped Z and lands on the expression's UTC slot | 1, 2; RT36; owner reads the wire format |
 | 4 | E | HTTP calls under KV's authority; daemon API doc | with an existing schedule, a stranger who may otherwise call the daemon sees and changes nothing and gets the same answer as for a missing holder; Owner, Maintainer and own Agent can | 3 |
@@ -199,7 +199,7 @@ Steps 1 and 2 run together; 5–8 in parallel after 4. About 17 h of agent time,
 |---|---|
 | `#bus` reaches every target | it sends only what a creator who may send there scheduled, checked in the same lock hold as the send |
 | A manager firing on another's authority | each add, edit or enable makes the acting manager the creator, after their may-send ([Q415](#q415)); standing re-checked every firing |
-| A busy node with many one-second schedules | the per-schedule floor; the engine-late alert; [Q416](#q416) |
+| A busy node with many one-second schedules | the per-schedule floor; the per-owner caps ([Q416](#q416)); the engine-late alert |
 | A double send after a crash | one claim per firing before its send; unknown outcomes never retried |
 | Parser drift | the shared fixture table until the Python parser is deleted |
 | Lost schedules on holder churn | the short-lived holder warning at add; the removal warning |
@@ -265,16 +265,11 @@ Settled with the owner; anchors kept for links. Q381 was withdrawn and stays unu
 <a id="q418"></a>
 - ✅ Q418 Where a queue's or pubsub's schedule warnings go → the daemon journal. Owner, 2026-11-12: "daemon journal"
 
+<a id="q416"></a>
+- ✅ Q416 Limits above the holder and outcome retention → per holder as decided, plus per holder Owner across all their holders: 100 000 one-shots and 1 000 recurring; outcomes kept 7 days per schedule, at most 1 000 per holder. Owner, 2026-11-12: "A"
+
 <a id="q414"></a>
 - ✅ Q414 Who removes `#cron` and `#at` from the live node → the Claude session that builds it, at the deploy that ships schedules. Owner, 2026-11-12: "you"
 
-### Open questions
-
-
-<a id="q416"></a>
-- ❓ Q416 Node-wide limits and outcome retention
-  - Context: caps are per holder only, so one owner with many queues can hold far more; 10 000 pending one-shots against 100 kept outcomes evicts most results unread
-  - ( ) A cap per holder Owner across all holders, 100 000 one-shots and 1 000 recurring; outcomes kept 7 days per holder instead of the last 100 🌟
-  - ( ) Per-holder caps only, last 100 outcomes, as planned
 
 

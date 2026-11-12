@@ -651,7 +651,7 @@ Shipped in 1.0.x, so recorded as R1 work (owner, 2026-11-11).
 
 ## Cron and at in the core
 
-Moved from R1.1 by the owner, 2026-11-12. The design is settled (Q379–Q390, Q409–Q414); open: Q416; nothing is built.
+Moved from R1.1 by the owner, 2026-11-12. The design is settled (Q379–Q390, Q409–Q418); nothing is built.
 
 - ☐ RT35 [Cron and at in the core](cron-in-core.md#cron-and-at-in-the-core): one daemon-owned schedule object replaces the `#cron` and `#at` agents
   - Steps: [steps by subsystem](cron-in-core.md#steps-by-subsystem) 1–10, each its own branch; ⚠️ steps 1, 3 and 9 need a mutant per boundary and two readers; the owner reads the storage format before step 1 and the wire format before step 3
