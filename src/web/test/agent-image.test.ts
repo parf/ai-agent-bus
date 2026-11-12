@@ -25,7 +25,7 @@ function pack(withImage = true): string {
   return dir;
 }
 
-type Answer = { kind: string; body?: string };
+type Answer = { kind: string; body?: string; why?: string };
 function visitor(session: string, help: Record<string, unknown> | undefined, image: () => Answer, asks: string[] = []) {
   const url = new URL(`http://localhost/agent-image?name=${encodeURIComponent("#pictured/one@h")}`);
   return {
@@ -83,36 +83,45 @@ test("bytes whose hash differs from help, or that break the caps, are refused", 
   }
 });
 
-test("no hash in help, or help refused to this visitor, serves nothing even when cached", async () => {
+test("help refused to this visitor serves nothing, even when another visitor cached the bytes", async () => {
   imagePack.dir = pack();
   expect((await imageRoute(visitor("owner", { image_sha256: sha(avif) }, never))).status).toBe(200);
   const asks: string[] = [];
-  expect((await imageRoute(visitor("plain", {}, never, asks))).status).toBe(404);
-  expect((await imageRoute(visitor("stranger", undefined, never, asks))).status).toBe(404);
-  expect(asks).not.toContain("image");
+  const refused = (): Answer => ({ kind: "lost", why: "refused" });
+  expect((await imageRoute(visitor("stranger", undefined, refused, asks))).status).toBe(404);
+  expect(asks).toEqual(["help-json", "image"]);
 });
 
-test("the header shows the picture element only with a hash, else a placeholder", () => {
-  const pic = render(AgentPicture({ name: "#pictured/one@h", hash: sha(avif) }));
-  expect(pic).toMatch(/^<img class="agent-picture" src="\/agent-image\?name=%23pictured%2Fone%40h&amp;h=[0-9a-f]{64}"/);
-  const none = render(AgentPicture({ name: "#pictured/one@h", hash: "" }));
-  expect(none).not.toContain("<img");
-  expect(none).toContain(">P</span>");
+test("without a hash in help the visitor's own image ask decides, and its outcome is kept a minute", async () => {
+  imagePack.dir = pack(false);
+  const asks: string[] = [];
+  const answer = () => ({ kind: "answer", body: webp.toString("base64") });
+  for (let i = 0; i < 2; i++) {
+    const res = await imageRoute(visitor("a", {}, answer, asks));
+    expect(res.status).toBe(200);
+    expect(Buffer.from(await res.arrayBuffer()).equals(webp)).toBe(true);
+  }
+  expect(asks.filter(a => a === "image")).toHaveLength(1);
+  const none: string[] = [];
+  for (let i = 0; i < 2; i++) expect((await imageRoute(visitor("b", {}, () => ({ kind: "answer", body: "unsupported: image" }), none))).status).toBe(404);
+  expect(none.filter(a => a === "image")).toHaveLength(1);
 });
 
-test("an agent list shows a thumbnail only for an agent whose help named an image hash", async () => {
+test("every agent shows the universal placeholder, with its own picture asked for on top when served", () => {
+  const live = render(AgentPicture({ name: "#pictured/one@h", hash: sha(avif) }));
+  expect(live).toMatch(/^<span class="pic-stack"><img class="agent-picture" src="\/agent-placeholder\.webp" alt="" width="40" height="40"\/?><img class="agent-picture" src="\/agent-image\?name=%23pictured%2Fone%40h&amp;h=[0-9a-f]{64}"/);
+  const nohash = render(AgentPicture({ name: "#plain@h", hash: "", size: 24 }));
+  expect(nohash).toMatch(/^<span class="pic-stack pic-small"><img class="agent-picture" src="\/agent-placeholder\.webp"[^>]*width="24"[^>]*><img class="agent-picture" src="\/agent-image\?name=%23plain%40h" [^>]*loading="lazy"/);
+  const offline = render(AgentPicture({ name: "#gone@h", hash: "", live: false }));
+  expect(offline.match(/<img /g)).toHaveLength(1);
+  expect(offline).toContain("agent-placeholder");
+});
+
+test("help that names an image hash is remembered for the agent list", async () => {
   const { agentHelp, knownImages } = await import("../agent-metadata.tsx");
   const pictured = { kind: "agent", name: "#pictured/one@h", readers: 1, at: "t" } as Rec;
   const plain = { kind: "agent", name: "#plain@h", readers: 1, at: "t" } as Rec;
   await agentHelp(visitor("a", { image_sha256: sha(avif) }, never), pictured);
   await agentHelp(visitor("a", {}, never), plain);
   expect([knownImages.get(pictured.name), knownImages.has(plain.name)]).toEqual([sha(avif), false]);
-  const thumb = render(AgentPicture({ name: pictured.name, hash: knownImages.get(pictured.name)!, size: 24 }));
-  expect(thumb).toMatch(/^<img class="agent-picture agent-thumb" [^>]*width="24"/);
-});
-
-test("a list row asks lazily for every live agent's thumbnail, over its kind icon", async () => {
-  const { ListPicture } = await import("../agent-image.tsx");
-  const row = render(ListPicture({ name: "#plain@h", hash: "", icon: "ICON" }));
-  expect(row).toMatch(/^<span class="thumb-stack">ICON<img class="agent-thumb" src="\/agent-image\?name=%23plain%40h" alt="" width="24" height="24" loading="lazy"/);
 });

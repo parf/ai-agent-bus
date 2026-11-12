@@ -9,7 +9,7 @@
     "version": "<version>",
     "released": "<released>",
     "image": "agent.webp",
-    "image_sha256": "a4bbe8d9f9322854cc8d2e660337ca5d3ac770a9595b59b786f98af9bbf0705a",
+    "image_sha256": "dce2934329e345a61543e672d02c8f8bb2347c4b18925aa08fb49d5c06a3d8f7",
     "methods": {
       "in": {
         "type": "string",

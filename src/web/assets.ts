@@ -42,6 +42,7 @@ const browserJs = await bundleJs();
 export function buildLocal() {
   const css=bundleCss(),js=browserJs;
   const hero=readFileSync(join(dir,"assets/agent-bus.webp"));
+  const placeholder=readFileSync(join(dir,"assets/agent-placeholder.webp"));
   const favicon=readFileSync(join(dir,"assets/favicon.svg"),"utf8");
   const lucide=readFileSync(join(dir,"assets/lucide.min.js"),"utf8");
   const uplot=readFileSync(join(vendor,"uPlot.iife.min.js"),"utf8");
@@ -49,6 +50,7 @@ export function buildLocal() {
     css:{path:`/app.${hash(css)}.css`,type:"text/css; charset=utf-8",body:css},
     js:{path:`/ui.${hash(js)}.js`,type:"text/javascript; charset=utf-8",body:js},
     hero:{path:`/agent-bus.${hash(hero)}.webp`,type:"image/webp",body:hero},
+    placeholder:{path:`/agent-placeholder.${hash(placeholder)}.webp`,type:"image/webp",body:placeholder},
     favicon:{path:"/favicon.svg",href:`/favicon.svg?v=${hash(favicon)}`,type:"image/svg+xml; charset=utf-8",body:favicon},
     lucide:{path:`/lucide.${hash(lucide)}.js`,type:"text/javascript; charset=utf-8",body:lucide},
     uplot:{path:`/uplot.${hash(uplot)}.js`,type:"text/javascript; charset=utf-8",body:uplot},

@@ -550,6 +550,7 @@ func (r *runner) handle(e protocol.Envelope) {
 			"help":        func() (string, error) { return r.help(r.mayManage(e)), nil },
 			"help-config": func() (string, error) { return "none", nil },
 			"help-secret": func() (string, error) { return "none", nil },
+			"image":       func() (string, error) { return runnerPicture.Base64(), nil },
 			"mcp":         func() (string, error) { return `{"tools":[]}`, nil },
 			"status":      func() (string, error) { return statusLine(r.status()), nil },
 		})

@@ -31,6 +31,9 @@ Owner, 2026-11-11 ([№Q395](resolved.md#Q395)): disk first, then the agent; for
 | 2. Ask, runner-served | an `image` ask (added to the closed ask set, owner 2026-11-11) the runner answers from the file next to `agent.json`, the same way it answers `help` from the package, without running the script; the answer is the file in base64 | an agent the runner serves |
 | 2. Ask, self-hosted | the same ask, answered by the shared helpers (Go, Python, TypeScript) from the agent's own `agent.json` | any agent that serves itself, bundled or not |
 
+- **Built-in agents:** `#bus` (from the daemon), every runner and each session's runtime (Claude, Codex, OpenCode, from the MCP face) answer `image` from a picture built into their program; the web asks them directly when help names no hash.
+- **Placeholder:** one universal picture shows under every agent's own and alone for an agent without one (owner, 2026-11-11).
+- **Colors:** one shape style, a distinct vivid color pair per agent (owner, 2026-11-11: "make them colorful").
 - **Caching:** the web keeps an image by its SHA-256 from help; a new hash fetches again; an unchanged one never asks.
 - **Offline agent:** a cached image still shows; one never fetched shows the placeholder.
 - **Answer size:** 256 KiB is about 342 KiB in base64, under the 1 MiB reply ceiling; IMG.1 tests a maximal image.

@@ -6,7 +6,8 @@ import { join } from "node:path";
 import { imageCheck, imageLoad } from "../agents/shared/image.ts";
 import type { Ctx, Rec } from "./ctx.ts";
 import { agentHelp } from "./agent-metadata.tsx";
-import { h, type Child } from "./jsx.ts";
+import { h } from "./jsx.ts";
+import { assets } from "./ui/frame.tsx";
 import { text } from "./http.ts";
 
 type Picture = { data: Uint8Array; type: string };
@@ -40,22 +41,34 @@ function fromDisk(name: string, want: string): Picture | undefined {
   } catch { return undefined; }
 }
 
+// Without a hash in help, the visitor's own image ask is the check; its outcome
+// is kept per visitor and agent for a minute, as help is.
+const asked = new Map<string, { until: number; sha: string }>();
+
 export async function agentPicture(ctx: Ctx, rec: Rec): Promise<Picture | undefined> {
-  const want = await imageHash(ctx, rec);
-  if (!want) return undefined;
-  const held = pictures.get(want);
+  let want = await imageHash(ctx, rec);
+  const key = JSON.stringify([ctx.session, rec.name, rec.at]);
+  if (!want) {
+    const seen = asked.get(key);
+    if (seen && seen.until > Date.now()) want = seen.sha;
+    if (seen && !want) return undefined;
+  }
+  const held = want ? pictures.get(want) : undefined;
   if (held) return held;
-  let got = fromDisk(rec.name, want);
+  let got = want ? fromDisk(rec.name, want) : undefined;
   if (got) imageStats.disk++;
   else {
+    if (!rec.readers) return undefined;
     const answer = await ctx.call(rec.name, "", imageWait.ms, "image").catch(() => undefined);
-    if (answer?.kind !== "answer") return undefined;
     imageStats.asked++;
-    try {
-      const img = imageCheck(new Uint8Array(Buffer.from(answer.body, "base64")));
-      if (img.sha256 !== want) return undefined;
-      got = img;
-    } catch { return undefined; }
+    let img: Picture & { sha256: string } | undefined;
+    if (answer?.kind === "answer") try { img = imageCheck(new Uint8Array(Buffer.from(answer.body, "base64"))); } catch {}
+    if (!want) {
+      if (asked.size >= 4096) asked.delete(asked.keys().next().value!);
+      asked.set(key, { until: Date.now() + 60_000, sha: img?.sha256 ?? "" });
+    }
+    if (!img || (want && img.sha256 !== want)) return undefined;
+    got = img; want = img.sha256;
   }
   if (pictures.size >= 256) pictures.delete(pictures.keys().next().value!);
   pictures.set(want, { data: got.data, type: got.type });
@@ -74,13 +87,13 @@ export async function imageRoute(ctx: Ctx): Promise<Response> {
   return new Response(pic.data as BodyInit, { headers: { "Content-Type": pic.type } });
 }
 
-/** A list row's thumbnail, lazily asked for and drawn over the kind icon: an
- *  agent with no picture answers 404, the empty image draws nothing, and the
- *  icon shows through. */
-export const ListPicture = ({ name, hash, icon }: { name: string; hash: string; icon: Child }) =>
-  <span class="thumb-stack">{icon}<img class="agent-thumb" src={`/agent-image?${new URLSearchParams(hash ? { name, h: hash } : { name })}`} alt="" width={24} height={24} loading="lazy" decoding="async" /></span>;
+const placeholderPath = () => assets()?.placeholder.path ?? "/agent-placeholder.webp";
 
-/** The page-header picture, or the letter placeholder when help names none. */
-export const AgentPicture = ({ name, hash, size = 40 }: { name: string; hash: string; size?: number }) => hash
-  ? <img class={size < 40 ? "agent-picture agent-thumb" : "agent-picture"} src={`/agent-image?${new URLSearchParams({ name, h: hash })}`} alt="" width={size} height={size} loading="lazy" decoding="async" />
-  : <span class="agent-picture agent-placeholder" aria-hidden="true">{(bundledName(name) || name.replace(/^#/, "")).slice(0, 1).toUpperCase() || "?"}</span>;
+/** An agent's picture over the universal placeholder: an agent without one
+ *  answers 404, the empty image draws nothing, and the placeholder shows.
+ *  An agent nobody serves is not asked; it shows the placeholder alone. */
+export const AgentPicture = ({ name, hash, live = true, size = 40 }: { name: string; hash: string; live?: boolean; size?: number }) =>
+  <span class={size < 40 ? "pic-stack pic-small" : "pic-stack"}>
+    <img class="agent-picture" src={placeholderPath()} alt="" width={size} height={size} />
+    {live || hash ? <img class="agent-picture" src={`/agent-image?${new URLSearchParams(hash ? { name, h: hash } : { name })}`} alt="" width={size} height={size} loading="lazy" decoding="async" /> : null}
+  </span>;

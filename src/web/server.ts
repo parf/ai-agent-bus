@@ -28,7 +28,7 @@ export function makeHandler(cfg: Config) {
   const daemon = new Daemon(cfg.daemon);
   const local = buildLocal();
   setAssets(local);
-  const statics = new Map([local.css, local.js, local.hero, local.favicon, local.lucide, local.uplot, ...local.fonts].map(a => [a.path, a]));
+  const statics = new Map([local.css, local.js, local.hero, local.placeholder, local.favicon, local.lucide, local.uplot, ...local.fonts].map(a => [a.path, a]));
 
   return async function handle(req: Request): Promise<Response> {
     calls++;
