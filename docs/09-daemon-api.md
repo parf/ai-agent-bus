@@ -373,6 +373,7 @@ A bigfile is a named value up to 32 MiB held for a limited time. The bytes are a
 | send, consume, call | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | key-value | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | locks and holders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| schedules | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | bigfiles | ✅ | ✅ | ✅ | — | — | — |
 | may-send | ✅ | ✅ | — | — | — | — |
 | `asks` on consume | — | ✅ | ✅ | ✅ | ✅ | ✅ |

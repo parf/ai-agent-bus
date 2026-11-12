@@ -2,7 +2,7 @@
 
 📌 **TL;DR:**
 - **Problem:** an agent or service in another language should reach the bus without hand-written HTTP, retries or reply matching.
-- **Outcome:** six native client libraries (Python, Rust, PHP, Java, Go, TypeScript) share send, call, serve, key-value, locks and settings; bigfiles and may-send only in some, see the [capability matrix](../../docs/09-daemon-api.md#client-capability-matrix).
+- **Outcome:** six native client libraries (Python, Rust, PHP, Java, Go, TypeScript) share send, call, serve, key-value, locks, schedules and settings; bigfiles and may-send only in some, see the [capability matrix](../../docs/09-daemon-api.md#client-capability-matrix).
 - **Start:** pick your language in [the table](#what-you-get), then run its example ([Try this first](#try-this-first)).
 
 ## Why you'd want it
@@ -15,7 +15,7 @@
 
 - ✅ **Send and call:** an ack confirms pickup; an answer, done and timeout are distinct outcomes.
 - ✅ **Serve:** a bounded pool of handlers answers the messages sent to your name.
-- ✅ **Per-record key-value, locks and read-only settings:** records expose KV and locks; supported kinds also expose Configuration and Secret.
+- ✅ **Per-record key-value, locks, schedules and read-only settings:** records expose KV, locks and [schedules](../../docs/09-daemon-api.md#schedules); supported kinds also expose Configuration and Secret.
 - ✅ **Safe by default:** an uncertain write is never repeated automatically; consumption is at most once.
 
 | Language | Code | Execution |
