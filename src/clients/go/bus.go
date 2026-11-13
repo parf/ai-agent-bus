@@ -186,7 +186,6 @@ type pending struct {
 	inbox, topic, tag string
 	ctx               context.Context
 	ch                chan delivery
-	poll              bool
 }
 type delivery struct {
 	msg *Envelope
@@ -198,8 +197,8 @@ type work struct {
 	selfRequest bool // accepted request id, not an answer sharing its call tag
 }
 type serving struct {
-	ctx         context.Context
-	pollCtx     context.Context
+	ctx         context.Context // intake: ending it cancels the waiting read
+	ended       context.Context // ends when Serve gives up on its taken work
 	inbox       string
 	topic, tag  string
 	polls       sync.WaitGroup
@@ -224,8 +223,6 @@ type Bus struct {
 	pending                       map[string]*pending
 	raw                           bool
 	serving                       *serving
-	notify                        chan struct{}
-	poll                          chan struct{}
 }
 
 func random() string {
@@ -290,8 +287,7 @@ func Dial(o Options) (*Bus, error) {
 		}}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	b := &Bus{client: &http.Client{Transport: t, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, transport: t, base: base, token: o.Token, expected: o.ExpectedName, prefix: "call-" + random() + "-", timeout: o.Timeout, ctx: ctx, cancel: cancel, pending: map[string]*pending{}, notify: make(chan struct{}, 1), poll: make(chan struct{}, 1)}
-	go b.dispatch()
+	b := &Bus{client: &http.Client{Transport: t, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, transport: t, base: base, token: o.Token, expected: o.ExpectedName, prefix: "call-" + random() + "-", timeout: o.Timeout, ctx: ctx, cancel: cancel, pending: map[string]*pending{}}
 	return b, nil
 }
 func defaultSocket(token bool) string {
@@ -321,13 +317,7 @@ func defaultSocket(token bool) string {
 	}
 	return filepath.Join("/run/agent-bus", name)
 }
-func (b *Bus) wake() {
-	select {
-	case b.notify <- struct{}{}:
-	default:
-	}
-}
-func (b *Bus) Close() error { b.cancel(); b.transport.CloseIdleConnections(); b.wake(); return nil }
+func (b *Bus) Close() error { b.cancel(); b.transport.CloseIdleConnections(); return nil }
 func (b *Bus) ensure(ctx context.Context) error {
 	for {
 		if b.ctx.Err() != nil {
@@ -559,15 +549,11 @@ func (b *Bus) Ack(ctx context.Context, m *Envelope) (*Envelope, error) {
 func (b *Bus) Done(ctx context.Context, m *Envelope) (*Envelope, error) {
 	return b.response(ctx, m, "", "done")
 }
+
+// longWait is how long one read of a pending call or of Serve waits at the daemon: each holds one long read, never a poll.
+const longWait = 25 * time.Second
+
 func (b *Bus) consumeWire(ctx context.Context, s settings) (*Envelope, error) {
-	select {
-	case b.poll <- struct{}{}:
-		defer func() { <-b.poll }()
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-b.ctx.Done():
-		return nil, ErrClosed
-	}
 	if s.wait < 0 || s.wait > 60*time.Second {
 		return nil, errors.New("consume wait must be between zero and 60s")
 	}
@@ -596,7 +582,7 @@ func (b *Bus) Consume(ctx context.Context, opts ...Option) (*Envelope, error) {
 	}
 	b.raw = true
 	b.mu.Unlock()
-	defer func() { b.mu.Lock(); b.raw = false; b.mu.Unlock(); b.wake() }()
+	defer func() { b.mu.Lock(); b.raw = false; b.mu.Unlock() }()
 	s := config(opts)
 	if !s.waitSet {
 		s.wait = 100 * time.Millisecond
@@ -652,22 +638,20 @@ func (b *Bus) Call(ctx context.Context, to, body string, opts ...Option) (CallOu
 		topic = "call"
 	}
 	// Register with this serving generation before it can begin draining.
-	// A self request may be taken by the reply poll while all workers are busy.
+	// A self request may be taken by the call's own read while all workers are busy.
 	var self *serving
 	if to == b.you && b.serving != nil && b.serving.ctx.Err() == nil && b.serving.inbox == b.you {
 		self = b.serving
 		self.selfCalls.Add(1)
 	}
-	p := &pending{inbox: inbox, topic: topic, tag: tag, ctx: ctx, ch: make(chan delivery, 32), poll: true}
+	p := &pending{inbox: inbox, topic: topic, tag: tag, ctx: ctx, ch: make(chan delivery, 32)}
 	b.pending[tag] = p
 	b.mu.Unlock()
-	b.wake()
 	waitingSelf := false
 	defer func() {
 		b.mu.Lock()
 		delete(b.pending, tag)
 		b.mu.Unlock()
-		b.wake()
 		if self != nil {
 			if waitingSelf {
 				self.selfWaiting.Add(-1)
@@ -675,6 +659,11 @@ func (b *Bus) Call(ctx context.Context, to, body string, opts ...Option) (CallOu
 			self.selfCalls.Done()
 		}
 	}()
+	// The call's own filtered read waits at the daemon from before the send, so
+	// no unfiltered reader can take its answer; returning cancels it.
+	following, stopFollowing := context.WithCancel(ctx)
+	defer stopFollowing()
+	go b.follow(following, p)
 	options := []Option{WithTopic(topic), WithTag(tag), WithTTL(s.ttl), WithAsk(s.ask)}
 	if deadline, ok := ctx.Deadline(); ok {
 		// Positive even if the deadline slipped by since the check above.
@@ -744,8 +733,8 @@ func (b *Bus) Call(ctx context.Context, to, body string, opts ...Option) (CallOu
 					return out, &ErrCallTimeout{out, ctx.Err()}
 				case <-b.ctx.Done():
 					return out, ErrClosed
-				case <-self.pollCtx.Done():
-					return out, &ErrCallTimeout{out, self.pollCtx.Err()}
+				case <-self.ended.Done():
+					return out, &ErrCallTimeout{out, self.ended.Err()}
 				}
 				continue
 			}

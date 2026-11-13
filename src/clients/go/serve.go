@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 )
@@ -21,92 +20,87 @@ func (e *ServeError) Error() string {
 	return fmt.Sprintf("serve ended: %d failed, %d unfinished (%v)", e.Failed, e.Unfinished, e.Cause)
 }
 func (e *ServeError) Unwrap() error { return e.Cause }
-func (b *Bus) dispatch() {
-	turn := 0
-	for {
-		if b.ctx.Err() != nil {
+
+// follow is one pending call's own filtered read, held at the daemon for up to longWait and renewed until the call
+// ends. Ending the call cancels it; the daemon hands a cancelled read nothing (docs/04-messaging.md#one-reader-per-inbox).
+func (b *Bus) follow(ctx context.Context, p *pending) {
+	for ctx.Err() == nil {
+		wait := longWait
+		if deadline, ok := ctx.Deadline(); ok {
+			wait = min(wait, max(time.Until(deadline), time.Millisecond))
+		}
+		m, e := b.consumeWire(ctx, settings{inbox: p.inbox, topic: p.topic, tag: p.tag, wait: wait})
+		if m == nil && (e == nil || ctx.Err() != nil) {
+			continue
+		}
+		select {
+		case p.ch <- delivery{m, e}:
+		case <-ctx.Done():
 			return
 		}
-		b.mu.Lock()
-		ids := []string{}
-		for id, p := range b.pending {
-			if p.poll && p.ctx.Err() == nil {
-				ids = append(ids, id)
-			}
+		if e != nil {
+			return
 		}
-		sort.Strings(ids)
-		var s *serving
-		var slot bool
-		if b.serving != nil && b.serving.ctx.Err() == nil && (turn%2 == 1 || len(ids) == 0) {
-			s = b.serving
-			select {
-			case s.slots <- struct{}{}:
-				slot = true
-				s.polls.Add(1)
-				s.inflight.Add(1)
-			default:
-			}
+	}
+}
+
+// claim finds the pending call a message taken by the serving read answers, or its own request taken back.
+func (b *Bus) claim(m *Envelope) *pending {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, candidate := range b.pending {
+		if candidate.topic == m.Topic && candidate.tag == m.Tag && (candidate.inbox == m.To || (m.From == b.you && m.Receipt == "" && m.Re == "")) {
+			return candidate
 		}
-		var p *pending
-		if !slot && len(ids) > 0 {
-			p = b.pending[ids[(turn/2)%len(ids)]]
+	}
+	return nil
+}
+
+// serveLoop holds one read at the daemon while a worker is free and none while all are busy. Ending intake cancels
+// that read, which takes nothing; a message it did take is handed over and drained like other taken work.
+func (b *Bus) serveLoop(s *serving) {
+	defer s.polls.Done()
+	for s.ctx.Err() == nil && b.ctx.Err() == nil {
+		// Wait for a free worker without holding it: a self request taken by a call's read may need it.
+		select {
+		case s.slots <- struct{}{}:
+			<-s.slots
+		case <-s.ctx.Done():
+			return
+		case <-b.ctx.Done():
+			return
 		}
-		b.mu.Unlock()
-		turn++
-		if slot {
-			m, e := b.consumeWire(s.pollCtx, settings{inbox: s.inbox, topic: s.topic, tag: s.tag, wait: 100 * time.Millisecond, share: s.share})
-			release := func() { <-s.slots }
-			finishPoll := func() { s.inflight.Add(-1); s.polls.Done() }
-			if m == nil && e == nil {
-				release()
-				finishPoll()
-				continue
-			}
-			if m != nil {
-				b.mu.Lock()
-				var match *pending
-				for _, candidate := range b.pending {
-					if candidate.topic == m.Topic && candidate.tag == m.Tag && (candidate.inbox == m.To || (m.From == b.you && m.Receipt == "" && m.Re == "")) {
-						match = candidate
-						break
-					}
-				}
-				b.mu.Unlock()
-				if match != nil {
-					release()
-					select {
-					case match.ch <- delivery{m, e}:
-					case <-match.ctx.Done():
-					case <-b.ctx.Done():
-					}
-					finishPoll()
-					continue
-				}
-			}
-			// The reserved slot guarantees buffer capacity, even on intake stop.
-			s.ch <- work{delivery: delivery{m, e}, release: release}
-			finishPoll()
-		} else if p != nil {
-			m, e := b.consumeWire(b.ctx, settings{inbox: p.inbox, topic: p.topic, tag: p.tag, wait: 100 * time.Millisecond})
-			if e != nil {
-				b.mu.Lock()
-				p.poll = false
-				b.mu.Unlock()
-			}
-			if m != nil || e != nil {
+		s.inflight.Add(1)
+		m, e := b.consumeWire(s.ctx, settings{inbox: s.inbox, topic: s.topic, tag: s.tag, wait: longWait, share: s.share})
+		if m == nil && (e == nil || s.ctx.Err() != nil || b.ctx.Err() != nil) {
+			s.inflight.Add(-1)
+			continue
+		}
+		if m != nil {
+			if match := b.claim(m); match != nil {
 				select {
-				case p.ch <- delivery{m, e}:
-				case <-p.ctx.Done():
+				case match.ch <- delivery{m, nil}:
+				case <-match.ctx.Done():
 				case <-b.ctx.Done():
 				}
+				s.inflight.Add(-1)
+				continue
 			}
-		} else {
-			select {
-			case <-b.ctx.Done():
-				return
-			case <-b.notify:
-			case <-time.After(20 * time.Millisecond):
+			if m.Receipt != "" {
+				s.inflight.Add(-1)
+				continue
 			}
+		}
+		// What the read brought waits for a free worker; the slot guarantees buffer capacity, even on intake stop.
+		select {
+		case s.slots <- struct{}{}:
+			s.ch <- work{delivery: delivery{m, e}, release: func() { <-s.slots }}
+		case <-s.ended.Done():
+		case <-b.ctx.Done():
+		}
+		s.inflight.Add(-1)
+		if e != nil {
+			return
 		}
 	}
 }
@@ -118,15 +112,12 @@ func (b *Bus) Serve(ctx context.Context, handler func(context.Context, Envelope)
 	if o.workers <= 0 || o.drain < 0 || handler == nil {
 		return errors.New("valid handler, workers and drain required")
 	}
+	// Ending intake cancels the waiting read; the daemon hands a cancelled read nothing.
 	intake, stop := context.WithCancel(ctx)
 	defer stop()
-	// Ending intake must not cancel a take already sent to the daemon.
-	// Finish that poll during drain; its known work or uncertainty is reported.
-	pollCtx, cancelPolls := context.WithCancel(context.WithoutCancel(ctx))
-	defer cancelPolls()
 	messageCtx, cancelMessages := context.WithCancel(context.WithoutCancel(ctx))
 	defer cancelMessages()
-	s := &serving{ctx: intake, pollCtx: pollCtx, inbox: o.inbox, topic: o.topic, tag: o.tag, share: o.share, slots: make(chan struct{}, o.workers), ch: make(chan work, o.workers)}
+	s := &serving{ctx: intake, ended: messageCtx, inbox: o.inbox, topic: o.topic, tag: o.tag, share: o.share, slots: make(chan struct{}, o.workers), ch: make(chan work, o.workers)}
 	b.mu.Lock()
 	if b.raw || b.serving != nil {
 		b.mu.Unlock()
@@ -136,8 +127,9 @@ func (b *Bus) Serve(ctx context.Context, handler func(context.Context, Envelope)
 		s.inbox = b.you
 	}
 	b.serving = s
+	s.polls.Add(1)
 	b.mu.Unlock()
-	b.wake()
+	go b.serveLoop(s)
 	completed := make(chan error, o.workers)
 	active, failed := 0, 0
 	var cause error
@@ -241,9 +233,8 @@ func (b *Bus) Serve(ctx context.Context, handler func(context.Context, Envelope)
 		b.serving = nil
 	}
 	b.mu.Unlock()
-	b.wake()
-	// Removal under the reader lock prevents further poll additions. All known
-	// successful in-flight takes are handed over before this channel closes.
+	// The serving read ends with intake; any message it took and every self
+	// request already taken are handed over before this channel closes.
 	go func() { s.polls.Wait(); s.selfCalls.Wait(); close(s.ch) }()
 	timer := time.NewTimer(o.drain)
 	defer timer.Stop()

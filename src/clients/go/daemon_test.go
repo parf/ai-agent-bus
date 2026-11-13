@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -325,4 +327,81 @@ func TestRealDaemonRefusesAStrangersLargePutWithItsCauseNotAReset(t *testing.T) 
 	if !errors.As(e, &be) || be.Status != 403 {
 		t.Fatalf("a stranger's 24 MiB put: %v", e)
 	}
+}
+
+// countingTransport counts the daemon reads a Bus sends and keeps their waits.
+type countingTransport struct {
+	next  http.RoundTripper
+	mu    sync.Mutex
+	waits []string
+}
+
+func (c *countingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.URL.Path == "/consume" {
+		c.mu.Lock()
+		c.waits = append(c.waits, r.URL.Query().Get("wait"))
+		c.mu.Unlock()
+	}
+	return c.next.RoundTrip(r)
+}
+func (c *countingTransport) reads() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]string(nil), c.waits...)
+}
+func counting(b *Bus) *countingTransport {
+	c := &countingTransport{next: b.client.Transport}
+	b.client.Transport = c
+	return c
+}
+
+// A pending call holds one long read at the daemon instead of polling, and an idle Serve holds one too; a stopped
+// Serve's cancelled read takes nothing, so the next message waits for the next reader.
+func TestRealDaemonCallAndServeHoldOneLongReadInsteadOfPolling(t *testing.T) {
+	addr, tokens := realFixture(t)
+	caller := fixtureBus(t, addr, tokens["#caller@fixture"], "#caller@fixture")
+	worker := fixtureBus(t, addr, tokens["#worker@fixture"], "#worker@fixture")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	t.Run("call", func(t *testing.T) {
+		reads := counting(caller)
+		_, e := caller.Call(ctx, "#worker@fixture", "nobody serves", WithTimeout(1500*time.Millisecond))
+		var timeout *ErrCallTimeout
+		if !errors.As(e, &timeout) {
+			t.Fatalf("unanswered call: %v", e)
+		}
+		waits := reads.reads()
+		if len(waits) != 1 {
+			t.Fatalf("pending call read %d times in 1.5 s, want one long read: %v", len(waits), waits)
+		}
+		if w, e := time.ParseDuration(waits[0]); e != nil || w < 800*time.Millisecond {
+			t.Fatalf("pending call read waits %q, want most of its timeout", waits[0])
+		}
+		// The unanswered request is still queued for the worker; take it so it does not reach the serve below.
+		if m, e := worker.Consume(ctx, WithWait(time.Second)); e != nil || m == nil || m.Body != "nobody serves" {
+			t.Fatal(m, e)
+		}
+	})
+	t.Run("serve", func(t *testing.T) {
+		reads := counting(worker)
+		sctx, stop := context.WithCancel(ctx)
+		result := make(chan error, 1)
+		go func() {
+			result <- worker.Serve(sctx, func(context.Context, Envelope) (*string, error) { return Done, nil })
+		}()
+		time.Sleep(1500 * time.Millisecond)
+		stop()
+		if e := <-result; e != nil {
+			t.Fatal(e)
+		}
+		if waits := reads.reads(); len(waits) != 1 || waits[0] != longWait.String() {
+			t.Fatalf("idle Serve read %d times in 1.5 s, want one long read: %v", len(waits), waits)
+		}
+		if _, e := caller.Send(ctx, "#worker@fixture", "after stop"); e != nil {
+			t.Fatal(e)
+		}
+		if m, e := worker.Consume(ctx, WithWait(time.Second)); e != nil || m == nil || m.Body != "after stop" {
+			t.Fatalf("the stopped Serve's read took the next message: %v %v", m, e)
+		}
+	})
 }

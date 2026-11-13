@@ -134,65 +134,101 @@ func TestCallIdentityDeadlineReturnsCallTimeout(t *testing.T) {
 	}
 }
 
-func TestServeFinishesSentConsumeDuringDrain(t *testing.T) {
-	for _, lost := range []bool{false, true} {
-		t.Run(fmt.Sprint("lost=", lost), func(t *testing.T) {
-			started := make(chan struct{}, 1)
-			var takes, handled atomic.Int32
-			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/identity" {
-					fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
-					return
-				}
-				switch r.URL.Path {
-				case "/status":
-					fmt.Fprint(w, `{"you":"#me"}`)
-				case "/consume":
-					takes.Add(1)
-					started <- struct{}{}
-					time.Sleep(80 * time.Millisecond)
-					if lost {
-						conn, _, err := w.(http.Hijacker).Hijack()
-						if err == nil {
-							conn.Close()
-						}
-						return
-					}
-					fmt.Fprint(w, `{"message_id":"taken","from":"#sender","to":"#me","body":"work"}`)
-				case "/send":
-					fmt.Fprint(w, `{"message_id":"accepted"}`)
-				default:
-					w.WriteHeader(404)
-				}
-			}))
-			defer s.Close()
-			b, err := Dial(Options{Addr: s.URL})
-			if err != nil {
-				t.Fatal(err)
+// Stopping cancels the waiting serving read, which takes nothing: Serve ends at
+// once instead of waiting out the read, and nothing it would have brought runs.
+func TestStoppingCancelsTheWaitingServingReadWhichTakesNothing(t *testing.T) {
+	started, cancelled := make(chan struct{}, 1), make(chan struct{})
+	var takes, handled, sends atomic.Int32
+	var wait atomic.Value
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/identity":
+			fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
+		case "/status":
+			fmt.Fprint(w, `{"you":"#me"}`)
+		case "/consume":
+			takes.Add(1)
+			wait.Store(r.URL.Query().Get("wait"))
+			started <- struct{}{}
+			select {
+			case <-r.Context().Done():
+				close(cancelled)
+			case <-time.After(2 * time.Second):
+				// A read nobody cancelled ends with the message it waited for.
+				fmt.Fprint(w, `{"message_id":"taken","from":"#sender","to":"#me","body":"work"}`)
 			}
-			defer b.Close()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			go func() { <-started; time.Sleep(30 * time.Millisecond); cancel() }()
-			err = b.Serve(ctx, func(context.Context, Envelope) (*string, error) {
-				handled.Add(1)
-				return Done, nil
-			}, WithDrainTimeout(time.Second))
-			if takes.Load() != 1 {
-				t.Fatalf("sent consume repeated: %d", takes.Load())
+		default:
+			sends.Add(1)
+			fmt.Fprint(w, `{"message_id":"accepted"}`)
+		}
+	}))
+	defer s.Close()
+	b, err := Dial(Options{Addr: s.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var stopped time.Time
+	go func() { <-started; stopped = time.Now(); cancel() }()
+	err = b.Serve(ctx, func(context.Context, Envelope) (*string, error) {
+		handled.Add(1)
+		return Done, nil
+	}, WithDrainTimeout(3*time.Second))
+	took := time.Since(stopped)
+	if err != nil {
+		t.Fatalf("a cancelled serving read is not a failure: %v", err)
+	}
+	select {
+	case <-cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("the waiting serving read was not cancelled at the daemon")
+	}
+	if took > 500*time.Millisecond {
+		t.Fatalf("Serve waited out the serving read after stop: %v", took)
+	}
+	if w, _ := wait.Load().(string); w != longWait.String() {
+		t.Fatalf("serving read waits %q at the daemon, want %v", w, longWait)
+	}
+	if takes.Load() != 1 || handled.Load() != 0 || sends.Load() != 0 {
+		t.Fatalf("stop: takes=%d handled=%d sends=%d, want 1 0 0", takes.Load(), handled.Load(), sends.Load())
+	}
+}
+
+// A serving read whose connection is lost while intake is open is an uncertain take, never retried.
+func TestServeReportsALostServingReadAsUncertain(t *testing.T) {
+	var takes, handled atomic.Int32
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/identity":
+			fmt.Fprint(w, `{"protocol":1,"protocol_min":1}`)
+		case "/status":
+			fmt.Fprint(w, `{"you":"#me"}`)
+		case "/consume":
+			takes.Add(1)
+			if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
+				conn.Close()
 			}
-			if lost {
-				var uncertain *UncertainOutcome
-				if !errors.As(err, &uncertain) {
-					t.Fatalf("lost sent consume was silently discarded during stop: %v", err)
-				}
-				if handled.Load() != 0 {
-					t.Fatal("lost consume invoked a handler")
-				}
-			} else if err != nil || handled.Load() != 1 {
-				t.Fatalf("sent consume was discarded during stop: handled=%d err=%v", handled.Load(), err)
-			}
-		})
+		default:
+			fmt.Fprint(w, `{"message_id":"accepted"}`)
+		}
+	}))
+	defer s.Close()
+	b, err := Dial(Options{Addr: s.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = b.Serve(ctx, func(context.Context, Envelope) (*string, error) { handled.Add(1); return Done, nil })
+	var uncertain *UncertainOutcome
+	if !errors.As(err, &uncertain) {
+		t.Fatalf("lost serving read was not uncertain: %v", err)
+	}
+	if takes.Load() != 1 || handled.Load() != 0 {
+		t.Fatalf("lost read: takes=%d handled=%d, want 1 0", takes.Load(), handled.Load())
 	}
 }
 

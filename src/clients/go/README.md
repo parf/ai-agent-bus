@@ -109,12 +109,13 @@ No event-specific helper is needed for this example.
 
 - **Protocol:** both HTTP `/identity` fields must match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version) before application requests. Missing, malformed and unsupported versions are refused.
 - **Refusals:** errors expose the daemon's `kind` alongside its status and message.
+- **Waiting, not polling:** each pending `Call` holds one filtered read open at the daemon, for up to 25 s at a time, and `Serve` holds one read while a worker is free. Ending `Serve`'s context cancels that waiting read; the daemon hands a cancelled read nothing ([one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox)).
 
 - **Module:** see [the Go API source](bus.go).
 - **Connecting:** `Dial(Options{})` makes a caller handle without network I/O. The first operation checks `/status.you`, and `ExpectedName` requires a match. The CLI's address, token and TLS fingerprint defaults apply; unix sockets, HTTP and HTTPS work.
 - **TLS and transport:** HTTPS validates normal certificates or an explicit SHA256 DER pin before sending credentials. HTTP/1 connections disable keep-alive and replay, and redirects are refused.
 - **Private values:** config and secrets are read on every call.
-- **Calls:** each registers a fresh client-specific tag before sending. One dispatcher owns reads, routes exact pending-call filters even at full worker capacity, and consumes new work only with a reserved slot. Raw consume excludes calls and serving.
+- **Calls:** each registers a fresh client-specific tag before sending. Each pending call reads its own exact filter even at full worker capacity, and serving takes new work only while a worker is free. Raw consume excludes calls and serving.
 - **Receipts and replies:** receipts must name the accepted request ID, and replies honor `reply_to`. Serving ignores receipts, explicit replies unless `WithOnReply` is set, and late answers carrying its own call prefix. `Done` is nil; a pointer to an empty string sends an empty answer.
 - **Answers to a send:** `Serve(ctx, handler, WithOnReply(fn))` hands `fn` each message carrying `Re` that no pending call claims, within the workers and drain, and with `WithTopic` only those on that topic; a late answer to this client's own call never reaches it. `fn` gets no automatic ack, reply or done, as when the answer is dropped without it, and its error counts as a failure. Match `Re` against the IDs `Send` returned and ignore any other, since any sender can write `Re`. This mirrors the TypeScript client's `onReply`.
 - **Call waits:** a call's timeout is its wait, sent as the envelope wait; `Call` refuses `WithWait`. For a longer bus deadline, `Send` with `WithWait` and read the answer with `WithOnReply`.
