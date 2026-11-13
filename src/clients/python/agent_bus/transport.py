@@ -54,6 +54,36 @@ def discover_socket(token):
     return "/run/agent-bus/" + ("bus.sock" if token else f"user-{account}.sock")
 
 
+class Cancelled(Exception):
+    """A held read this client cancelled: the daemon hands a cancelled read nothing."""
+
+
+class Cancel:
+    """Cancels one in-flight request from another thread by shutting its socket."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._sock = None
+        self.cancelled = False
+
+    def cancel(self):
+        with self._lock:
+            self.cancelled = True
+            sock = self._sock
+        if sock is not None:
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+    def attach(self, sock):
+        with self._lock:
+            if self.cancelled:
+                return False
+            self._sock = sock
+            return True
+
+
 class UnixConnection(http.client.HTTPConnection):
     def __init__(self, path, timeout):
         super().__init__("localhost", timeout=timeout)
@@ -80,7 +110,7 @@ class Transport:
         self._lock = threading.Lock()
         self._closed = False
 
-    def request(self, method, path, body=None, *, timeout=None, raw=False, headers=None, destructive=False, upload=None, big_response=False, max_size=32*1024*1024):
+    def request(self, method, path, body=None, *, timeout=None, raw=False, headers=None, destructive=False, upload=None, big_response=False, max_size=32*1024*1024, cancel=None):
         # The Bus bounds a given timeout; one held open for a wait may exceed the default.
         timeout = seconds(timeout, positive=True) if timeout is not None else self.timeout
         deadline = time.monotonic() + timeout
@@ -108,6 +138,9 @@ class Transport:
             self._active.add(connection)
         try:
             connection.connect()
+            # Nothing is sent before attaching, so a read cancelled this early never started.
+            if cancel is not None and not cancel.attach(connection.sock):
+                raise Cancelled()
             if self.url and self.url.scheme == "https" and self.pin:
                 actual = hashlib.sha256(connection.sock.getpeercert(binary_form=True)).hexdigest()
                 if actual != self.pin:
@@ -169,6 +202,8 @@ class Transport:
             try:
                 return json.loads(data) if data else None
             except (ValueError, UnicodeError) as exc:
+                if cancel is not None and cancel.cancelled:
+                    raise Cancelled() from exc
                 if destructive or method != "GET":
                     raise UncertainOutcome("operation answered with an invalid response") from exc
                 raise TransportError("daemon returned invalid JSON") from exc
@@ -177,6 +212,9 @@ class Transport:
                 raise UncertainOutcome("input changed after sending; operation may have completed remotely") from exc
             raise
         except (OSError, http.client.HTTPException) as exc:
+            # The daemon hands a cancelled read nothing (docs/04-messaging.md#one-reader-per-inbox).
+            if cancel is not None and cancel.cancelled:
+                raise Cancelled() from exc
             if sent and (destructive or method != "GET"):
                 raise UncertainOutcome("operation may have completed remotely") from exc
             if isinstance(exc, TimeoutError):

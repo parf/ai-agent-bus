@@ -1,4 +1,4 @@
-"""One authenticated caller with a demand-driven inbox dispatcher."""
+"""One authenticated caller whose calls and serving loop wait at the daemon."""
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -14,16 +14,20 @@ from .errors import (BusClosed, BusError, BusTimeout, DrainTimeout, IdentityMism
 from .protocol import check_identity
 from .message import CallDone, CallReply, Message
 from .storage import Record
-from .transport import Transport, discover_socket, duration, no_wait, seconds
+from .transport import Cancel, Cancelled, Transport, discover_socket, duration, no_wait, seconds
 
 _log = logging.getLogger("agent_bus")
+
+# How long one read waits at the daemon: a pending call or a serving loop holds one long read, never a poll.
+LONG_WAIT = 25
 
 
 @dataclass
 class Pending:
     key: tuple
     on_receipt: object
-    event: threading.Event = field(default_factory=threading.Event)
+    # The call's own held read; cancelled when another reader hands this call something.
+    reading: object = None
     receipts: list = field(default_factory=list)
     queued_receipts: list = field(default_factory=list)
     result: object = None
@@ -46,6 +50,10 @@ class Serving:
     error: object = None
     accepting: bool = True
     polling: int = 0
+    # The serving loop's held read; stop cancels it.
+    reading: object = None
+    # Work the serving read took while a self request held the free worker.
+    taken: list = field(default_factory=list)
     on_reply: object = None
 
 
@@ -66,8 +74,6 @@ class Bus:
         self._pending = {}
         self._serving = None
         self._raw = False
-        self._dispatcher = None
-        self._cursor = 0
         self._call_prefix = "call-" + uuid.uuid4().hex + "-"
 
     def _check(self):
@@ -103,7 +109,7 @@ class Bus:
 
     def _request(self, method, path, body=None, *, query=None, timeout=None, raw=False,
                  headers=None, destructive=False, wait=0, upload=None, big_response=False, max_size=32*1024*1024,
-                 total=None):
+                 total=None, cancel=None):
         self._check()
         # A bigfile transfer passes its own total (storage.big_budget) instead of the Bus timeout.
         budget = total if total is not None else self.timeout if timeout is None else min(self.timeout, seconds(timeout, positive=True))
@@ -118,7 +124,8 @@ class Bus:
         if query:
             path += "?" + urlencode({key: value for key, value in query.items() if value is not None})
         return self._transport.request(method, path, body, timeout=left, raw=raw,
-                                       headers=headers, destructive=destructive, upload=upload, big_response=big_response, max_size=max_size)
+                                       headers=headers, destructive=destructive, upload=upload, big_response=big_response, max_size=max_size,
+                                       cancel=cancel)
 
     @property
     def name(self):
@@ -249,12 +256,12 @@ class Bus:
     def done(self, message):
         return self._respond(message, "", "done")
 
-    def _consume(self, *, inbox, topic=None, tag=None, wait=0.05, share=False, timeout=None):
+    def _consume(self, *, inbox, topic=None, tag=None, wait=LONG_WAIT, share=False, timeout=None, cancel=None):
         query = {"inbox": inbox, "topic": topic, "tag": tag, "wait": duration(wait)}
         if share:
             query["share"] = "1"  # daemon tests presence, not a Boolean value
         data = self._request("GET", "/consume", query=query,
-                             timeout=timeout, wait=wait, destructive=True)
+                             timeout=timeout, wait=wait, destructive=True, cancel=cancel)
         return Message.received(data, self) if data is not None else None
 
     def consume(self, *, inbox=None, topic=None, tag=None, wait=30, share=False):
@@ -271,12 +278,6 @@ class Bus:
             with self._condition:
                 self._raw = False
                 self._condition.notify_all()
-
-    def _start_dispatcher(self):
-        # condition is held by the caller
-        if self._dispatcher is None:
-            self._dispatcher = threading.Thread(target=self._dispatch, name="agent-bus-inbox", daemon=True)
-            self._dispatcher.start()
 
     def call(self, to, body, *, timeout, on_receipt=None, **options):
         if "wait" in options:
@@ -300,7 +301,6 @@ class Bus:
             if self._raw:
                 raise ReaderInUse("call conflicts with raw consume")
             self._pending[pending.key] = pending
-            self._start_dispatcher()
             self._condition.notify_all()
         try:
             # The outgoing duration is bounded by the original call deadline.
@@ -320,32 +320,57 @@ class Bus:
                 for message in pending.early:
                     self._deliver(pending, message)
                 pending.early.clear()
+                if pending.request is not None and self._serving:
+                    self._take_retained(self._serving)
                 self._condition.notify_all()
             while True:
                 with self._condition:
                     receipts = pending.queued_receipts[:]
                     pending.queued_receipts.clear()
                     error, result = pending.error, pending.result
-                # Callbacks run on the calling thread, never the dispatcher or under its lock.
+                    reading = None
+                    if not (receipts or error or result):
+                        # Created under the lock: a delivery after this point cancels it.
+                        reading = pending.reading = Cancel()
+                # Callbacks run on the calling thread, never under the lock.
                 for receipt in receipts:
                     if on_receipt:
                         on_receipt(receipt)
+                left = deadline - time.monotonic()
                 if error:
                     raise error
-                left = deadline - time.monotonic()
                 if left <= 0:
                     raise BusTimeout(receipts=pending.receipts)
                 if result:
                     return result
-                pending.event.wait(min(left, 0.05))
-                pending.event.clear()
+                if reading is None:
+                    continue
+                # One filtered read held at the daemon, renewed until the call settles.
+                message = None
+                try:
+                    message = self._consume(inbox=inbox, topic=reply_topic, tag=reply_tag,
+                                            wait=max(0.001, min(LONG_WAIT, left)), timeout=5, cancel=reading)
+                except Cancelled:
+                    pass
+                except BusTimeout:
+                    with self._condition:
+                        settled = pending.error or pending.result
+                    if not settled:
+                        raise BusTimeout(receipts=pending.receipts) from None
+                with self._condition:
+                    if pending.reading is reading:
+                        pending.reading = None
+                    if message is not None:
+                        self._route(message, inbox)
         finally:
             with self._condition:
+                if pending.reading is not None:
+                    pending.reading.cancel()
                 self._pending.pop(pending.key, None)
                 self._condition.notify_all()
 
     def _deliver(self, pending, message):
-        # condition is held. A work poll can see the response before send() returns its ID.
+        # condition is held. The serving read can see the response before send() returns its ID.
         if not pending.sent_id:
             pending.early.append(message)
             return
@@ -363,97 +388,115 @@ class Bus:
             pending.result = CallDone(message, tuple(pending.receipts))
         elif not message.receipt:
             pending.result = CallReply(message, tuple(pending.receipts))
-        pending.event.set()
+        # Wake the calling thread: its own held read is cancelled and takes nothing.
+        if pending.reading is not None:
+            pending.reading.cancel()
 
-    def _dispatch(self):
+    def _route(self, message, inbox):
+        """Hands a message to the pending call it answers; False when it belongs to none. Condition is held."""
+        routed = self._pending.get((inbox, message.topic or "", message.tag or ""))
+        if (routed is None and not message.receipt and not message.re
+                and message.envelope.get("from") == self._name):
+            # An alternate reply inbox/topic changes the reply key,
+            # not the request's unique call tag on our serving inbox.
+            routed = next((p for p in self._pending.values() if p.key[2] == message.tag), None)
+        if routed is None:
+            return False
+        self._deliver(routed, message)
+        # A call to our own name: its request is work for a free serving worker.
+        if routed.request is not None and self._serving:
+            self._take_retained(self._serving)
+        return True
+
+    def _submit(self, serving, work, message):
+        # condition is held
+        future = serving.executor.submit(work, serving, message)
+        serving.futures.add(future)
+        future.add_done_callback(lambda done, owner=serving: self._finished(owner, done))
+
+    def _take_retained(self, serving):
+        # condition is held. A call's own read can take its self request; it is
+        # retained and handed to a free serving worker, just like ordinary work.
+        # The serving read is not counted: it holds no message yet.
+        while serving is self._serving and len(serving.futures) < serving.workers:
+            if serving.taken:
+                self._submit(serving, *serving.taken.pop(0))
+                continue
+            deferred = next((p for p in self._pending.values()
+                             if p.request is not None and p.request.envelope.get("to") == serving.inbox), None)
+            if deferred is None:
+                return
+            message, deferred.request = deferred.request, None
+            self._submit(serving, self._handle, message)
+
+    def _halt(self, serving):
+        # condition is held. Stopping cancels the waiting serving read; the daemon hands
+        # a cancelled read nothing and keeps the message queued (docs/04-messaging.md#one-reader-per-inbox).
+        serving.accepting = False
+        serving.stop.set()
+        if serving.reading is not None:
+            serving.reading.cancel()
+        self._condition.notify_all()
+
+    def _serve_loop(self, serving):
+        """One read held at the daemon while a worker is free; none while every worker is busy."""
         while True:
             with self._condition:
-                if self._closed:
-                    return
-                serving = self._serving
-                capacity = serving and len(serving.futures) < serving.workers
-                work = capacity and serving.accepting
-                # A filtered self-call poll can take the request before the work
-                # poll. Retain at most that one request per live call, and only
-                # submit it when a serving worker is free, just like ordinary work.
-                deferred = next((p for p in self._pending.values()
-                                 if p.request is not None and p.request.envelope.get("to") == serving.inbox), None) if capacity else None
-                if deferred is not None:
-                    message, deferred.request = deferred.request, None
-                    future = serving.executor.submit(self._handle, serving, message)
-                    serving.futures.add(future)
-                    future.add_done_callback(lambda done, owner=serving: self._finished(owner, done))
-                    continue
-                pending = [p for p in self._pending.values() if p.sent_id and not p.result and not p.error]
-                choices = len(pending) + int(bool(work))
-                if not choices:
-                    self._condition.wait(0.05)
-                    continue
-                self._cursor %= choices
-                selected = self._cursor
-                self._cursor += 1
-                if selected < len(pending):
-                    target = pending[selected]
-                    inbox, topic, tag = target.key
-                    share = False
-                else:
-                    target = None
-                    inbox, topic, tag, share = serving.inbox, serving.topic, None, serving.share
-                    serving.polling += 1
+                while True:
+                    self._take_retained(serving)
+                    if not serving.accepting or self._closed:
+                        return
+                    if len(serving.futures) < serving.workers:
+                        break
+                    self._condition.wait()
+                reading = serving.reading = Cancel()
+                serving.polling += 1
+            message = None
             try:
-                message = self._consume(inbox=inbox, topic=topic, tag=tag, share=share, timeout=1)
-            except BaseException as exc:
-                with self._condition:
-                    if target:
-                        target.error = exc
-                        target.event.set()
-                    elif serving is self._serving:
-                        serving.polling -= 1
-                        serving.error = exc
-                        serving.stop.set()
-                        serving.accepting = False
-                    self._condition.notify_all()
-                continue
-            if message is None:
-                if target is None:
+                try:
+                    message = self._consume(inbox=serving.inbox, topic=serving.topic, share=serving.share,
+                                            wait=LONG_WAIT, timeout=5, cancel=reading)
+                except Cancelled:
+                    pass
+                except Exception as exc:
                     with self._condition:
-                        serving.polling -= 1
-                        self._condition.notify_all()
-                continue
-            with self._condition:
-                if target is None:
+                        if not self._closed:
+                            serving.error = exc
+                            self._halt(serving)
+                with self._condition:
+                    if message is not None:
+                        self._take(serving, message)
+            finally:
+                with self._condition:
+                    if serving.reading is reading:
+                        serving.reading = None
                     serving.polling -= 1
-                # A reply arriving in an unfiltered work read still belongs to its call.
-                key = (inbox, message.topic or "", message.tag or "")
-                routed = self._pending.get(key)
-                if (routed is None and not message.receipt and not message.re
-                        and message.envelope.get("from") == self._name):
-                    # An alternate reply inbox/topic changes the reply key,
-                    # not the request's unique call tag on our serving inbox.
-                    routed = next((p for p in self._pending.values()
-                                   if p.key[2] == message.tag), None)
-                if routed:
-                    self._deliver(routed, message)
-                elif (target is None and not (message.tag or "").startswith(self._call_prefix)
-                      and not message.receipt and not message.re
-                      and serving is self._serving):
-                    # Poll completion can race a stop. The taken message must still be handled.
-                    future = serving.executor.submit(self._handle, serving, message)
-                    serving.futures.add(future)
-                    future.add_done_callback(lambda done, owner=serving: self._finished(owner, done))
-                elif (target is None and serving is self._serving and serving.on_reply is not None
-                      and message.re and not message.receipt
-                      and not (message.tag or "").startswith(self._call_prefix)):
-                    # An answer no pending call claims, to a send this client made: the opted-in reply
-                    # handler gets it on a serving worker. A late answer to this client's own call is not one.
-                    future = serving.executor.submit(self._reply, serving, message)
-                    serving.futures.add(future)
-                    future.add_done_callback(lambda done, owner=serving: self._finished(owner, done))
-                self._condition.notify_all()
+                    self._condition.notify_all()
+
+    def _take(self, serving, message):
+        # condition is held. A reply arriving in the unfiltered serving read still belongs to its call.
+        if self._route(message, serving.inbox):
+            return
+        if message.receipt or (message.tag or "").startswith(self._call_prefix):
+            # A receipt or late answer to this client's own call is never work.
+            return
+        if not message.re:
+            work = self._handle
+        elif serving.on_reply is not None:
+            # An answer no pending call claims, to a send this client made: the opted-in reply
+            # handler gets it on a serving worker.
+            work = self._reply
+        else:
+            return
+        # A self request may have taken the free worker meanwhile, so it waits for one.
+        # Read completion can race a stop, too: the taken message must still be handled.
+        serving.taken.append((work, message))
+        self._take_retained(serving)
 
     def _finished(self, serving, future):
         with self._condition:
             serving.futures.discard(future)
+            self._take_retained(serving)
             self._condition.notify_all()
 
     def _reply(self, serving, message):
@@ -495,27 +538,42 @@ class Bus:
                 serving.executor.shutdown(wait=False)
                 raise ReaderInUse("another inbox reader is active")
             self._serving = serving
-            self._start_dispatcher()
+            if stop is not None and stop.is_set():
+                self._halt(serving)
             self._condition.notify_all()
+        if stop is not None:
+            # The caller's stop event cancels the waiting serving read the moment it is set.
+            # Python events have no callback, so a daemon watcher blocks on it; it also
+            # wakes twice a second to notice that serve ended some other way and exit.
+            def watch():
+                while not serving.stop.is_set():
+                    if stop.wait(0.5):
+                        with self._condition:
+                            self._halt(serving)
+                        return
+            threading.Thread(target=watch, name="agent-bus-serve-stop", daemon=True).start()
         try:
-            while not serving.stop.is_set() and not (stop and stop.is_set()):
-                with self._condition:
-                    self._condition.wait(0.05)
+            # The serving loop runs on this thread and returns once serve stops.
+            self._serve_loop(serving)
             end = time.monotonic() + drain_timeout
             with self._condition:
                 serving.accepting = False
-                while (serving.futures or serving.polling or
-                       any(p.request is not None and p.request.envelope.get("to") == serving.inbox
-                           for p in self._pending.values())):
+                while True:
+                    self._take_retained(serving)
+                    if not (serving.futures or serving.polling or serving.taken or
+                            any(p.request is not None and p.request.envelope.get("to") == serving.inbox
+                                for p in self._pending.values())):
+                        break
                     left = end - time.monotonic()
                     if left <= 0:
-                        raise DrainTimeout(len(serving.futures))
+                        raise DrainTimeout(len(serving.futures) + len(serving.taken))
                     self._condition.wait(left)
             if serving.error:
                 raise serving.error
         finally:
             with self._condition:
                 serving.accepting = False
+                serving.stop.set()
                 if self._serving is serving:
                     self._serving = None
                 self._condition.notify_all()
@@ -525,9 +583,7 @@ class Bus:
         self._check()
         with self._condition:
             if self._serving:
-                self._serving.accepting = False
-                self._serving.stop.set()
-                self._condition.notify_all()
+                self._halt(self._serving)
 
     def close(self):
         if os.getpid() == self._pid and self._closed:
@@ -536,15 +592,13 @@ class Bus:
         with self._condition:
             self._closed = True
             if self._serving:
-                self._serving.accepting = False
-                self._serving.stop.set()
+                self._halt(self._serving)
             for pending in self._pending.values():
                 pending.error = BusClosed("client closed while waiting")
-                pending.event.set()
+                if pending.reading is not None:
+                    pending.reading.cancel()
             self._condition.notify_all()
         self._transport.close()
-        if self._dispatcher and self._dispatcher is not threading.current_thread():
-            self._dispatcher.join(timeout=1)
 
     def __enter__(self):
         self._check()

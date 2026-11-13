@@ -76,11 +76,12 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 
 - **Protocol:** both HTTP `/identity` fields must match [the current protocol version](../../../docs/09-daemon-api.md#protocol-version) before application requests. Missing, malformed and unsupported versions are refused.
 - **Refusals:** errors expose the daemon's `kind` alongside its status and message.
+- **Waiting, not polling:** each pending `call` holds one filtered read open at the daemon, for up to 25 s at a time, and `serve` holds one unfiltered read while a worker is free. `stop()` or the `stop` event cancels that waiting read; the daemon hands a cancelled read nothing ([one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox)).
 
 - **Package:** see [the Python API source](agent_bus/client.py); [authentication](../../../docs/02-access.md#what-a-call-carries) owns credentials; the version follows the repository VERSION; [MIT license](LICENSE.md).
 - **Connecting:** `Bus(name)` verifies the credential at the first authenticated operation; constructing it neither connects nor registers. Unix sockets, HTTP and HTTPS work, and `AGENT_BUS_TLS_FINGERPRINT` pins the peer certificate before credentials are sent.
 - **Private values:** cached until `refresh()`; copies already returned survive revocation; no setters; secret representations are redacted, and `reveal()` returns bytes (do not log them).
-- **Dispatch:** one dispatcher owns call and serve polling, and raw consume is exclusive with those modes. Call callbacks run on the calling thread; handlers run on bounded threads.
+- **Dispatch:** each call reads on its calling thread and `serve` reads on its own; raw consume is exclusive with those modes. Call callbacks run on the calling thread; handlers run on bounded threads.
 - **Serve:** it skips requests whose caller deadline has passed before acknowledgment, stops intake, drains to its deadline and reports unfinished handlers. Python cannot forcibly stop a running handler thread.
 - **Replies:** each client has its own call-tag prefix to discard late replies, including route-correlated replies without `re`, without retaining completed calls. Normal replies include their request's `re`.
 - **Calls:** `timeout` is the wait and goes out as the envelope `wait`; a `wait` option is refused. For a longer bus deadline, `send(..., wait=...)` and read the answer with `on_reply`.

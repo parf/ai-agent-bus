@@ -13,6 +13,7 @@ import threading
 import time
 import unittest
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 
 from agent_bus import (Bus, BusClosed, BusError, BusTimeout, CallDone, CallReply,
                        IdentityMismatch, InvalidArgument, ReaderInUse, Refusal, UnexpectedAnswer, UncertainOutcome)
@@ -652,6 +653,59 @@ class TransportChecks(unittest.TestCase):
         with self.assertRaises(UncertainOutcome):
             bus.send("#other@fixture", "once")
         self.assertEqual(len(posts), 1)
+
+    def holding_daemon(self, you, reads, closed):
+        """A daemon whose /consume holds for its requested wait, or until the client closes the read."""
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_): pass
+            def answer(self, payload):
+                self.send_response(200); self.send_header("Content-Length", str(len(payload))); self.end_headers()
+                self.wfile.write(payload)
+            def do_GET(self):
+                if self.path == '/identity':
+                    self.answer(b'{"protocol":1,"protocol_min":1}'); return
+                if self.path == '/status':
+                    self.answer(b'{"you":"%s"}' % you.encode()); return
+                wait = float(parse_qs(urlsplit(self.path).query)["wait"][0].removesuffix("s"))
+                reads.append(wait)
+                ready, _, _ = select.select([self.connection], [], [], wait)
+                if ready and not self.connection.recv(1):
+                    closed.set()
+                    return
+                self.send_response(204); self.end_headers()
+            def do_POST(self):
+                self.rfile.read(int(self.headers["Content-Length"]))
+                self.answer(b'{"message_id":"m1"}')
+        server = self.server(Handler)
+        return f"http://127.0.0.1:{server.server_port}"
+
+    def test_stopping_cancels_the_waiting_serving_read_which_takes_nothing(self):
+        reads, closed, handled = [], threading.Event(), []
+        bus = Bus("#worker@fixture", addr=self.holding_daemon("#worker@fixture", reads, closed), token="dummy", timeout=1)
+        self.addCleanup(bus.close)
+        stop = threading.Event()
+        done = threading.Event()
+        thread = threading.Thread(target=lambda: (bus.serve(handled.append, stop=stop, drain_timeout=1), done.set()), daemon=True)
+        thread.start()
+        end = time.monotonic() + 2
+        while not reads and time.monotonic() < end:
+            time.sleep(0.005)
+        stop.set()
+        self.assertTrue(done.wait(0.5), "serve did not stop at once: its read was not cancelled")
+        self.assertTrue(closed.wait(0.5), "the waiting serving read was not cancelled")
+        self.assertEqual(reads, [25.0], "serve holds one long read")
+        self.assertEqual(handled, [])
+
+    def test_a_pending_call_holds_one_long_read_instead_of_polling(self):
+        reads = []
+        bus = Bus("#caller@fixture", addr=self.holding_daemon("#caller@fixture", reads, threading.Event()), token="dummy", timeout=1)
+        self.addCleanup(bus.close)
+        started = time.monotonic()
+        with self.assertRaises(BusTimeout):
+            bus.call("#worker@fixture", "x", timeout=1.5)
+        self.assertGreaterEqual(time.monotonic() - started, 1.4)
+        self.assertEqual(len(reads), 1, f"the call polled: {len(reads)} reads")
+        self.assertGreater(reads[0], 1.2)
 
     def test_tls_pin_checked_before_credentials(self):
         scratch = tempfile.TemporaryDirectory(dir=ROOT / "tmp")
