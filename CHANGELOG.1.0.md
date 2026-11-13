@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.59 — 2026-11-12
+
+The TypeScript client is published to npm as ai-agent-bus-sdk and waits at the daemon instead of polling every 50 ms: a pending call holds one long filtered read, serve one read while a worker is free, and stop cancels it; schedule add, edit and enable answers name the holder's kind
+
 ## 1.0.58 — 2026-11-12
 
 Cron and at move into the daemon: every agent, queue and pub/sub keeps its own schedules, fired from #bus (agent-bus schedule, MCP, six clients, Crons and Ats pages); #bus is admitted by every target and sends only where its principal may; #cron and #at are retired
