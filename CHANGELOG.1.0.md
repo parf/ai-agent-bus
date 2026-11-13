@@ -5,19 +5,15 @@ The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#cha
 
 ## 1.0.59 — 2026-11-12
 
-The TypeScript client is published to npm as ai-agent-bus-sdk and waits at the daemon instead of polling every 50 ms: a pending call holds one long filtered read, serve one read while a worker is free, and stop cancels it; schedule add, edit and enable answers name the holder's kind
+Fourth published 1.0 changeset: 1.0.56–1.0.59, squashed.
 
-## 1.0.58 — 2026-11-12
-
-Cron and at move into the daemon: every agent, queue and pub/sub keeps its own schedules, fired from #bus (agent-bus schedule, MCP, six clients, Crons and Ats pages); #bus is admitted by every target and sends only where its principal may; #cron and #at are retired
-
-## 1.0.57 — 2026-11-11
-
-Colorful agent pictures; #bus, runners and AI sessions have their own pictures and every agent without one shows a universal placeholder; agent lists show every live agent picture
-
-## 1.0.56 — 2026-11-11
-
-Agent pictures: each bundled agent ships agent.webp, help names its hash, the new image ask returns it, and the web shows it on agent pages and lists (IMG.1); the Claude channel plugin moves to src/plugin
+| Area | Changes |
+|---|---|
+| Schedules | Cron and at move into the daemon: every agent, queue and pub/sub keeps its own schedules (cron expressions with an optional seconds field, a delay, HH:MM UTC or an RFC 3339 instant), stored per record beside KV with outcomes kept seven days (schema 12), fired from `#bus` on the creator's behalf with a `schedule` stamp only the daemon sets. Caps count per holder Owner; a User record holds none; any manager may edit and becomes the creator; answers carry the holder's kind, the last outcome and the next five slots. `agent-bus schedule` (add, in, at, list, get, edit, enable, disable, run, delete), HTTP calls under KV's authority, MCP tools, record export and import. `#cron` and `#at` are retired |
+| Daemon and authority | Every record admits `#bus`, and `#bus` sends only where its principal may send, checked at delivery |
+| Clients | All six clients keep a record's schedules and run the shared schedule vectors. The TypeScript client is published to npm as `ai-agent-bus-sdk`. The TypeScript, Python and Go clients wait at the daemon instead of polling: a pending call holds one long filtered read, serve one read while a worker is free, and stop cancels it |
+| Agents and web | Agent pictures: each bundled agent ships a colorful `agent.webp` in one house style, help names its hash, the image ask returns it; `#bus`, runners and AI sessions have built-in pictures and other agents a placeholder; agent lists show thumbnails. Schedules, Crons and Ats pages and a Schedules card on agents, queues and pubsubs; the KV page filters stores by tag |
+| Plugin and plans | The Claude channel plugin moves to `src/plugin`; federation is planned as an upstream mount |
 
 ## 1.0.55 — 2026-11-09
 
