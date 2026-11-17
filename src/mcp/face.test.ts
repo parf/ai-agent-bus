@@ -574,7 +574,7 @@ async function callFace(answers: ((topic: string, tag: string) => object | null)
   const sends: any[] = [], consumes: URLSearchParams[] = [];
   const f = await face(async (req, url) => {
     if (url.pathname === "/send") {
-      const body = await req.json();
+      const body: any = await req.json();
       sends.push(body);
       return Response.json({ message_id: `s${sends.length}`, from: "#face@test", to: body.to, topic: body.topic, tag: body.tag, at: "2026-11-17T00:00:00Z" });
     }
