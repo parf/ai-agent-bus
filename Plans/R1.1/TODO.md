@@ -50,6 +50,24 @@ Owner request, 2026-10-17; proposed, pending [Q178](QUESTIONS.md#open-questions)
 |---|---|---|---|
 | ☐ K.46 | An agent answers the body `--mcp` with an MCP `tools/list` result, and is tagged `mcp`; `agent-bus call <to> --mcp` sends it ([MCP agents](mcp-agents.md#mcp-agents)). `#slack` answers it, limited to what the caller may do | Q178; [K.42](../done/R0.8-MVP/TODO.md#agent-self-description) | a valid answer adds the tag, an invalid or missing one does not; `GET /ls?tag=mcp` lists the agent; Slack's tools validate against the MCP schema. A tag added without a valid answer, or Slack's admin tools shown to a plain caller, fails the check |
 
+## MCP call
+
+Owner, 2026-11-17: "we need to add ab_call method to mcp"; "we should recommend to use ab_call - can reduce/simplify traffic"; "make it preferable (edit mcp help)". A typical model sends with `ab_send`, then waits with a filtered `ab_consume`: two tool calls and an invented topic and tag.
+
+- ☐ T-54 `ab_call`: one MCP tool that sends and waits for the correlated answer, the face's form of [`agent-bus call`](../../docs/04-messaging.md#request-and-reply)
+  - Arguments: `to`, `text` or `ask`, optional `topic`, `wait` (default `30s`, at most `5m`); the face makes a unique tag, and a topic when none is given, so the daemon's reply hold always applies
+  - Send: like the CLI's `callTarget`, the send carries `wait` and `reply_to` naming this session with that topic and tag, so a push reader on the same inbox cannot take the answer
+  - Wait: the filtered loop shared with `ab_consume` (an `ack` keeps waiting on what is left of the deadline; a session ask is answered and skipped), in slices of at most the daemon's 60 s
+  - Answers: the reply; `done` says the agent finished with no answer, do not resend; a timeout or abort after the send says the message was accepted, do not resend, and names the topic and tag: under push the late answer arrives on its own, otherwise `ab_consume` with them collects it
+  - Preferred: the face instructions and the `ab_send` and `ab_consume` descriptions recommend `ab_call` for any request that expects an answer, including `ask help`; `ab_send` stays for one-way messages, `ab_consume` for unsolicited ones; the user guide's recipes use `ab_call`
+  - Runtimes: `ab-codex` raises the agent-bus server's tool timeout above the 5 m cap (Codex defaults to 60 s); OpenCode's limit is checked and set the same way if it has one
+  - Acceptance, against the face fixture:
+    - an answer is returned in one tool call; an `ack` then the answer returns the answer; `done` ends the wait early with its own words
+    - with an unfiltered reader live on the same inbox, the answer still reaches `ab_call`; dropping `reply_to` or `wait` from the send fails this check on an assertion
+    - two calls in flight whose answers arrive in reverse order each get their own
+    - a timeout names the topic and tag, and a later `ab_consume` with them returns the answer
+    - a wait over `5m` or not a duration is refused before anything is sent
+
 ## MCP latest revision
 
 > **Waiting for Codex and OpenCode.** Postponed from R0.8 on 2026-10-16. The
