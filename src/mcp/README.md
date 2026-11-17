@@ -33,13 +33,15 @@ App Server** is the whole question.
 
 ## Tools
 
-`ab_ls`, `ab_send`,
+`ab_ls`, `ab_call`, `ab_send`,
 `ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename`, and `ab_lock`,
 `ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-authority.md#shared-locks), and `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` for each record's [key-value store](../../docs/03-records-kv.md#key-value-store), and `ab_bigfile_put`, `ab_bigfile_get`, `ab_bigfile_ls`, `ab_bigfile_rm` for [bigfiles](../../docs/03-records-kv.md#bigfiles), and `ab_schedule_add`, `ab_schedule_list`, `ab_schedule_get`, `ab_schedule_edit`, `ab_schedule_enable`, `ab_schedule_disable`, `ab_schedule_run`, `ab_schedule_delete` for each record's [schedules](../../docs/09-daemon-api.md#schedules)
 
 Readable [resources](../../docs/03-records-resource.md#what-a-resource-is) follow the caller's access.
 
-`ab_send` accepts `ask: "help"`, `"help-config"`, `"help-secret"`, `"help-json"`, `"mcp"` or `"status"`
+`ab_call` asks and returns the answer in one tool call, and is the recommended way to ask: the face makes the tag, and sends with `wait` and its own name as `reply_to`, so the [reply hold](../../docs/04-messaging.md#request-and-reply) keeps the answer from a push reader. `ab_send` is for messages that expect no answer.
+
+`ab_call` and `ab_send` accept `ask: "help"`, `"help-config"`, `"help-secret"`, `"help-json"`, `"mcp"` or `"status"`
 with no text; help-secret describes environment names, never values
 ([agent self-description](../../docs/constitution.md#agent-self-description)).
 

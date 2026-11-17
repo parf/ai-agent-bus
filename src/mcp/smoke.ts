@@ -71,13 +71,13 @@ try {
   check("initialize sends the YAML instructions", init.result?.instructions === general.instructions.replaceAll("{{name}}", process.env.AGENT_BUS_NAME!));
   // The session is told to ask an agent it does not know, and to answer an
   // ask itself (docs/constitution.md#agent-self-description).
-  check("the instructions say to ask an unknown agent what it can do", String(init.result?.instructions).includes("Before calling an agent you do not know, ask it what it can do: ab_send with ask help"));
+  check("the instructions say to ask an unknown agent what it can do", String(init.result?.instructions).includes("Before calling an agent you do not know, ask it what it can do: ab_call with ask help"));
   check("and to answer an ask", String(init.result?.instructions).includes("A message that asks you (ask help) wants to know what you can do for its sender: answer it."));
   await send({ jsonrpc: "2.0", method: "notifications/initialized" });
 
   const list = await request("tools/list");
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
-  const expected = ["ab_bigfile_get", "ab_bigfile_ls", "ab_bigfile_put", "ab_bigfile_rm", "ab_consume", "ab_kv_delete", "ab_kv_get", "ab_kv_inc", "ab_kv_json", "ab_kv_set", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_schedule_add", "ab_schedule_delete", "ab_schedule_disable", "ab_schedule_edit", "ab_schedule_enable", "ab_schedule_get", "ab_schedule_list", "ab_schedule_run", "ab_send", "ab_tab_title"];
+  const expected = ["ab_bigfile_get", "ab_bigfile_ls", "ab_bigfile_put", "ab_bigfile_rm", "ab_call", "ab_consume", "ab_kv_delete", "ab_kv_get", "ab_kv_inc", "ab_kv_json", "ab_kv_set", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_schedule_add", "ab_schedule_delete", "ab_schedule_disable", "ab_schedule_edit", "ab_schedule_enable", "ab_schedule_get", "ab_schedule_list", "ab_schedule_run", "ab_send", "ab_tab_title"];
   check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
   const descriptions = Bun.YAML.parse(await Bun.file(new URL("tools.yaml", import.meta.url)).text()) as Record<string, string>;
   check("tools/list sends the YAML descriptions", JSON.stringify(Object.keys(descriptions).sort()) === JSON.stringify(names) &&

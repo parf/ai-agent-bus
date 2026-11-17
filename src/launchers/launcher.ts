@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Bus, BusError } from "../mcp/bus.ts";
 import descriptions from "../mcp/tools.yaml";
-import { allowedTools, codexPrompted } from "../mcp/tool-access.ts";
+import { allowedTools, codexPrompted, CODEX_TOOL_TIMEOUT_SEC } from "../mcp/tool-access.ts";
 import { Codex } from "../mcp/codex.ts";
 import { Opencode } from "../mcp/opencode.ts";
 import { Opencode1 } from "../mcp/opencode1.ts";
@@ -363,7 +363,7 @@ ${COPYRIGHT}`);
       env: { AGENT_BUS_SESSION_FILE: envFile }, enabled: true,
     };
     // TOML inline table; strings are JSON-escaped, never interpreted by a shell.
-    serverArgs.push("-c", `mcp_servers.agent-bus={command=${JSON.stringify(mcp.command)},args=[${faceCommand.slice(1).map(a => JSON.stringify(a)).join(",")}],env={AGENT_BUS_SESSION_FILE=${JSON.stringify(envFile)}},enabled=true,default_tools_approval_mode="approve",${codexPrompted()}}`);
+    serverArgs.push("-c", `mcp_servers.agent-bus={command=${JSON.stringify(mcp.command)},args=[${faceCommand.slice(1).map(a => JSON.stringify(a)).join(",")}],env={AGENT_BUS_SESSION_FILE=${JSON.stringify(envFile)}},enabled=true,tool_timeout_sec=${CODEX_TOOL_TIMEOUT_SEC},default_tools_approval_mode="approve",${codexPrompted()}}`);
     const fd = openSync(join(runDir, "app-server.log"), "a", 0o600);
     try {
       const owned = await startOwnedServer(port => start([binary, "app-server", ...serverArgs, "--listen", `ws://127.0.0.1:${port}`], cleanEnv, fd), stop);

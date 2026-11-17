@@ -164,6 +164,8 @@ if (args[0] === "serve") {
   const prefix = "mcp__plugin_agent-bus_agent-bus__";
   if (kind === "claude" && (!allowed.includes(prefix + "ab_send") || allowed.some(t => /bigfile_(put|get)$/.test(t) || t.endsWith("*")))) { event("tools-not-authorized"); process.exit(18); }
   if (kind === "codex" && (config.default_tools_approval_mode !== "approve" || config.tools?.ab_bigfile_put?.approval_mode !== "prompt" || config.tools?.ab_bigfile_get?.approval_mode !== "prompt")) { event("tools-not-authorized"); process.exit(18); }
+  // A long ab_call must not outlast the runtime's own tool timeout.
+  if (kind === "codex" && !(Number(config.tool_timeout_sec) > 300)) { event("tool-timeout-short"); process.exit(18); }
   if (kind === "codex") {
     if (args.includes("resume") && args.some(a => /^(approval_policy|sandbox_mode)=/.test(a))) {
       event("resume-permission-override");

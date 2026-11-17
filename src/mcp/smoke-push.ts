@@ -149,6 +149,27 @@ try {
     check("a pushed done says no answer is coming", !!done?.content?.includes("receipt: done"), `content: ${JSON.stringify(done?.content)}`);
   }
 
+  // ab_call under push: the answer comes back in the tool call, after an
+  // ack, and push never shows it. The peer sends the ack and the answer back
+  // to back, so the answer lands in the gap before the call's next filtered
+  // read, where only the daemon's reply hold keeps it from push.
+  {
+    const before = channelled.length;
+    const answering = (async () => {
+      const q = await peer.consume({ topic: "push-call", wait: "15s" });
+      if (!q) return "no request";
+      await peer.send({ to: q.from, body: "", topic: q.topic, tag: q.tag, receipt: "ack", re: q.message_id });
+      await peer.send({ to: q.from, body: "answer via ab_call", topic: q.topic, tag: q.tag });
+      return q.tag ?? "";
+    })();
+    const called = await call("ab_call", { to: peerName, text: "question via ab_call", topic: "push-call", wait: "15s" });
+    const tag = await answering;
+    await Bun.sleep(1500); // long enough for a stray push to show up
+    const pushed = channelled.slice(before).map((c) => String(c.content));
+    check("ab_call under push returns the answer after an ack", !called.isError && called.text.includes("answer via ab_call") && tag.startsWith("call-"), `${called.text} / ${tag}`);
+    check("push shows neither the ack nor the answer of an ab_call", pushed.length === 0, pushed.join(" | ").slice(0, 200));
+  }
+
   // A push adapter that has given up must stop speaking for the inbox. A
   // second face on the same name loses the unfiltered read to the first
   // (409), so its push loop stops — and after that "messages arrive on

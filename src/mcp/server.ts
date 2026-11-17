@@ -18,6 +18,8 @@ import { startPush, RENAME_READER_RETRY_MS, type Held, type Push } from "./push.
 import { Codex, transientDelivery } from "./codex.ts";
 import { version, versionOutput } from "./version.ts";
 import { describe, sidecarMessage, codexMessage } from "./messages.ts";
+import { CALL_MAX_MS } from "./tool-access.ts";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { markFace, holders, evict } from "./face-mark.ts";
@@ -107,6 +109,9 @@ const SCHEDULE_FIELDS = {
   disabled: { type: "boolean", description: "keep it but do not fire" },
 } as const;
 
+// ab_call's default wait and its cap (callWait below).
+const CALL_WAIT = "30s", CALL_MAX = `${CALL_MAX_MS / 60_000}m`;
+
 const tools = [
   {
     name: "ab_ls",
@@ -130,6 +135,21 @@ const tools = [
         topic: { type: "string", description: "conversation id, e.g. one exchange" },
         tag: { type: "string", description: "your label for this message; a reply carries it back" },
         ask: { type: "string", enum: ["help", "help-config", "help-secret", "help-json", "mcp", "status"], description: "instead of text, ask the agent about itself: help for methods, help-config for Configuration keys, help-secret for environment names (never values), help-json for all metadata as JSON, mcp for its MCP tools, status for current health" },
+      },
+      required: ["to"],
+    },
+  },
+  {
+    name: "ab_call",
+    description: descriptions.ab_call,
+    inputSchema: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "receiver: #agent-name@realm for an agent, or a user's or channel's name" },
+        text: { type: "string", description: "the request; none with ask" },
+        ask: { type: "string", enum: ["help", "help-config", "help-secret", "help-json", "mcp", "status"], description: "instead of text, ask the agent about itself: help for methods, help-config for Configuration keys, help-secret for environment names (never values), help-json for all metadata as JSON, mcp for its MCP tools, status for current health" },
+        topic: { type: "string", description: "conversation id; made for you when omitted" },
+        wait: { type: "string", description: `how long to wait for the answer, e.g. 30s (default ${CALL_WAIT}, max ${CALL_MAX})` },
       },
       required: ["to"],
     },
@@ -419,14 +439,44 @@ const callTool = async (req: { params: { name: string; arguments?: Record<string
         return { ...answer, content: [...answer.content, ...links] as never };
       }
       case "ab_send": {
-        const topic = maybe(args, "topic"), tag = maybe(args, "tag"), ask = maybe(args, "ask");
-        if (ask !== undefined && ask !== "help" && ask !== "mcp" && ask !== "help-config" && ask !== "help-secret" && ask !== "help-json" && ask !== "status") throw new BadArgs("ask is help, help-config, help-secret, help-json, mcp or status");
-        if (ask !== undefined && maybe(args, "text") !== undefined) throw new BadArgs("an ask carries no text");
+        const topic = maybe(args, "topic"), tag = maybe(args, "tag"), ask = askOf(args);
         const e = await bus.send({ to: need(args, "to"), body: ask ? "" : need(args, "text"), topic, tag, ask });
         // The topic and tag come back because they are what a reply is
         // matched on (docs/04-messaging.md#request-and-reply).
         const how = [topic && `topic ${topic}`, tag && `tag ${tag}`].filter(Boolean).join(", ");
         return text(`the bus accepted ${e.message_id} for ${e.to}${how ? ` (${how})` : ""}`);
+      }
+      case "ab_call": {
+        // ab_send plus a filtered ab_consume in one tool call, as `agent-bus
+        // call` does (docs/04-messaging.md#request-and-reply). The face makes
+        // the tag, and a topic when none is given: the daemon holds a reply
+        // for its caller only when both are set.
+        const ask = askOf(args);
+        const to = need(args, "to"), body = ask ? "" : need(args, "text");
+        const wait = maybe(args, "wait") ?? CALL_WAIT;
+        const ms = callWait(wait);
+        const topic = maybe(args, "topic") ?? (ask ? `ask-${ask}` : "call"), tag = `call-${randomUUID()}`;
+        const route = `topic ${topic}, tag ${tag}`;
+        const deadline = Date.now() + ms;
+        // wait and reply_to naming this session reserve the answer for this
+        // filtered read, so a push reader on the same inbox cannot take it
+        // between the send and the read, or after an ack.
+        const sent = await bus.send({ to, body, topic, tag, ask, wait: `${ms}ms`, reply_to: { name: bus.name, topic, tag } });
+        const late = (why: string) => text(`${why}: the bus accepted ${sent.message_id} for ${sent.to}; do not resend it. ` +
+          (pushing ? `A late answer arrives on its own (${route}).` : `Collect a late answer with ab_consume, ${route}.`));
+        try {
+          for (;;) {
+            const left = deadline - Date.now();
+            if (left <= 0) return late(`no answer within ${wait}`);
+            const e = await bus.consume({ topic, tag, wait: `${Math.min(left, MAX_WAIT * 1000)}ms` }, extra.signal);
+            if (!e || await answerSessionAsk(bus, e)) continue;
+            remember(e);
+            if (e.receipt === "done") return text(`${e.from} finished and sent no answer (not a timeout; do not resend it)\n${describe(e)}`);
+            if (!e.receipt) return text(describe(e));
+          }
+        } catch (err) {
+          return late(extra.signal?.aborted ? "the call was cancelled" : `the wait failed (${err instanceof Error ? err.message : err})`);
+        }
       }
       case "ab_consume": {
         const inbox = optionalNonEmpty(args, "inbox"), topic = maybe(args, "topic"), tag = maybe(args, "tag");
@@ -653,6 +703,22 @@ function optionalNonEmpty(args: Record<string, unknown>, key: string): string | 
   return v;
 }
 class BadArgs extends Error {}
+const ASKS = ["help", "help-config", "help-secret", "help-json", "mcp", "status"];
+function askOf(args: Record<string, unknown>): string | undefined {
+  const ask = maybe(args, "ask");
+  if (ask !== undefined && !ASKS.includes(ask)) throw new BadArgs("ask is help, help-config, help-secret, help-json, mcp or status");
+  if (ask !== undefined && maybe(args, "text") !== undefined) throw new BadArgs("an ask carries no text");
+  return ask;
+}
+// ab_call's wait: refused here, before anything is sent, when it is no
+// duration, not positive or over the cap. The daemon's reply hold lasts up to
+// ten minutes, so the cap is the face's: a call blocks its session.
+function callWait(wait: string): number {
+  const m = /^(\d+(?:\.\d+)?)(ms|s|m)$/.exec(wait.trim());
+  const ms = m ? Number(m[1]) * (m[2] === "ms" ? 1 : m[2] === "s" ? 1000 : 60_000) : NaN;
+  if (!(ms > 0) || ms > CALL_MAX_MS) throw new BadArgs(`wait is a duration above 0 and at most ${CALL_MAX}, e.g. 30s or 2m`);
+  return ms;
+}
 
 // The runtime's own name for this session. The launcher refreshes the session
 // file whenever the title changes (docs/06-launchers.md#session-names), so

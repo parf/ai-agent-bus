@@ -89,7 +89,7 @@ the same topic + tag**, and the caller waits for it:
 | receiver | `consume` its inbox, optionally `ack` (got it), do the work, `reply`, or `done` when finished without an answer |
 | deadline | the caller's, and it **travels with the request** so the receiver can give up early — see below. The message's TTL is a different bound, and is what stops a late answer arriving |
 
-- The bus adds one thing here: a send with a wait that names the sender itself as its `reply-to`, with a topic and a tag, **holds the reply** for the sender's own filtered read until its deadline (the CLI `call` sends that).
+- The bus adds one thing here: a send with a wait that names the sender itself as its `reply-to`, with a topic and a tag, **holds the reply** for the sender's own filtered read until its deadline (the CLI `call` and the MCP `ab_call` send that).
 - The held reply remains subject to inbox capacity, overflow and TTL; an unfiltered reader can take a surviving reply when the hold ends.
 - See [one reader per inbox](#one-reader-per-inbox).
 - Otherwise matching is the topic + tag it already carries, the wait is an ordinary `consume`, and a caller that does not want to wait simply does not.

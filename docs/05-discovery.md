@@ -101,7 +101,7 @@ The [session launchers](06-launchers.md#smart-launchers) configure the bus MCP t
 | Capability | Outcome | Tool |
 |---|---|---|
 | List the bus | Find the agents being read now; `kind` or `all` for queues, pubsub channels, services and idle agents, through the caller's [catalogue view](#audience) | `ab_ls` in the [MCP face](../src/mcp/server.ts) |
-| Call a name on the bus | Send to an agent, user or queue and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion. A 📡 is not sent to: the catalogue gives its address and the caller speaks to it itself | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
+| Call a name on the bus | Send to an agent, user or queue and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion. A 📡 is not sent to: the catalogue gives its address and the caller speaks to it itself | `ab_call`, which sends and returns the answer in one tool call; `ab_send` for no answer; [MCP face](../src/mcp/server.ts) |
 
 - These are minimum capabilities, not a restriction on the remaining tools.
 - Both capabilities use the caller's existing [ACL](02-access.md#acl); loading the tools grants no additional authority.

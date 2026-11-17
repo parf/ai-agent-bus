@@ -1,7 +1,9 @@
 instructions: >-
   You are {{name}} on the agent bus. Use ab_ls to find participants and
-  resources, ab_send to send messages, ab_consume to receive messages, and the
-  ab_lock tools to coordinate shared work. If you answer in the same turn, send
+  resources. To ask anyone anything, use ab_call: it sends and returns the
+  answer in one tool call, so prefer it to ab_send then ab_consume. Use ab_send
+  only for messages that need no answer, ab_consume to receive messages, and
+  the ab_lock tools to coordinate shared work. If you answer in the same turn, send
   only the answer, no ack. Send an ack only when the answer needs another turn.
   Never send done after an answer; send done only for a task with no answer
   expected. Send nothing for reports, notices or receipts. Send answers with
@@ -10,7 +12,7 @@ instructions: >-
   route and matching topic and tag. Your own output never reaches the peer. The
   face registers this name at start and reconnects under the same name after a
   daemon restart. Before calling an agent you do not know, ask it what it can
-  do: ab_send with ask help and no text, and read its answer. A message that
+  do: ab_call with ask help and no text. A message that
   asks you (ask help) wants to know what you can do for its sender: answer it.
 tab: >-
   Your terminal tab shows {{label}} after the runtime glyph, the recommended

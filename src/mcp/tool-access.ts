@@ -8,6 +8,13 @@ export const FILE_TOOLS: Readonly<Record<string, "read" | "write">> = {
   ab_bigfile_get: "write",
 };
 
+/** The longest ab_call wait. A runtime's own tool-call timeout must exceed it,
+ * or the runtime abandons a call the bus still holds an answer for. */
+export const CALL_MAX_MS = 300_000;
+
+/** Codex's per-server tool timeout, above CALL_MAX_MS; Codex defaults to 60 s. */
+export const CODEX_TOOL_TIMEOUT_SEC = CALL_MAX_MS / 1000 + 30;
+
 /** Claude Code's name for a tool of the agent-bus plugin's MCP server. */
 export const CLAUDE_TOOL_PREFIX = "mcp__plugin_agent-bus_agent-bus__";
 

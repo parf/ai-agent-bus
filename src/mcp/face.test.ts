@@ -567,3 +567,90 @@ test("unsupported daemon refuses startup before application requests", async () 
     expect(paths).toEqual(['/identity']);
   } finally { child.kill(); daemon.stop(true); }
 });
+
+// ab_call: one tool call sends and returns the answer. The fake daemon records
+// what it was asked, and answers each consume from a script.
+async function callFace(answers: ((topic: string, tag: string) => object | null)[], env: Record<string, string> = {}) {
+  const sends: any[] = [], consumes: URLSearchParams[] = [];
+  const f = await face(async (req, url) => {
+    if (url.pathname === "/send") {
+      const body = await req.json();
+      sends.push(body);
+      return Response.json({ message_id: `s${sends.length}`, from: "#face@test", to: body.to, topic: body.topic, tag: body.tag, at: "2026-11-17T00:00:00Z" });
+    }
+    if (url.pathname === "/consume") {
+      consumes.push(url.searchParams);
+      const next = answers.shift();
+      const got = next?.(url.searchParams.get("topic")!, url.searchParams.get("tag")!);
+      return got ? Response.json(got) : new Response(null, { status: 204 });
+    }
+    return new Response("no", { status: 404 });
+  }, env);
+  return { ...f, sends, consumes };
+}
+const reply = (body: string, receipt?: string) => (topic: string, tag: string) =>
+  ({ message_id: `r-${body}-${receipt ?? ""}`, from: "#peer@test", to: "#face@test", body, topic, tag, at: "2026-11-17T00:00:01Z", ...(receipt ? { receipt, re: "s1" } : {}) });
+
+test("ab_call sends with a made tag, its wait and its own reply route, and returns the answer", async () => {
+  const { call, sends, consumes } = await callFace([reply("the answer")]);
+  const got = await call("ab_call", { to: "#peer@test", text: "question" });
+  expect(got.isError).toBe(false);
+  expect(got.text).toContain("the answer");
+  expect(sends).toHaveLength(1);
+  const s = sends[0];
+  expect(s.body).toBe("question");
+  expect(s.topic).toBe("call");
+  expect(s.tag).toMatch(/^call-[0-9a-f-]{36}$/);
+  expect(s.wait).toBe("30000ms");
+  expect(s.reply_to).toEqual({ name: "#face@test", topic: s.topic, tag: s.tag });
+  expect(consumes).toHaveLength(1);
+  expect(consumes[0].get("topic")).toBe(s.topic);
+  expect(consumes[0].get("tag")).toBe(s.tag);
+  expect(consumes[0].has("inbox")).toBe(false);
+});
+
+test("two ab_calls get different tags", async () => {
+  const { call, sends } = await callFace([reply("a"), reply("b")]);
+  await call("ab_call", { to: "#peer@test", text: "one" });
+  await call("ab_call", { to: "#peer@test", text: "two" });
+  expect(sends[0].tag).not.toBe(sends[1].tag);
+});
+
+test("ab_call waits past an ack for the answer, and stops at done", async () => {
+  const acked = await callFace([reply("", "ack"), reply("after ack")]);
+  const got = await acked.call("ab_call", { to: "#peer@test", text: "q" });
+  expect(got.text).toContain("after ack");
+  expect(acked.consumes).toHaveLength(2);
+  const finished = await callFace([reply("", "done"), reply("too late")]);
+  const done = await finished.call("ab_call", { to: "#peer@test", text: "q" });
+  expect(done.text).toContain("finished and sent no answer");
+  expect(done.text).not.toContain("too late");
+  expect(finished.consumes).toHaveLength(1);
+});
+
+test("ab_call with ask sends no body and a topic named for the ask", async () => {
+  const { call, sends } = await callFace([reply("I can help")]);
+  const got = await call("ab_call", { to: "#peer@test", ask: "help" });
+  expect(got.text).toContain("I can help");
+  expect(sends[0]).toMatchObject({ ask: "help", body: "", topic: "ask-help" });
+});
+
+test("ab_call refuses a bad or too long wait before sending anything", async () => {
+  const { call, sends } = await callFace([]);
+  for (const wait of ["6m", "301s", "0s", "5", "soon"]) {
+    const got = await call("ab_call", { to: "#peer@test", text: "q", wait });
+    expect(got.isError).toBe(true);
+    expect(got.text).toContain("at most 5m");
+  }
+  expect(sends).toHaveLength(0);
+});
+
+test("an ab_call with no answer in time says it was accepted and how to collect the answer", async () => {
+  const { call, sends, consumes } = await callFace([]);
+  const got = await call("ab_call", { to: "#peer@test", text: "q", topic: "t1", wait: "200ms" });
+  expect(got.isError).toBe(false);
+  expect(got.text).toContain("no answer within 200ms");
+  expect(got.text).toContain("do not resend");
+  expect(got.text).toContain(`ab_consume, topic t1, tag ${sends[0].tag}`);
+  expect(consumes.length).toBeGreaterThan(0);
+});

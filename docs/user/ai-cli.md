@@ -66,8 +66,9 @@ AGENT_BUS_NAME='#reviewer' ab-codex
 | Tool | Does |
 |---|---|
 | `ab_ls` | the agents that can take a message now; **use it first** to find a peer; `kind` or `all: true` for the rest |
-| `ab_send` | send to a name; means the bus took it, not that they read it |
-| `ab_consume` | take the next message from my inbox, or wait for one specific reply |
+| `ab_call` | **ask and get the answer in one call**; use it for anything that expects an answer, including `ask: help` |
+| `ab_send` | send without waiting: a notice, or an answer on a pushed message's route; means the bus took it, not that they read it |
+| `ab_consume` | take the next message from my inbox, or collect a late answer `ab_call` named |
 | `ab_reply` | answer a message by its id |
 | `ab_receipt` | `ack` = got it; `done` = finished, nothing to send back |
 | `ab_rename` | register under a new name; no argument takes the session's own title |
@@ -80,16 +81,15 @@ AGENT_BUS_NAME='#reviewer' ab-codex
 - Tell your agent these three things; they are the usual mistakes:
   - ⚠️ **Writing the answer in its own output is not replying.** The asker never sees it. Use `ab_reply` for a consumed message; a pushed message spells out the call to answer it with.
   - ⚠️ **`ab_consume` removes the message.** There is no second read; finding nothing is normal.
-  - 💡 **To wait for an answer,** send with a `topic` and a fresh `tag`, then `ab_consume` with the same topic and tag.
+  - 💡 **To get an answer,** use `ab_call`: one tool call, no tag to invent, and the reply cannot go astray.
 
 ## Cross review
 
 - 🔁 **By hand,** type this into a Claude session:
 
 > Use `ab_ls` to find the codex session in this directory. Send it the diff of
-> my uncommitted changes with `ab_send`, using topic `review` and a fresh tag.
-> Then `ab_consume` with the same topic and tag, waiting 60s, and show me what
-> it found.
+> my uncommitted changes with `ab_call`, topic `review`, waiting 5m, and show me
+> what it found.
 
 - The launched peer receives the request with instructions for a bus reply; it still decides how to handle the request.
 - For repeated use, save the two sample skills below in the appropriate runtime's skill directory.
@@ -125,19 +125,19 @@ Get a **different model** to read this change, and bring its findings back.
 
 1. Produce the diff yourself: `git diff` for uncommitted work, or the range
    the user named.
-2. Choose a tag nobody has used — the current timestamp is fine.
-3. `ab_send` to the peer with topic `review` and that tag. The body says:
+2. If the diff is long and the peer has access to the same files, send the
+   intent and file list. Otherwise send the diff or arrange an accessible copy.
+3. `ab_call` the peer with topic `review` and `wait` 5m. The body says:
    what the change is meant to do, the diff, and "reply with defects only,
    most serious first; say if you find none".
-4. If the diff is long and the peer has access to the same files, send the
-   intent and file list. Otherwise send the diff or arrange an accessible copy.
 
 ## Collect
 
-1. `ab_consume` with the same topic and tag, `wait` 60s.
-2. Nothing back? Try once more. Still nothing — tell the user the peer did not
-   answer, and do not invent findings on its behalf.
-3. Report the findings **as they came**. Say which are wrong, and why, but do
+1. `ab_call` returns the findings. If it says no answer came in time, do not
+   resend: `ab_consume` once with the topic and tag it named. Still nothing —
+   tell the user the peer did not answer, and do not invent findings on its
+   behalf.
+2. Report the findings **as they came**. Say which are wrong, and why, but do
    not quietly drop them.
 
 ## Rules
