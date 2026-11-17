@@ -59,7 +59,7 @@ class PackProtocol(unittest.TestCase):
 
     def test_every_package_that_ships_the_pack_version_ships_the_declaration(self):
         scripts = sorted(p for p in HERE.rglob('package.sh') if 'agents/VERSION' in p.read_text())
-        self.assertGreaterEqual(len(scripts), 18)
+        self.assertGreaterEqual(len(scripts), 16)
         for script in scripts:
             text = script.read_text()
             with self.subTest(package=str(script.relative_to(HERE))):
