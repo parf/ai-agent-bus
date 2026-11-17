@@ -17,5 +17,6 @@ for (const [name,args] of [
 import {helpAnswer} from "../agents/shared/metadata.ts";
 import agent from "../agents/slack/agent.json";
 test("agent help footer credits its declared full author",()=>{
- expect(helpAnswer(agent,"help","",["owner"])).toContain(" · © Sergey Porfiriev\n");
+ // Slack declares an image, which help hashes from the package folder.
+ expect(helpAnswer(agent,"help","",["owner"],false,"",join(root,"agents/slack"))).toContain(" · © Sergey Porfiriev\n");
 });

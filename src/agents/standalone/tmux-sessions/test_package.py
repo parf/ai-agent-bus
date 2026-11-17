@@ -32,7 +32,7 @@ class Package(unittest.TestCase):
         result = self.package(fresh)
         self.assertEqual(result.returncode, 0, result.stderr)
         files = {str(p.relative_to(fresh)) for p in fresh.rglob('*') if p.is_file()}
-        self.assertEqual(files, {'sessions.py', 'agent.json', 'config.json.dist',
+        self.assertEqual(files, {'sessions.py', 'agent.json', 'agent.webp', 'config.json.dist',
             'support/agents/shared/metadata.py', 'support/agents/shared/envfile.py',
             'support/agents/VERSION', 'support/agents/protocol.json', 'LICENSE.md', 'licenses/NOTICE.md'})
         shutil.copytree(fresh, upgrade)
