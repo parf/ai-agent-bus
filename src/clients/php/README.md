@@ -57,7 +57,10 @@ sent to bob@example.com
 
 ## Schedules
 
-`$record->schedules` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`, answering the daemon's JSON as arrays; `$bus->schedules()` lists every one on a record you manage. Give one of `expr:`, `in:` or `at:`. Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
+- `$record->schedules` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`, answering the daemon's JSON as arrays.
+- `$bus->schedules()` lists every one on a record you manage.
+- Give one of `expr:`, `in:` or `at:`.
+- Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
 
 ```php
 $added = $bus->record('#caller@localhost')->schedules->add('#caller@localhost', 'nightly report', expr: '0 3 * * *');

@@ -57,7 +57,9 @@ pong hello
 
 ## Schedules
 
-`record.schedules()` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`, answering the daemon's parsed JSON; `bus.schedules()` lists every one on a record you manage. Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
+- `record.schedules()` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`, answering the daemon's parsed JSON.
+- `bus.schedules()` lists every one on a record you manage.
+- Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
 
 ```java
 Map<String, Object> added = bus.record("#worker@localhost").schedules()

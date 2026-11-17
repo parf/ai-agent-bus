@@ -66,7 +66,10 @@ pong hello
 
 ## Schedules
 
-`record.schedules()` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`, answering the daemon's JSON; `bus.schedules()` lists every one on a record you manage. A `ScheduleSpec` gives one of `expr`, `in_` or `at`. Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
+- `record.schedules()` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`, answering the daemon's JSON.
+- `bus.schedules()` lists every one on a record you manage.
+- A `ScheduleSpec` gives one of `expr`, `in_` or `at`.
+- Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
 
 ```rust
 let spec = ScheduleSpec { expr: Some("0 3 * * *".into()), target: "#worker@localhost".into(), body: "nightly report".into(), ..Default::default() };

@@ -123,7 +123,10 @@ removed = bus.record("#worker@localhost").bigfile.delete("mail")
 
 ## Schedules
 
-`record.schedules` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`; `bus.schedules()` lists every one on a record you manage. Give one of `expr=`, `in_=` or `at=`. Each firing arrives from `#bus`, topic `schedule`.
+- `record.schedules` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`.
+- `bus.schedules()` lists every one on a record you manage.
+- Give one of `expr=`, `in_=` or `at=`.
+- Each firing arrives from `#bus`, topic `schedule`.
 
 ```python
 added = bus.record("#worker@localhost").schedules.add("#worker@localhost", "nightly report", expr="0 3 * * *")

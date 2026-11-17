@@ -104,7 +104,10 @@ See [agent logs](../../../docs/agents/bus.md#agent-logs) and
 
 ## Schedules
 
-`record.schedules` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`; `bus.schedules()` lists every one on a record you manage. A spec gives one of `expr`, `in` or `at`. Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
+- `record.schedules` keeps that record's [schedules](../../../docs/09-daemon-api.md#schedules): `add`, `list`, `get`, `edit`, `enable`, `disable`, `run` and `delete`.
+- `bus.schedules()` lists every one on a record you manage.
+- A spec gives one of `expr`, `in` or `at`.
+- Each firing arrives from `#bus`, topic `schedule`; `run` is never retried.
 
 ```ts
 const { schedule, warning } = await bus.record('#worker@localhost').schedules.add({ expr: '0 3 * * *', target: '#worker@localhost', body: 'nightly report' });
