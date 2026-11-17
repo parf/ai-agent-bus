@@ -689,7 +689,8 @@
           "mcp/inbox.test.ts",
           "mcp/tags.test.ts",
           "mcp/tool-access.test.ts",
-          "mcp/version.test.ts"
+          "mcp/version.test.ts",
+          "mcp/session-image.test.ts"
         ]
       }
     ],
