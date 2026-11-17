@@ -54,7 +54,8 @@ Owner request, 2026-10-17; proposed, pending [Q178](QUESTIONS.md#open-questions)
 
 Owner, 2026-11-17: "we need to add ab_call method to mcp"; "we should recommend to use ab_call - can reduce/simplify traffic"; "make it preferable (edit mcp help)". A typical model sends with `ab_send`, then waits with a filtered `ab_consume`: two tool calls and an invented topic and tag.
 
-- ☐ T-54 `ab_call`: one MCP tool that sends and waits for the correlated answer, the face's form of [`agent-bus call`](../../docs/04-messaging.md#request-and-reply)
+- ✅ T-54 `ab_call`: one MCP tool that sends and waits for the correlated answer, the face's form of [`agent-bus call`](../../docs/04-messaging.md#request-and-reply)
+  - State: landed 2026-11-17 (`4a235c550`), normal gate green 1339/0; six mutants (no reply hold, no wait, ack as answer, done ignored, no cap, fixed tag) each fail an assertion; under push the real-daemon check gets the answer after an ack and push shows neither. Sessions see it after a restart
   - Arguments: `to`, `text` or `ask`, optional `topic`, `wait` (default `30s`, at most `5m`); the face makes a unique tag, and a topic when none is given, so the daemon's reply hold always applies
   - Send: like the CLI's `callTarget`, the send carries `wait` and `reply_to` naming this session with that topic and tag, so a push reader on the same inbox cannot take the answer
   - Wait: the filtered loop shared with `ab_consume` (an `ack` keeps waiting on what is left of the deadline; a session ask is answered and skipped), in slices of at most the daemon's 60 s
