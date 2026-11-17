@@ -1,7 +1,7 @@
 {
   "description": "Get model answers without giving callers the provider key. Ask a question, request a structured decision, embed text, or look up models, prices and the account's credit. Send ask with a prompt, or one of the methods below.",
-  "version": "1.0.3",
-  "released": "2026-11-12",
+  "version": "1.0.4",
+  "released": "2026-11-17",
   "command": "./ai.py",
   "serves": "itself",
   "form": "json",

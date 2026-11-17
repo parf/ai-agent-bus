@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.60 — 2026-11-17
+
+MCP: ab_call sends a request and returns its answer in one tool call, under the reply hold, and the face recommends it over ab_send then ab_consume; ab-codex raises its tool timeout to 330 s. The CLAUDE.md trim, and tests caught up with agent images and the removed #cron and #at
+
 ## 1.0.59 — 2026-11-12
 
 Fourth published 1.0 changeset: 1.0.56–1.0.59, squashed.

@@ -1,7 +1,7 @@
 {
   "description": "Review operational events without searching unrelated output. Keep named notice, warning and alert logs, and forward matching new entries. Start with list or read; each severity has its own bounded history.",
-  "version": "1.0.3",
-  "released": "2026-11-12",
+  "version": "1.0.4",
+  "released": "2026-11-17",
   "command": "./eventlog.py",
   "form": "args",
   "serves": "itself",

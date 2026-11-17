@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes to the bundled agents in `src/agents/`, newest first.
 The pack has its own SemVer in `src/agents/VERSION`, separate from the bus version.
 
+## 1.0.10 — 2026-11-17
+
+Tests only: the pack owns the image checks, the pack-version count is 16, tmux-sessions ships agent.webp, the server-info install check copies its image
+
 ## 1.0.9 — 2026-11-12
 
 Packaged agents ship the picture their agent.json names; agents bundling the Python client gain its schedule calls; #cron and #at are retired
