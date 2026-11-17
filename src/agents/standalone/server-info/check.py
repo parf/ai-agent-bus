@@ -26,7 +26,7 @@ SHARED.mkdir()
 SCRIPT = PACKAGE / "host facts.py"
 SCRIPT.write_bytes((HERE / "server-info.py").read_bytes())
 SCRIPT.chmod(0o700)
-for filename in ("agent.json", "env.dist"):
+for filename in ("agent.json", "env.dist", "agent.webp"):
     (PACKAGE / filename).write_bytes((HERE / filename).read_bytes())
 ENV = {k: v for k, v in os.environ.items() if not k.startswith("AGENT_BUS_")}
 ENV.update(AGENT_BUS_ADDR=os.environ["AB_TEST_TCP"], AGENT_BUS_TOKEN=os.environ["AB_TEST_OWNER_TOKEN"], STANDALONE_TEST_ROOT=str(ROOT))
