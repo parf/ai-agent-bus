@@ -636,7 +636,8 @@ test("ab_call with ask sends no body and a topic named for the ask", async () =>
 });
 
 test("ab_call refuses a bad or too long wait before sending anything", async () => {
-  const { call, sends } = await callFace([]);
+  // Answers are ready, so a wait let through returns at once and fails below.
+  const { call, sends } = await callFace(Array.from({ length: 5 }, () => reply("let through")));
   for (const wait of ["6m", "301s", "0s", "5", "soon"]) {
     const got = await call("ab_call", { to: "#peer@test", text: "q", wait });
     expect(got.isError).toBe(true);
