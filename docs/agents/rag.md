@@ -70,6 +70,8 @@ agent-bus call '#rag@node.example' '{"method":"prompts","action":"set","namespac
 
 ## Installing it
 
+To index a folder that stays up to date, follow [Set up RAG over a folder](setup-rag.md#the-steps).
+
 1. Use the RAG package included with the bus installation.
 2. Register the name with owner-only access and hand its token privately to the runner, as for [agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves); the runner does not register this mode.
 3. Set `enabled:true` for `rag` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries.
