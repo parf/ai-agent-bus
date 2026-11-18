@@ -133,6 +133,15 @@ flowchart LR
 <a href="src/clients/examples/README.md">Examples</a> in all six languages call each other over one bus.</dd>
 </dl>
 
+### Essential harness components
+
+agent-bus provides essential harness components around Claude Code, Codex, OpenCode and any other agent; the ACL and the runner are part of that harness. [Which parts, and where](docs/harness.md#harness-components)
+
+- 🧭 **Supervise:** the runner starts, confines and restarts managed agents; `tmux-sessions` brings AI sessions back.
+- ⏰ **Wake:** messages are pushed into live sessions, and schedules and inboxes start work without a person.
+- 🧰 **Tools:** MCP tools and ready-made helpers, with no passwords handed to the model.
+- 🛡️ **Permissions:** an ACL on every call, secrets kept inside helpers, and a sandbox for managed code. This adds to the permissions of Claude Code or Codex; it does not replace them.
+
 ### Web management panel
 
 ![The web panel's overview](docs/img/web-overview.png)

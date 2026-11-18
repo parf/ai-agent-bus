@@ -48,6 +48,7 @@ agent-bus status
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and durability |
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
 | [Dedicated runner](06-dedicated-runner.md#script-agents) | `agent-bus run`: one script behind one agent, optionally sandboxed |
+| [Agent harness](harness.md#harness-components) | Which harness components agent-bus provides around AI sessions and other agents, and where each is documented |
 | [Session launchers](06-launchers.md) | Push adapters and the `ab-*` runtime launchers |
 | [Runner](runner/README.md) | Configure, run and monitor installed agents |
 | [Setup](07-setup.md#install) | Install, update or configure with your AI; manual installation fallback |
