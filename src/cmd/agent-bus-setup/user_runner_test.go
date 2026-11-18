@@ -186,7 +186,7 @@ func TestSetupNeverStopsAUserManagerOrItsSessions(t *testing.T) {
 
 func TestUserTemplateKeepsSessionsAndBoundsCrashes(t *testing.T) {
 	unit := userTemplate("/usr/local/bin/agent-bus-runner")
-	for _, want := range []string{"Delegate=yes", "KillMode=mixed", "RestartSec=", "StartLimitBurst=", "TimeoutStopSec=",
+	for _, want := range []string{"Delegate=yes", "KillMode=mixed", "RestartSec=30", "StartLimitIntervalSec=0", "TimeoutStopSec=",
 		"ConditionPathExists=%h/.local/state/agent-bus/runner/runner.env",
 		"ExecStart=/usr/local/bin/agent-bus-runner --agents %h/.local/share/agent-bus/agent.d --host %h/.local/state/agent-bus/runner",
 		"WantedBy=default.target"} {
@@ -194,7 +194,7 @@ func TestUserTemplateKeepsSessionsAndBoundsCrashes(t *testing.T) {
 			t.Errorf("template lacks %q", want)
 		}
 	}
-	for _, bad := range []string{"PrivateTmp", "ProtectHome", "RuntimeDirectory", "/var/lib/agent-bus/agent.d", "KillMode=control-group"} {
+	for _, bad := range []string{"PrivateTmp", "ProtectHome", "RuntimeDirectory", "/var/lib/agent-bus/agent.d", "KillMode=control-group", "StartLimitBurst="} {
 		if strings.Contains(unit, bad) {
 			t.Errorf("template has %q", bad)
 		}

@@ -142,7 +142,9 @@ func namedUserRunner(bus realmBus, person string) (userRunner, error) {
 
 // userTemplate is the one user unit every person's runner is: no sandbox
 // directives, because its agents act in the person's whole context (each
-// agent's own sandbox stays the control); a crash loop is bounded; a stop
+// agent's own sandbox stays the control); a crash loop is slowed to one start
+// every 30 seconds but never given up, so a runner started at boot before the
+// daemon's socket exists comes up once the daemon does (J136); a stop
 // cannot hang an upgrade. Each tmux session lives in its own scope beside it,
 // so stopping this unit leaves them alone.
 func userTemplate(exe string) string {
@@ -150,14 +152,13 @@ func userTemplate(exe string) string {
 Description=agent-bus user-account runner
 Documentation=https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#a-persons-user-account-runner
 ConditionPathExists=%%h/%[2]s/runner.env
-StartLimitIntervalSec=300
-StartLimitBurst=5
+StartLimitIntervalSec=0
 
 [Service]
 EnvironmentFile=%%h/%[2]s/runner.env
 ExecStart=%[1]s --agents %%h/%[3]s --host %%h/%[2]s
 Restart=on-failure
-RestartSec=5
+RestartSec=30
 # Give the runner its normal ten-second keeper drain before the ceiling.
 KillMode=mixed
 TimeoutStopSec=30s
