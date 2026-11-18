@@ -225,7 +225,8 @@ class FileScan:
         self.state=core.StateFile(work,max_bytes=self.settings['state_max'])
         self.subs=core.SyncSubscriptions(bus,bus.name,self.state,validate_selector=selector,agent_contract=lambda sel:bool(sel.get('rag')),clock=clock)
         self.lock=threading.Lock()
-        self.matched={};self.skipped={}
+        self.matched={};self.skipped={};self.refused={}   # refused: sub id -> paths RAG refused, sent after every fresh change
+        self.kick=None;self._drain=False   # kick: the timer's trigger, set by run(); asks for another round at once
         # The watch path's RAG memory, kept in its own file and written before the send it describes, so a restart inside a
         # large upsert's deadline sends nothing twice: (sub id, path) -> (hash, until) and (sub id, path) -> (hash, count).
         self.flight_path=Path(work)/FLIGHT_FILE;self.inflight,self.resends=self._load_flight()
@@ -347,7 +348,8 @@ class FileScan:
         def matches(row,key):return self._wanted(row,key)
         def body(row,key,action,record):return self._body(row,key,action,record)
         def rename(row):return not row['selector'].get('rag')   # RAG has no rename: its rows keep delete then upsert (Q305)
-        return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub),ok=self._confirm,agent_contract=lambda row:bool(row['selector'].get('rag')),rename=rename,settle=self._settle)
+        return core.deliver(self.bus,self.bus.name,self.state,matches=matches,body=body,topic='filescan',tag='change',batch=self.settings['batch'],warning=lambda code,sub=None:self.warning(code,sub),ok=self._confirm,agent_contract=lambda row:bool(row['selector'].get('rag')),rename=rename,settle=self._settle,
+                            later=lambda row,key:key in self.refused.get(row['id'],()))
 
     def _settle(self,row,key,record,wait):
         """Before a RAG upsert whose earlier send of this version has an unknown outcome is sent again: RAG's completeness check.
@@ -423,8 +425,12 @@ class FileScan:
             except (TypeError,ValueError):
                 if isinstance(text,str) and text.startswith('error:') and self._sent_key:
                     self._skip(self._sent_key[0],self._sent_key[1],'RAG refused it: '+text[7:200])   # an unadmitted download names itself here
+                    self.refused.setdefault(self._sent_key[0],set()).add(self._sent_key[1])
+                    return core.REFUSED   # not stored: it steps aside, the rest of the batch goes on (J133)
                 return False
-            return isinstance(record,dict) and 'error' not in record and tuple(record.get(k) for k in UPSERT_ECHO)==self._sent_upsert
+            stored=isinstance(record,dict) and 'error' not in record and tuple(record.get(k) for k in UPSERT_ECHO)==self._sent_upsert
+            if stored and self._sent_key:self.refused.get(self._sent_key[0],set()).discard(self._sent_key[1])
+            return stored
         if core.reply_ok(result):return True
         return self._sent_delete and isinstance(text,str) and text.startswith('error: not_found:')
 
@@ -529,9 +535,11 @@ class FileScan:
         return {'bigfile':found}
 
     def tick(self,paths=None):
-        """The timer's and the watch's work: walk (all, or just `paths`), then deliver. An overlap is skipped quietly."""
+        """The timer's and the watch's work: walk (all, or just `paths`), then deliver. An overlap is skipped quietly.
+        A run the agent asked for itself (a backlog to drain, a new subscription) delivers without walking again."""
         try:
-            self.scan(paths=paths)
+            drain,self._drain=self._drain and paths is None,False
+            if not drain:self.scan(paths=paths)
             self._round()
         except Paused:pass  # the guard is named in status and was warned about once
         except core.SyncError as failure:
@@ -539,10 +547,23 @@ class FileScan:
 
     def _round(self):
         state=self.state.load();self.prepare_matches(state);self._trim_flight(state)
+        refused={i:len(k) for i,k in self.refused.items()}
         result=self.deliver()
         self._collect_bigfiles()
         self._trim_origins()
+        # A round sends at most `batch` per subscriber: while one moved (stored, skipped or newly refused something) and still has
+        # changes pending beyond those RAG refused, ask for the next round now rather than at the next tick or event (J132).
+        # A round that moved nothing waits, so a down target or a file refused again never spins.
+        def moving(sub,c):
+            known=len(self.refused.get(sub,()))
+            return c.get('pending',0)>known and bool(c.get('confirmed') or c.get('skipped') or known>refused.get(sub,0))
+        if any(isinstance(c,dict) and moving(sub,c) for sub,c in (result or {}).items()):self._kick_round()
         return result
+
+    def _kick_round(self):
+        """Another delivery round at once, on the timer's thread, without walking the folder again."""
+        if self.kick is None:return
+        self._drain=True;self.kick()
 
     def _collect_bigfiles(self):
         """Delete a bigfile once nothing needs it: no present file has that hash any more, and every `bigfile` subscriber that wants
@@ -784,7 +805,7 @@ class FileScan:
             if method=='reset':
                 if not args.get('confirm'):return error('not_confirmed')
                 return dumps(self.reset())
-            summary=self.scan(confirm=bool(args.get('confirm')));self._round()
+            summary=self.scan(confirm=bool(args.get('confirm')));self._round()   # a backlog left by this round is kicked on
             return dumps(summary)
         if method=='sync':return dumps(self.sync(message,args))
         if method=='sub.add':
@@ -793,7 +814,9 @@ class FileScan:
             if 'pattern' in args:value['pattern']=args['pattern']
             replay=args.get('replay',not self.settings['baseline'])
             if not isinstance(replay,bool):raise ValueError('invalid_request')
-            return dumps(self.subs.add(message,args['target'],value,replay=replay))
+            added=self.subs.add(message,args['target'],value,replay=replay)
+            if replay:self._kick_round()   # the existing files go now, not at the next tick (J131)
+            return dumps(added)
         if method=='sub.list':return dumps({'subscriptions':self.subs.list(message,matches=lambda row,key:self._wanted(row,key) if row['selector'].get('pattern') and (row['id'],row['selector']['pattern']) in self.matched else True)})
         if method=='sub.delete':return dumps({'deleted':self.subs.delete(message,args.get('id'))})
         raise ValueError('invalid_request')
@@ -818,7 +841,7 @@ def run():
             if agent.settings['mode']!='demand':   # on demand: no watch and no timer; only a `sync` call reads the folder
                 every=agent.settings['every'] if agent.needs_timer() else 7*86400.0
                 timer=core.PollTimer(every,agent.tick,on_error=lambda e:print('filescan: tick failed',file=sys.stderr))
-                timer.start()
+                agent.kick=timer.trigger;timer.start()
             bus.serve(agent.handle,workers=2,stop=stop,drain_timeout=3)
             return 0
     except (cfg.SettingsError,core.SyncError,BusError) as failure:

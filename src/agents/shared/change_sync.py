@@ -31,6 +31,7 @@ VERSION=1
 DEFAULT_STATE_MAX=64*1024*1024
 HOLD_WAIT=10.0  # `sub add` and `sub delete` wait this long for a running scan or delivery round
 SETTLE_WAIT=1.0  # one `settle` question's share of a round: many rows asked about never use up the round
+REFUSED='refused'   # an `ok` verdict: the target definitely refused this change; it steps aside and the batch goes on
 ROUND_MAX=8.0   # a delivery round ends within this, so it always lets an add or delete through inside HOLD_WAIT
 SUB_FIELDS={'id','target','selector','created_by','created_at','sent','confirmed','dropped'}
 CODES={'state_full','state_corrupt','state_unwritable','scan_busy'}
@@ -289,7 +290,7 @@ def reply_ok(result):
     return isinstance(body,dict) and body.get('status')=='ok' and 'error' not in body
 
 
-def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,deadline=None,warning=lambda code,sub_id:None,ok=None,agent_contract=None,rename=None,settle=None):
+def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,deadline=None,warning=lambda code,sub_id:None,ok=None,agent_contract=None,rename=None,settle=None,later=None):
     """One delivery round for every subscriber; returns {sub_id: counts}.
 
     - Per subscriber: pending changes in key order, at most `batch`; stops at the first one not confirmed, so order holds (a row
@@ -317,6 +318,10 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
       SETTLE_WAIT. Without `settle` nothing changes.
     - After a crash a subscriber may get a delete for a key it never received (the record is written for the whole batch before
       the sends): deletes must be idempotent. Never the other way: a delete is not lost.
+    - `ok` may answer REFUSED: the target definitely refused that change, so it was never applied. It stays pending, its
+      possibly-delivered record is taken back, `refused` is warned and the rest of the batch goes on: one change the target
+      will not take never holds up the others. `later(row, key)` true puts such a key after every other pending change, so
+      refused keys never fill the batch while fresh ones wait.
     - The author's may-send to the target and to the source, and the target's record, are checked again before every send.
     - A `body` that raises sends nothing: the key's possibly-delivered record is taken back, `body_failed` is warned and the
       subscriber's batch stops there, so order holds.
@@ -336,6 +341,7 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
         for sub_id in sorted(data['subs']):
             row=data['subs'][sub_id];count={'sent':0,'confirmed':0,'dropped':0,'pending':0,'skipped':0};results[sub_id]=count
             entries=_fuse(pending(data,sub_id,lambda key,row=row:matches(row,key)),bool(rename and rename(row)))
+            if later is not None:entries=sorted(entries,key=lambda e,row=row:bool(later(row,e[0])))   # stable: key order within each group
             if settle is None:todo=entries[:batch]
             else:
                 # Rows whose earlier send of this version is unknown are only asked about, so they take no place in the batch:
@@ -417,6 +423,12 @@ def deliver(bus,source,state,*,matches,body,topic,tag,batch=20,confirm_wait=5.0,
                         for k in _keys(key,action,record):
                             if k in prior:_restore(data['maybe'][sub_id],k,prior);restored=True
                     except Exception:confirmed=False;code='send_unknown'
+                    if confirmed==REFUSED:
+                        # Definitely not applied: not possibly delivered, so its record is taken back; the batch goes on.
+                        count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning('refused',sub_id)
+                        for k in _keys(key,action,record):
+                            if k in prior:_restore(data['maybe'][sub_id],k,prior);restored=True
+                        continue
                     if not confirmed:
                         count['dropped']+=1;row['dropped']=min(base.MAX_SAFE,row['dropped']+1);warning(code if code else 'unconfirmed',sub_id);break
                     count['confirmed']+=1;row['confirmed']=min(base.MAX_SAFE,row['confirmed']+1)

@@ -14,7 +14,7 @@
 - ✅ **Nothing lost to a slow target:** each subscriber keeps its own list of what it confirmed, so one stuck agent does not hold up the others, and an unconfirmed change is sent again.
 - ✅ **A safe delete:** an unmounted, unreadable or emptied folder, or a pass that would delete too much, pauses the agent and sends no delete.
 - ✅ **A folder in RAG on demand:** one `sync` call sends every file RAG has not confirmed and answers only what it knows: confirmed, incomplete, unknown or failed.
-- ✅ **A first run that feeds the whole existing folder,** at most `max_per_scan` files per scan, or only records it when you say `baseline`.
+- ✅ **A first run that feeds the whole existing folder,** at most `max_per_scan` files per scan, or only records it when you say `baseline`. A new subscription starts sending at once, and a backlog goes out round after round, `batch` files each, until it is done.
 - 🚫 **Not for:** reading a file's meaning (the subscriber does that), watching a file grow line by line (use [logwatch](logwatch.md#what-it-does)), or Windows. macOS polls only.
 
 | Call | Result |
@@ -34,6 +34,7 @@
 
 ## Try this first
 
+- RAG stores nothing for a table until that table has [classification prompts](rag.md#try-this-first): set them first.
 - Feed a folder of Markdown notes to RAG, then see the backlog shrink:
 
 ```sh
@@ -70,7 +71,7 @@ Filescan is a kept process: inotify needs one that stays up. It [serves itself](
 | `include`, `exclude` | Globs on the relative path; `exclude` wins; [glob rules](#glob-rules) | all files; no dotfiles |
 | `mode`, `every`, `settle` | See [modes](#modes); `demand` for [on-demand sync](#on-demand-sync) | `both`, 30 minutes (5 in `poll`), none |
 | `namespace`, `table` | Defaults for `as rag` | none |
-| `batch` | Changes sent per round to one subscriber | 20 |
+| `batch` | Changes sent per round to one subscriber; rounds follow each other until nothing more moves | 20 |
 | `max_file_size` | The inline limit | 32 KiB |
 | `bigfile_ttl` | How long a bigfile made for a `bigfile` subscriber lives, 1 second to 7 days; one RAG downloads lives at least 1 hour | 1 hour |
 | `max_per_scan` | Creates and changes taken per scan, and files sent per `sync` call; the rest wait | 200 |
@@ -148,7 +149,7 @@ An `as rag` upsert whose answer never came may still be stored and paid for, so 
 | Anything else: no answer, a storage error | Waits for the next round; the other files go on |
 
 - A file edited since the lost send goes out at once with its new hash; the check is for the same version only.
-- A refusal is a definite answer: the file goes again on the next round with no check.
+- A refusal is a definite answer: the file steps aside, the rest of the batch goes on, and it goes again behind every fresh change, with no check. `status` names it in `skipped_for_rag` with RAG's reason until RAG takes it.
 - What is in flight and the resend count are written to `rag-flight.json` in the work directory before the send, so a restart keeps both; `reset confirm:true` clears them.
 
 ### Large files in RAG

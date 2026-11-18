@@ -694,3 +694,57 @@ class RagTests(Base):
         self.put('a.md');self.rag(extra='as rag');self.call('scan');self.assertEqual(self.bus.calls,[])
         self.assertIn('namespace',next(iter(self.call('status')['skipped_for_rag'].values()))['*'])
         self.agent=self.make({'namespace':'vault','table':'notes'});self.call('scan')
+
+
+class DrainTests(Base):
+    """J131–J133: a new subscription and a backlog are delivered at once, and one refused file never holds up the rest."""
+    def setUp(self):
+        super().setUp();self.bus=RagBus();self.kicks=0;self.agent=self.make({'batch':2,'namespace':'vault','table':'notes'})
+
+    def make(self,config):
+        agent=super().make(config);agent.kick=self._kick;return agent
+
+    def _kick(self):self.kicks+=1;self.kicked=True
+
+    def rag(self):self.bus.kinds[RAG]='agent';return self.add(RAG,extra='as rag')
+
+    def pending(self):return self.call('status')['subscribers'][0]['pending']
+
+    def drain(self,limit=20):
+        """What the timer does on a kick: run the agent's tick at once, as long as it keeps asking."""
+        for _ in range(limit):
+            if not getattr(self,'kicked',False):return
+            self.kicked=False;self.agent.tick()
+
+    def refuse(self,ids):
+        real=self.bus.call
+        def call(to,body,*,timeout,**options):
+            request=json.loads(body)
+            if to==RAG and request.get('method')=='upsert' and request.get('id') in ids:
+                self.bus.calls.append((to,body,options))
+                return CallReply(SimpleNamespace(body='error: invalid_request: classification prompts are not configured'))
+            return real(to,body,timeout=timeout,**options)
+        self.bus.call=call
+
+    def test_a_replaying_subscription_asks_for_a_round_at_once_and_a_baseline_one_does_not(self):
+        self.put('a.md');self.agent.scan();self.rag();self.assertEqual(self.kicks,1,'sub add replays: deliver now, not at the next tick')
+        self.drain();self.assertEqual(self.pending(),0)
+        before=self.kicks;self.add('#q@n.test',extra='replay:false');self.assertEqual(self.kicks,before,'nothing to replay')
+
+    def test_a_backlog_keeps_asking_for_rounds_until_it_is_delivered(self):
+        for i in range(7):self.put(f'k{i}.md',f'k{i}')
+        self.agent.scan();self.rag();self.drain()
+        self.assertEqual(self.pending(),0,'seven files in batches of two, without waiting for a tick')
+        self.assertEqual(len(self.bus.calls),7)
+
+    def test_a_refused_file_steps_aside_and_the_rest_are_stored_then_it_goes_again(self):
+        for i in range(5):self.put(f'k{i}.md',f'k{i}')
+        self.refuse({'k0.md','k1.md'});self.agent.scan();self.rag();self.drain()
+        status=self.call('status');sub=status['subscribers'][0]['id']
+        self.assertEqual(status['subscribers'][0]['pending'],2,'the three others are stored although the first two are refused')
+        self.assertEqual(set(status['skipped_for_rag'][sub]),{'k0.md','k1.md'})
+        self.assertIn('refused',self.warnings)
+        calls=len(self.bus.calls);self.drain();self.assertEqual(len(self.bus.calls),calls,'a round that moved nothing asks for no other')
+        self.call('scan');self.assertEqual(len(self.bus.calls),calls+2,'the next round tries them again')
+        self.bus.call=RagBus.call.__get__(self.bus);self.call('scan');self.drain()
+        self.assertEqual(self.pending(),0,'once RAG takes them they are stored');self.assertEqual(self.call('status')['skipped_for_rag'],{})
