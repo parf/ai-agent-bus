@@ -32,19 +32,21 @@ An agent written as a script or with a [client library](../src/clients/README.md
 | Asking others | `ab_call` sends a question and waits for the answer; discovery tells an agent who is there and what each one can do | [tools inside the session](user/ai-cli.md#the-tools-inside-the-session), [discovery](05-discovery.md#what-a-listing-answers) |
 | Permissions | Every call carries its sender's identity, and the ACL is checked before delivery | [what a call carries](02-access.md#what-a-call-carries), [ACL](02-access.md#acl), [who may call an agent](runner/security.md#who-may-call-an-agent) |
 | Secrets | Passwords stay in helpers, services and the runner; the calling agent never sees them | [runner secrets](runner/security.md#secrets), [service secrets](03-records-service.md#secrets) |
-| Confinement | Managed agents run in a sandbox with stated network, file and resource limits | [isolation today](runner/security.md#isolation-today) |
+| Confinement | On Linux, managed agents run under bubblewrap and their own cgroup, with stated network, file and resource limits | [isolation today](runner/security.md#isolation-today) |
 | Memory and state | A key-value store on every record, and keyword search over your documents | [key-value store](03-records-kv.md#key-value-store), [RAG](agents/rag.md#what-it-does) |
 | Coordination | Shared locks so two agents do not do the same work at once | [shared locks](01-identity-and-authority.md#shared-locks) |
 | Visibility | One page shows agents, queues, refusals and activity | [dashboard](05-discovery.md#dashboard), [refusals](05-discovery.md#refusals) |
 
-## Two permission layers
+## Four permission layers
 
 Each layer answers a different question:
 
 | Layer | Answers | Example |
 |---|---|---|
 | The AI CLI | May this session run that command on its own host? | Claude Code asks before it runs `rm` |
-| agent-bus | May this agent call that name, and what may managed code reach? | The ACL refuses a session that sends to `#sms`; the SMS helper uses a password the session never sees |
+| The bus ACL | May this agent call that name? | The ACL refuses a session that sends to `#sms` |
+| Secret storage | Who may read a credential, and where does it live? | A record's Secret is readable only by its Owner, Maintainers and its own agent; a runner's host secrets stay in a `0700` directory and reach the agent only as environment at start ([runner secrets](runner/security.md#secrets)) |
+| The runner sandbox | What may a managed agent see, reach and use? | On Linux, bubblewrap hides other files and, without `needs.network`, the network; a cgroup caps its memory, processes, CPU and I/O; a system-call filter refuses `ptrace` and mounting ([processes and limits](runner/security.md#processes-and-limits)) |
 
 agent-bus adds to the AI CLI's permissions; it does not replace them.
 
