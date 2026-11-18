@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes to the bundled agents in `src/agents/`, newest first.
 The pack has its own SemVer in `src/agents/VERSION`, separate from the bus version.
 
+## 1.0.11 — 2026-11-17
+
+filescan 1.0.5 and rag 0.4.7: wiki RAG fixes J131–J134, J138; dbsync 1.0.5 ships the shared delivery change.
+
 ## 1.0.10 — 2026-11-17
 
 Tests only: the pack owns the image checks, the pack-version count is 16, tmux-sessions ships agent.webp, the server-info install check copies its image

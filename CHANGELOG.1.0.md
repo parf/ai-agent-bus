@@ -3,6 +3,10 @@
 📌 **TL;DR:** Changes on the stable 1.0 line, newest first.
 The development history is [changelog 0.9](Plans/changelogs/CHANGELOG.0.9.md#changelog-09).
 
+## 1.0.61 — 2026-11-17
+
+FileScan sends a new subscription and a backlog at once and lets a refused file step aside; RAG names the missing field, the fix or the provider reason in its refusals; a scheduled firing carries its creator's current roles; the user runner retries instead of giving up at boot.
+
 ## 1.0.60 — 2026-11-17
 
 MCP: ab_call sends a request and returns its answer in one tool call, under the reply hold, and the face recommends it over ab_send then ab_consume; ab-codex raises its tool timeout to 330 s. The CLAUDE.md trim, and tests caught up with agent images and the removed #cron and #at
