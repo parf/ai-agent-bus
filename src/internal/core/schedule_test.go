@@ -445,3 +445,36 @@ func TestFiringTimeToLiveAndTargetKinds(t *testing.T) {
 		t.Fatalf("a User as target: %v", err)
 	}
 }
+
+// A firing carries the roles its creator holds on the target at that firing,
+// so a schedule may call what its creator may; a grant taken away is gone from
+// the next firing (J139).
+func TestAFiringCarriesTheCreatorsCurrentRoles(t *testing.T) {
+	b, _, clock := schedFixture(t)
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#tgt@h", Owner: "admin@h",
+		Allow: []string{"alice@h(read)"}, Roles: []string{"read"}}); err != nil {
+		t.Fatal(err)
+	}
+	fire := func() protocol.Envelope {
+		t.Helper()
+		if _, _, err := b.ScheduleAdd("alice@h", "#svc@h", ScheduleRequest{In: "30s", Target: "#tgt@h", Body: "status"}); err != nil {
+			t.Fatal(err)
+		}
+		clock.step(30 * time.Second)
+		b.schedulePass()
+		got := scheduled(t, b, "#tgt@h")
+		if len(got) != 1 {
+			t.Fatalf("firings delivered: %d, want 1", len(got))
+		}
+		return got[0]
+	}
+	if e := fire(); strings.Join(e.Roles, ",") != "read" {
+		t.Fatalf("a firing by a creator holding read carried roles %v, want [read]", e.Roles)
+	}
+	if _, err := b.Manage("admin@h", Management{Name: "#tgt@h", Allow: &[]string{"alice@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	if e := fire(); len(e.Roles) != 0 {
+		t.Fatalf("after the grant was taken away a firing carried roles %v, want none", e.Roles)
+	}
+}

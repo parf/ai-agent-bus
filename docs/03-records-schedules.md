@@ -45,6 +45,7 @@ agent-bus schedule list '#worker@node.example'
 ## How a message arrives
 
 - From `#bus`, topic `schedule`, tag `by <creator>`; a reply goes to the creator.
+- It carries the creator's [roles](03-records-agent.md#roles) on the target, worked out at each firing, so it may call what the creator may.
 - It carries a `schedule` stamp: its id, creator and slot, plus `late_by` and `missed` when it fired late. Only the bus sets it, so a receiver can trust it ([daemon API](09-daemon-api.md#schedules)).
 - Every record admits `#bus`; no access list needs to name it ([answers](02-access.md#answers)).
 

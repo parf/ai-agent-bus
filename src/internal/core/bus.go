@@ -1521,7 +1521,14 @@ func (b *Bus) send(e protocol.Envelope, o sendOpts) (protocol.Envelope, error) {
 		b.warnRepeated("%s sent to %s stating %d roles: refused, a sender states no roles", from, to, len(e.Roles))
 		return protocol.Envelope{}, fmt.Errorf("%w: a sender states no roles; the daemon works them out", ErrKind)
 	}
-	e.Roles = b.rolesOf(from, rec)
+	// A scheduled firing is the creator's message sent by #bus: it carries the
+	// roles the creator holds on the target now, worked out at this firing like
+	// may-send, so a schedule can call what its creator may (J139).
+	if e.Schedule != nil {
+		e.Roles = b.rolesOf(onBehalf, rec)
+	} else {
+		e.Roles = b.rolesOf(from, rec)
+	}
 	e.ID = newID()
 	e.At = time.Now()
 	d, err := life(rec.TTL, e.TTL)
