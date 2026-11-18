@@ -40,7 +40,10 @@ class Blocks:
                 raise Refused(target+' rejected request (HTTP '+status[1]+')')
             role=re.fullmatch(r'error: requires (read|write|admin) role',raw) if isinstance(raw,str) else None
             if target=='qdrant' and role:raise Refused('Qdrant grant missing: requires '+role[1]+' role; grant this agent '+role[1]+' on '+self.cfg['qdrant'])
-            if not isinstance(raw,str) or raw.startswith(('error:','unsupported:')):raise RagError(target+' refused the request')
+            if not isinstance(raw,str) or raw.startswith(('error:','unsupported:')):
+                # Say why: the block's own answer (a rate limit, a quota, a bad key) is what the caller can act on.
+                why=raw.split(':',1)[1].strip()[:200] if isinstance(raw,str) else ''
+                raise RagError(target+' refused the request'+(': '+why if why else ''))
             return loads(raw)
         except BusError:
             if write:raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None

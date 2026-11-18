@@ -70,6 +70,13 @@ class Runtime(unittest.TestCase):
         self.assertNotIn(marker,log.getvalue())
         self.assertTrue(all(set(json.loads(line))=={'method','status'} for line in log.getvalue().splitlines()))
 
+    def test_a_block_refusal_says_the_blocks_reason(self):
+        class ReplyBus:
+            def call(self,*args,**kwargs):return CallReply(SimpleNamespace(body='error: 429 rate limited, retry in 20s'))
+        backend=Blocks(ReplyBus(),CFG);backend.begin(Budget())
+        with self.assertRaisesRegex(RagError,'^voyage refused the request: 429 rate limited, retry in 20s$'):
+            backend.invoke('voyage',{'method':'embed'})
+
     def test_terminal_done_is_not_a_provider_answer(self):
         class DoneBus:
             def call(self,*args,**kwargs):return CallDone(SimpleNamespace(body='{"status":"ok","result":{}}'))
