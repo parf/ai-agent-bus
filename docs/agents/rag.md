@@ -74,6 +74,7 @@ agent-bus call '#rag@node.example' '{"method":"prompts","action":"set","namespac
 2. Register the name with owner-only access and hand its token privately to the runner, as for [agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves); the runner does not register this mode.
 3. Set `enabled:true` for `rag` in the [runner inventory](../runner/configuration.md#inventory), preserving other entries.
 4. Copy the [Configuration example](../../src/agents/rag/config.json.dist), set the record Configuration, provision the collection and grants below, reload the runner.
+5. Give every table its classification prompts ([Try this first](#try-this-first)) before the first upsert: an upsert into a table without them is refused. Each upsert labels its text with one paid `#ai` call, besides its embedding.
 
 - It is a kept, sandboxed package with one worker, serializing replacement and prompt-cache changes.
 - Help works before Configuration is set: `agent-bus help '#rag@node.example'` and the status ask answer on an unconfigured helper, while ordinary text is refused as invalid JSON. `capabilities` also works before setup; other valid data calls require Configuration.

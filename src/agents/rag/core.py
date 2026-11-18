@@ -33,6 +33,12 @@ def finite(value):
     return value if type(value) is float and math.isfinite(value) else None
 
 
+
+
+def no_prompts(v):
+    """A table without classification prompts: every upsert labels its text, so the table needs labels first."""
+    return f'classification prompts are not configured for table {v.get("tableName")!r}; set them with method prompts, action set'
+
 class Core:
     def __init__(self,cfg,backend,kv,keyword=None):
         self.cfg=config(cfg);self.backend=backend;self.cache=Cache(kv);self.keyword=keyword;self.catalogue=Catalogue(kv,backend,self.cfg);self.index_state={}
@@ -40,18 +46,19 @@ class Core:
     def verify(self):
         try:
             info=self.backend.qdrant('GET','')
-            if info.get('status') not in ('green','yellow'):raise RagError('collection is not healthy')
+            if info.get('status') not in ('green','yellow'):raise RagError(f'collection {self.cfg["collection"]} is not healthy (Qdrant status {info.get("status")!r})')
             params=info['config']['params']; vectors=params['vectors']
-            if type(vectors.get('size')) is not int or vectors.get('size')!=self.cfg['dimensions'] or vectors.get('distance')!='Cosine' or vectors.get('on_disk',False) or info['config'].get('quantization_config') is not None:raise RagError('collection vector settings mismatch')
+            if type(vectors.get('size')) is not int or vectors.get('size')!=self.cfg['dimensions'] or vectors.get('distance')!='Cosine' or vectors.get('on_disk',False) or info['config'].get('quantization_config') is not None:raise RagError(f'collection {self.cfg["collection"]} vector settings do not match Configuration: expected size {self.cfg["dimensions"]}, Cosine, not on disk, no quantization')
             # The owner creates the collection; keyword search needs its sparse vector, and a collection without one still serves everything else.
             word=(params.get('sparse_vectors') or {}).get(BM25_VECTOR)
             self.bm25=self.cfg['keyword_search']=='builtin' and isinstance(word,dict) and word.get('modifier')=='idf'
             self.keyword_state=NO_VECTOR if not isinstance(word,dict) else NO_IDF if word.get('modifier')!='idf' else None
             if self.keyword_state is not None:self.indexed=False
             metadata=info['config'].get('metadata',{})
-            if metadata.get('embedding_model')!=self.cfg['embedding_model']:raise RagError('collection embedding model mismatch')
+            if metadata.get('embedding_model')!=self.cfg['embedding_model']:raise RagError(f'collection {self.cfg["collection"]} is for embedding_model {metadata.get("embedding_model")!r}, Configuration says {self.cfg["embedding_model"]!r}')
             indexes=info['payload_schema']
-            if any(indexes.get(k,{}).get('data_type')!='keyword' for k in INDEXES):raise RagError('collection needs owner-created keyword indexes')
+            missing=[k for k in INDEXES if indexes.get(k,{}).get('data_type')!='keyword']
+            if missing:raise RagError(f'collection {self.cfg["collection"]} is missing keyword index: {", ".join(missing)}')
             # complete's own index, which keyword_index creates; the rest of the agent works without it.
             found=indexes.get(PREFIX_FIELD) or {}
             params=found.get('params') or {}
@@ -141,7 +148,7 @@ class Core:
         source,chunks=extract(v); dimensions=self.cfg['dimensions']
         if len(chunks)*dimensions>SCALARS_MAX:raise RagError('chunks times dimensions exceeds 8192 scalars before provider work')
         settings=repo.prompt('get',v['tableName'])
-        if settings is None:raise RagError('classification prompts are not configured')
+        if settings is None:raise RagError(no_prompts(v))
         # Upper bound every possible selected label, before paying either provider.
         keys=sorted(settings['labels'],key=lambda x:len(dumps(x,ascii=True)),reverse=True)[:settings['top_k']]
         label_budget=sum(len(dumps(k,ascii=True))+26 for k in keys)+2
@@ -200,7 +207,7 @@ class Core:
     def classify(self,v,repo):
         """Labels for a text, as upsert would assign them, without storing anything: one paid #ai call."""
         settings=repo.prompt('get',v['tableName'])
-        if settings is None:raise RagError('classification prompts are not configured')
+        if settings is None:raise RagError(no_prompts(v))
         source,_=extract(v)
         request=self._classification(settings,source)
         if len(dumps(request).encode())>(1<<20)-1024:raise RagError('provider request exceeds 1 MiB before provider work')
@@ -335,7 +342,7 @@ class Core:
         text(source,'bigfile text',LARGE_MAX)
         pieces=mdchunks.chunks(source)
         settings=repo.prompt('get',v['tableName'])
-        if settings is None:raise RagError('classification prompts are not configured')
+        if settings is None:raise RagError(no_prompts(v))
         # Jev reads at most 32 KiB: a large file is classified by its first 32 KiB of text.
         classification=self._classification(settings,source.encode()[:DATA_MAX].decode('utf-8',errors='ignore'))
         stored=self._reusable(v,repo)

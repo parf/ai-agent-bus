@@ -30,7 +30,8 @@ class Agent:
             backend=Blocks(bus,cfg)
             kv=OwnKV(bus,lambda:self.core.budget)
             self.core=Core(cfg,backend,kv)
-        except RagError:pass
+        except RagError as error:
+            if cfg:self.problem=f'invalid RAG Configuration: {error}'   # say which field, not only that one is wrong
     def capabilities(self):
         # Static discovery is deliberately independent of provider and storage readiness.
         return {'version':VERSION,'methods':list(METHODS),'modes':list(SEARCH_MODES),

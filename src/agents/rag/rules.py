@@ -220,7 +220,10 @@ def parse(raw):
 
 def config(v):
     required={'qdrant','voyage','ai','collection','embedding_model','dimensions'}
-    if not isinstance(v,dict) or set(v)-required-{'decision_model','keyword_search','rerank_model','classify'} or not required<=set(v): raise RagError('configure block names, collection, embedding_model and dimensions')
+    optional={'decision_model','keyword_search','rerank_model','classify'}
+    if not isinstance(v,dict):raise RagError('Configuration must be a JSON object')
+    for k in sorted(required-set(v)):raise RagError(f'required field {k} is missing')
+    for k in sorted(set(v)-required-optional):raise RagError(f'unknown field {k}')
     v=dict(v)
     # Off by default: classify is the one extra that pays, so the owner turns it on.
     if type(v.setdefault('classify',False)) is not bool: raise RagError('classify must be true or false')

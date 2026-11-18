@@ -165,6 +165,10 @@ class ClassifyOff(Base):
     def test_the_setting_is_a_boolean(self):
         for bad in ('true',1,None):
             with self.subTest(value=bad),self.assertRaisesRegex(RagError,'classify must be true or false'):config({**CFG,'classify':bad})
+        # A misconfiguration names the field to fix.
+        for cfg,error in (({k:v for k,v in CFG.items() if k!='collection'},'^required field collection is missing$'),
+                          ({**CFG,'colection':'x'},'^unknown field colection$')):
+            with self.subTest(error=error),self.assertRaisesRegex(RagError,error):config(cfg)
 
 
 class Classify(Base):
@@ -187,7 +191,7 @@ class Classify(Base):
         self.store.probabilities={'drink':.75,'other':.9}
         self.assertEqual(self.run_('classify',tableName='notes',data='x'),{'labels':{'other':.9},'probabilities':{'other':.9,'drink':.75}})
     def test_input_and_prompts_are_checked_before_the_paid_call(self):
-        for fields,error in (({'tableName':'unset','data':'x'},'prompts are not configured'),
+        for fields,error in (({'tableName':'unset','data':'x'},"prompts are not configured for table 'unset'; set them with method prompts, action set"),
                              ({'tableName':'notes','data':'{not json','mime-type':'application/json'},''),
                              ({'tableName':'notes','data':''},'')):
             with self.subTest(fields=fields),self.assertRaisesRegex(RagError,error):self.run_('classify',**fields)

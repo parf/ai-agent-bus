@@ -39,7 +39,7 @@ class Blocks:
             if status and int(status[1]) in (400,401,403,404,405,413,415,422):
                 raise Refused(target+' rejected request (HTTP '+status[1]+')')
             role=re.fullmatch(r'error: requires (read|write|admin) role',raw) if isinstance(raw,str) else None
-            if target=='qdrant' and role:raise Refused('Qdrant grant missing: requires '+role[1]+' role')
+            if target=='qdrant' and role:raise Refused('Qdrant grant missing: requires '+role[1]+' role; grant this agent '+role[1]+' on '+self.cfg['qdrant'])
             if not isinstance(raw,str) or raw.startswith(('error:','unsupported:')):raise RagError(target+' refused the request')
             return loads(raw)
         except BusError:
@@ -61,7 +61,7 @@ class Blocks:
         try:data,_=self.bus.record(record).bigfile.get(name,max_size=max_size)
         except Refusal as error:
             if error.status==404:raise NamedRefusal('bigfile_unavailable','the referenced bigfile is absent or expired; send it again') from None
-            if error.status==403:raise NamedRefusal('bigfile_forbidden','this RAG instance is not admitted to '+record+'\'s bigfiles') from None
+            if error.status==403:raise NamedRefusal('bigfile_forbidden','this RAG instance is not admitted to '+record+'\'s bigfiles; add this agent to its allow list') from None
             if error.status==413:raise NamedRefusal('bigfile_too_large','the referenced bigfile exceeds 1 MiB') from None
             raise RagError('bigfile download refused') from None
         except InvalidArgument:raise NamedRefusal('bigfile_too_large','the referenced bigfile exceeds 1 MiB') from None
