@@ -1,8 +1,8 @@
-# Agent harness: the parts agent-bus provides
+# AI agent harness: components agent-bus provides
 
 📌 **TL;DR:**
 - **Problem:** an AI agent needs more than a model loop: something must start it, wake it, give it tools, hold its passwords and limit what it may do.
-- **Outcome:** agent-bus provides those essential harness components for Claude Code, Codex, OpenCode and any other agent; the ACL and the runner are part of that harness.
+- **Outcome:** agent-bus provides those essential harness components for any agent: lifecycle, wake-up, tools, permissions (ACL), secrets and a sandbox.
 - **Start:** see the [harness components](#harness-components) and where each one is documented.
 
 ## Why you'd want it

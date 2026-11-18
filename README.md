@@ -133,14 +133,15 @@ flowchart LR
 <a href="src/clients/examples/README.md">Examples</a> in all six languages call each other over one bus.</dd>
 </dl>
 
-### Essential harness components
+### AI agent harness
 
-agent-bus provides essential harness components around AI coding sessions, scripts and any other agent; the ACL and the runner are part of that harness. [Which parts, and where](docs/harness.md#harness-components)
+agent-bus provides essential harness components for every agent, from AI coding sessions to plain scripts. [Which parts, and where](docs/harness.md#harness-components)
 
-- 🧭 **Supervise:** the runner starts, confines and restarts managed agents; `tmux-sessions` brings AI sessions back.
-- ⏰ **Wake:** messages are pushed into live sessions, and schedules and inboxes start work without a person.
-- 🧰 **Tools:** MCP tools and ready-made helpers, with no passwords handed to the model.
-- 🛡️ **Permissions:** an ACL on every call, secrets kept inside helpers, and a sandbox for managed code. This adds to your AI tool's own permissions; it does not replace them.
+- 🧭 **Lifecycle:** the runner starts, supervises and restarts agents.
+- ⏰ **Wake-up:** push, inboxes and schedules start work without a person.
+- 🧰 **Tools:** MCP tools and helpers; passwords never reach the model.
+- 🛡️ **Permissions:** an ACL on every call between agents, on top of your AI tool's own.
+- 📦 **Sandbox:** network, file and resource limits for managed agents.
 
 ### Web management panel
 
