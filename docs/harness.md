@@ -12,14 +12,6 @@
 - 🔑 **You cannot hand an agent a password.** Now helpers hold the passwords and the agent only calls them.
 - 🛡️ **An agent may call anything it can reach.** Now the ACL decides whom it may call, and the runner sandbox decides what managed code may touch.
 
-## Try this first
-
-See the agents your bus already runs:
-
-```sh
-agent-bus ls --kind=agent
-```
-
 ## Inner and outer harness
 
 | Part | Who provides it | What it covers |
