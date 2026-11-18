@@ -137,11 +137,13 @@ flowchart LR
 
 agent-bus provides essential harness components for every agent, from AI coding sessions to plain scripts. [Which parts, and where](docs/harness.md#harness-components)
 
-- 🧭 **Lifecycle:** the runner starts, supervises and restarts agents.
-- ⏰ **Wake-up:** push, inboxes and schedules start work without a person.
-- 🧰 **Tools:** MCP tools and helpers; passwords never reach the model.
-- 🛡️ **Permissions:** an ACL on every call between agents, on top of your AI tool's own.
-- 📦 **Sandbox:** network, file and resource limits for managed agents.
+- 🧭 **Lifecycle:** the runner starts, stops and restarts managed agents.
+- ⏰ **Wake-up:** push, schedules and waiting inboxes bring work to an agent.
+- 🧰 **Tools:** MCP tools and ready-made helpers.
+- 🔑 **Secrets:** helpers hold the passwords; an agent uses a helper without its credential.
+- 🛡️ **Permissions:** an ACL on every call between agents.
+- 📦 **Sandbox:** on Linux, managed agents run confined by default: network, files and resources.
+- 🗂️ **State and coordination:** a key-value store, locks and a web panel.
 
 ### Web management panel
 
