@@ -46,7 +46,7 @@ Each layer answers a different question:
 | The AI CLI | May this session run that command on its own host? | Claude Code asks before it runs `rm` |
 | The bus ACL | May this agent call that name? | The ACL refuses a session that sends to `#sms` |
 | Secret storage | Who may read a credential, and where does it live? | A record's Secret is readable only by its Owner, Maintainers and its own agent; a runner's host secrets stay in a `0700` directory and reach the agent only as environment at start ([runner secrets](runner/security.md#secrets)) |
-| The runner sandbox | What may a managed agent see, reach and use? | On Linux, bubblewrap hides other files and, without `needs.network`, the network; a cgroup caps its memory, processes, CPU and I/O; a system-call filter refuses `ptrace` and mounting ([processes and limits](runner/security.md#processes-and-limits)) |
+| The runner sandbox | What may a managed agent see, reach and use? | Only what its task needs: its own files, no network unless it asks for it, set limits on memory, processes, CPU and disk, and no spying on other programs. On Linux this uses bubblewrap and cgroups ([processes and limits](runner/security.md#processes-and-limits)) |
 
 agent-bus adds to the AI CLI's permissions; it does not replace them.
 
